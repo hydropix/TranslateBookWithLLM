@@ -2,10 +2,17 @@
 Flask web server for translation API with WebSocket support
 """
 import os
+import sys
 from datetime import datetime
 from flask import Flask, send_from_directory
 from flask_cors import CORS
 from flask_socketio import SocketIO
+
+# Fix Windows console encoding for emojis
+if sys.platform == 'win32':
+    import codecs
+    sys.stdout = codecs.getwriter('utf-8')(sys.stdout.buffer, 'strict')
+    sys.stderr = codecs.getwriter('utf-8')(sys.stderr.buffer, 'strict')
 
 from src.config import (
     API_ENDPOINT as DEFAULT_OLLAMA_API_ENDPOINT,
