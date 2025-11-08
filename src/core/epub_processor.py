@@ -789,10 +789,12 @@ async def translate_epub_file(input_filepath, output_filepath,
                               progress_callback=None, log_callback=None, stats_callback=None,
                               check_interruption_callback=None, custom_instructions="",
                               llm_provider="ollama", gemini_api_key=None, openai_api_key=None,
-                              enable_post_processing=False, post_processing_instructions=""):
+                              enable_post_processing=False, post_processing_instructions="",
+                              simple_mode=False, context_window=2048, auto_adjust_context=True,
+                              min_chunk_size=5):
     """
     Translate an EPUB file
-    
+
     Args:
         input_filepath (str): Path to input EPUB
         output_filepath (str): Path to output EPUB
@@ -805,14 +807,89 @@ async def translate_epub_file(input_filepath, output_filepath,
         log_callback (callable): Logging callback
         stats_callback (callable): Statistics callback
         check_interruption_callback (callable): Interruption check callback
+        custom_instructions (str): Additional translation instructions
+        llm_provider (str): LLM provider (ollama/gemini/openai)
+        gemini_api_key (str): Gemini API key
+        openai_api_key (str): OpenAI API key
+        enable_post_processing (bool): Enable post-processing
+        post_processing_instructions (str): Post-processing instructions
+        simple_mode (bool): Use simple mode (extract pure text, translate, rebuild)
+        context_window (int): Context window size for LLM
+        auto_adjust_context (bool): Auto-adjust context based on model
+        min_chunk_size (int): Minimum chunk size
     """
     if not os.path.exists(input_filepath):
         err_msg = f"ERROR: Input EPUB file '{input_filepath}' not found."
-        if log_callback: 
+        if log_callback:
             log_callback("epub_input_file_not_found", err_msg)
-        else: 
+        else:
             print(err_msg)
         return
+
+    # Route to simple mode if enabled
+    if simple_mode:
+        if log_callback:
+            log_callback("epub_simple_mode_active", "Simple mode activated: extracting pure text for translation")
+
+        from .epub_simple_processor import (
+            extract_pure_text_from_epub,
+            translate_text_as_string,
+            create_simple_epub
+        )
+
+        try:
+            # Phase 1: Extract pure text
+            pure_text, metadata = await extract_pure_text_from_epub(input_filepath, log_callback)
+
+            # Phase 2: Translate the text
+            translated_text = await translate_text_as_string(
+                pure_text,
+                source_language,
+                target_language,
+                model_name,
+                cli_api_endpoint,
+                chunk_target_lines_arg,
+                progress_callback=progress_callback,
+                log_callback=log_callback,
+                stats_callback=stats_callback,
+                check_interruption_callback=check_interruption_callback,
+                custom_instructions=custom_instructions,
+                llm_provider=llm_provider,
+                gemini_api_key=gemini_api_key,
+                openai_api_key=openai_api_key,
+                enable_post_processing=enable_post_processing,
+                post_processing_instructions=post_processing_instructions,
+                context_window=context_window,
+                auto_adjust_context=auto_adjust_context,
+                min_chunk_size=min_chunk_size
+            )
+
+            # Phase 3: Rebuild EPUB
+            await create_simple_epub(
+                translated_text,
+                output_filepath,
+                metadata,
+                target_language,
+                log_callback
+            )
+
+            if log_callback:
+                log_callback("epub_simple_mode_complete",
+                           f"Simple mode: EPUB translation complete - {output_filepath}")
+
+            return
+
+        except Exception as e:
+            err_msg = f"ERROR in simple mode EPUB translation: {e}"
+            if log_callback:
+                log_callback("epub_simple_mode_error", err_msg)
+                import traceback
+                log_callback("epub_simple_mode_traceback", traceback.format_exc())
+            else:
+                print(err_msg)
+                import traceback
+                traceback.print_exc()
+            return
 
     all_translation_jobs = []
     parsed_xhtml_docs = {}
@@ -968,8 +1045,12 @@ async def translate_epub_file(input_filepath, output_filepath,
                         # Log if still missing placeholders after all retries
                         if missing:
                             if log_callback:
-                                log_callback("epub_placeholders_still_missing", 
+                                log_callback("epub_placeholders_still_missing",
                                            f"WARNING: Some placeholders still missing after all retries: {missing}")
+                                log_callback("epub_suggest_simple_mode",
+                                           "💡 TIP: If you see many placeholder warnings, enable 'Simple Mode' in the web interface. "
+                                           "Simple Mode removes all HTML tags before translation, eliminating placeholder issues. "
+                                           "Perfect for weaker LLM models!")
                     
                     # Restore the tags
                     translated_text = tag_preserver.restore_tags(translated_text, job['tag_map'])

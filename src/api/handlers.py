@@ -165,20 +165,11 @@ async def perform_actual_translation(translation_id, config, state_manager, outp
         output_filepath_on_server = os.path.join(output_dir, config['output_filename'])
         
         input_path_for_translate_module = config.get('file_path')
-        
-        # Debug logging for file paths
-        if input_path_for_translate_module:
-            _log_message_callback("debug_input_path", f"🔍 Input file path: {input_path_for_translate_module}")
-            input_path_obj = Path(input_path_for_translate_module)
-            if input_path_obj.exists():
-                _log_message_callback("debug_input_resolved", f"🔍 Resolved path: {input_path_obj.resolve()}")
-                _log_message_callback("debug_parent_dir", f"🔍 Parent directory: {input_path_obj.parent.name}")
-        
         if config['file_type'] == 'epub':
             if not input_path_for_translate_module:
                 _log_message_callback("epub_error_no_path", "❌ EPUB translation requires a file path from upload.")
                 raise Exception("EPUB translation requires a file_path.")
-            
+
             await translate_epub_file(
                 input_path_for_translate_module,
                 output_filepath_on_server,
@@ -196,7 +187,11 @@ async def perform_actual_translation(translation_id, config, state_manager, outp
                 gemini_api_key=config.get('gemini_api_key', ''),
                 openai_api_key=config.get('openai_api_key', ''),
                 enable_post_processing=config.get('enable_post_processing', False),
-                post_processing_instructions=config.get('post_processing_instructions', '')
+                post_processing_instructions=config.get('post_processing_instructions', ''),
+                simple_mode=config.get('simple_mode', False),
+                context_window=config.get('context_window', 2048),
+                auto_adjust_context=config.get('auto_adjust_context', True),
+                min_chunk_size=config.get('min_chunk_size', 5)
             )
             state_manager.set_translation_field(translation_id, 'result', "[EPUB file translated - download to view]")
             
@@ -274,14 +269,6 @@ async def perform_actual_translation(translation_id, config, state_manager, outp
 
         _log_message_callback("save_process_info", f"💾 Translation process ended. File saved (or partially saved) at: {output_filepath_on_server}")
         state_manager.set_translation_field(translation_id, 'output_filepath', output_filepath_on_server)
-        
-        # Log debug info about uploaded file path for troubleshooting
-        if 'file_path' in config and config['file_path']:
-            _log_message_callback("debug_file_path", f"🔍 Debug - Uploaded file path: {config['file_path']}")
-            upload_path = Path(config['file_path'])
-            if upload_path.exists():
-                _log_message_callback("debug_file_exists", f"🔍 Debug - File exists at: {upload_path.resolve()}")
-                _log_message_callback("debug_path_parts", f"🔍 Debug - Path parts: {upload_path.resolve().parts}")
 
         stats = state_manager.get_translation_field(translation_id, 'stats') or {}
         elapsed_time = time.time() - stats.get('start_time', time.time())

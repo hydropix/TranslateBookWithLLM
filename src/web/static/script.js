@@ -781,7 +781,8 @@ async function processNextFileInQueue() {
         file_type: fileToTranslate.fileType,
         custom_instructions: document.getElementById('customInstructions').value.trim(),
         enable_post_processing: document.getElementById('enablePostProcessing').checked,
-        post_processing_instructions: document.getElementById('postProcessingInstructions').value.trim()
+        post_processing_instructions: document.getElementById('postProcessingInstructions').value.trim(),
+        simple_mode: document.getElementById('simpleMode').checked
     };
 
     if (fileToTranslate.fileType === 'epub' || fileToTranslate.fileType === 'srt') {
@@ -883,6 +884,16 @@ window.addEventListener('DOMContentLoaded', function() {
             postProcessingOptions.style.display = 'block';
         } else {
             postProcessingOptions.style.display = 'none';
+        }
+    });
+
+    // Simple mode checkbox handler
+    document.getElementById('simpleMode').addEventListener('change', (e) => {
+        const simpleModeInfo = document.getElementById('simpleModeInfo');
+        if (e.target.checked) {
+            simpleModeInfo.style.display = 'block';
+        } else {
+            simpleModeInfo.style.display = 'none';
         }
     });
     

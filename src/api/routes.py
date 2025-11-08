@@ -192,7 +192,8 @@ def configure_routes(app, state_manager, output_dir, start_translation_job, star
             'llm_provider': data.get('llm_provider', 'ollama'),
             'gemini_api_key': data.get('gemini_api_key') or os.getenv('GEMINI_API_KEY', ''),
             'enable_post_processing': data.get('enable_post_processing', False),
-            'post_processing_instructions': data.get('post_processing_instructions', '')
+            'post_processing_instructions': data.get('post_processing_instructions', ''),
+            'simple_mode': data.get('simple_mode', False)
         }
 
         if 'file_path' in data:
