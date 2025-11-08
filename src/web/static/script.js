@@ -555,8 +555,8 @@ function showMessage(text, type) {
 function updateTranslationPreview(response) {
     const lastTranslationPreview = document.getElementById('lastTranslationPreview');
 
-    // Extract text between <COMPLETED> tags from the response
-    const translateMatch = response.match(/<COMPLETED>([\s\S]*?)<\/COMPLETED>/);
+    // Extract text between <TRANSLATION> tags from the response
+    const translateMatch = response.match(/<TRANSLATION>([\s\S]*?)<\/TRANSLATION>/);
     if (translateMatch) {
         let translatedText = translateMatch[1].trim();
 

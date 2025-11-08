@@ -52,13 +52,42 @@ class LLMProvider(ABC):
         pass
     
     def extract_translation(self, response: str) -> Optional[str]:
-        """Extract translation from response using configured tags"""
+        """
+        Extract translation from response using configured tags with strict validation.
+
+        Returns the content between TRANSLATE_TAG_IN and TRANSLATE_TAG_OUT.
+        Prefers responses where tags are at exact boundaries for better reliability.
+        """
         if not response:
             return None
-            
+
+        # Trim whitespace from response
+        response = response.strip()
+
+        # STRICT VALIDATION: Check if response starts and ends with correct tags
+        starts_correctly = response.startswith(TRANSLATE_TAG_IN)
+        ends_correctly = response.endswith(TRANSLATE_TAG_OUT)
+
+        if starts_correctly and ends_correctly:
+            # Perfect format - extract content between boundary tags
+            content = response[len(TRANSLATE_TAG_IN):-len(TRANSLATE_TAG_OUT)]
+            return content.strip()
+
+        # FALLBACK: Try regex search for tags anywhere in response (less strict)
         match = self._compiled_regex.search(response)
         if match:
-            return match.group(1).strip()
+            extracted = match.group(1).strip()
+
+            # Warn if extraction was from middle of response (indicates LLM didn't follow instructions)
+            if not starts_correctly or not ends_correctly:
+                print(f"⚠️  Warning: Translation tags found but not at response boundaries.")
+                print(f"   Response started with tags: {starts_correctly}")
+                print(f"   Response ended with tags: {ends_correctly}")
+                print(f"   This may indicate the LLM added extra text. Using extracted content anyway.")
+
+            return extracted
+
+        # No tags found at all
         return None
     
     async def translate_text(self, prompt: str) -> Optional[str]:

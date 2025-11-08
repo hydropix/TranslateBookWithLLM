@@ -40,11 +40,11 @@ SRT_MAX_CHARS_PER_BLOCK = int(os.getenv('SRT_MAX_CHARS_PER_BLOCK', '500'))
 DEFAULT_SOURCE_LANGUAGE = os.getenv('DEFAULT_SOURCE_LANGUAGE', 'English')
 DEFAULT_TARGET_LANGUAGE = os.getenv('DEFAULT_TARGET_LANGUAGE', 'French')
 
-# Translation tags
-TRANSLATE_TAG_IN = "<COMPLETED>"
-TRANSLATE_TAG_OUT = "</COMPLETED>"
-INPUT_TAG_IN = "<TODO>"
-INPUT_TAG_OUT = "</TODO>"
+# Translation tags - Improved for LLM clarity and reliability
+TRANSLATE_TAG_IN = "<TRANSLATION>"
+TRANSLATE_TAG_OUT = "</TRANSLATION>"
+INPUT_TAG_IN = "<SOURCE_TEXT>"
+INPUT_TAG_OUT = "</SOURCE_TEXT>"
 
 # Sentence terminators
 SENTENCE_TERMINATORS = tuple(list(".!?") + ['."', '?"', '!"', '."', ".'", "?'", "!'", ":", ".)"])

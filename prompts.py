@@ -78,13 +78,24 @@ English: "This is ⟦TAG0⟧very important⟦TAG1⟧ information"
 
 # OUTPUT FORMAT
 
+**CRITICAL OUTPUT RULES:**
 1. Translate ONLY the text between "{INPUT_TAG_IN}" and "{INPUT_TAG_OUT}" tags
-2. Output ONLY your translation wrapped in: {translate_tag_in}Your translation here{translate_tag_out}
-3. No explanations, comments, notes, or additional text outside the tags
-4. Preserve all spacing, indentation, and line breaks exactly as in source
+2. Your response MUST start with {translate_tag_in} (first characters, no text before)
+3. Your response MUST end with {translate_tag_out} (last characters, no text after)
+4. Include NOTHING before {translate_tag_in} and NOTHING after {translate_tag_out}
+5. Do NOT add explanations, comments, notes, or greetings
+6. Do NOT repeat the input text or tags
+7. Preserve all spacing, indentation, and line breaks exactly as in source
 
-**Expected output format:**
-{translate_tag_in}
+**INCORRECT examples (DO NOT do this):**
+❌ "Here is the translation: {translate_tag_in}Voici le texte...{translate_tag_out}"
+❌ "{translate_tag_in}Voici le texte...{translate_tag_out} (This is natural French)"
+❌ "Sure! {translate_tag_in}Voici le texte...{translate_tag_out}"
+❌ "Voici le texte..." (missing tags entirely)
+❌ "{translate_tag_in}Voici le texte..." (missing closing tag)
+
+**CORRECT format (ONLY this):**
+✅ {translate_tag_in}
 Votre texte traduit ici avec tous les ⟦TAG0⟧ préservés exactement.
 {translate_tag_out}
 """
@@ -117,6 +128,13 @@ For consistency and natural flow, here's what came immediately before:
 {INPUT_TAG_IN}
 {main_content}
 {INPUT_TAG_OUT}
+
+REMINDER: Output ONLY your translation in this exact format:
+{translate_tag_in}
+your translation here
+{translate_tag_out}
+
+Start with {translate_tag_in} and end with {translate_tag_out}. Nothing before or after.
 
 Provide your translation now:"""
 
@@ -186,14 +204,22 @@ English: "I think it would be better if we left now"
 
 # OUTPUT FORMAT
 
+**CRITICAL OUTPUT RULES:**
 1. Translate ONLY the text between "{INPUT_TAG_IN}" and "{INPUT_TAG_OUT}" tags
-2. Each subtitle has an index marker: [index]text - PRESERVE these markers
-3. Wrap your ENTIRE translation block in: {translate_tag_in}...{translate_tag_out}
-4. Maintain line breaks between indexed subtitles
-5. No explanations or additional text outside the tags
+2. Each subtitle has an index marker: [index]text - PRESERVE these markers exactly
+3. Your response MUST start with {translate_tag_in} (first characters, no text before)
+4. Your response MUST end with {translate_tag_out} (last characters, no text after)
+5. Include NOTHING before {translate_tag_in} and NOTHING after {translate_tag_out}
+6. Maintain line breaks between indexed subtitles
+7. Do NOT add explanations, comments, or greetings
 
-**Expected output format:**
-{translate_tag_in}
+**INCORRECT examples (DO NOT do this):**
+❌ "Here are the subtitles: {translate_tag_in}[1]Texte...{translate_tag_out}"
+❌ "{translate_tag_in}[1]Texte...{translate_tag_out} Hope this helps!"
+❌ "[1]Texte traduit..." (missing tags entirely)
+
+**CORRECT format (ONLY this):**
+✅ {translate_tag_in}
 [1]Première ligne traduite
 [2]Deuxième ligne traduite
 {translate_tag_out}
@@ -234,6 +260,14 @@ For continuity and consistency, here's the previous subtitle block:
 {INPUT_TAG_IN}
 {chr(10).join(formatted_subtitles)}
 {INPUT_TAG_OUT}
+
+REMINDER: Output format must be:
+{translate_tag_in}
+[1]translated subtitle 1
+[2]translated subtitle 2
+{translate_tag_out}
+
+Start with {translate_tag_in} and end with {translate_tag_out}. Nothing before or after.
 
 Provide your translation now:"""
 
@@ -305,13 +339,22 @@ def generate_post_processing_prompt(translated_text, target_language="French",
 
 # OUTPUT FORMAT
 
+**CRITICAL OUTPUT RULES:**
 1. Review ONLY the text between "{INPUT_TAG_IN}" and "{INPUT_TAG_OUT}" tags
-2. Output ONLY your improved version wrapped in: {translate_tag_in}Improved text{translate_tag_out}
-3. No explanations, comments, or additional text outside the tags
-4. Keep ALL placeholders (⟦TAG0⟧, etc.) exactly as they appear
+2. Your response MUST start with {translate_tag_in} (first characters, no text before)
+3. Your response MUST end with {translate_tag_out} (last characters, no text after)
+4. Include NOTHING before {translate_tag_in} and NOTHING after {translate_tag_out}
+5. Do NOT add explanations, comments, notes, or greetings
+6. Keep ALL placeholders (⟦TAG0⟧, etc.) exactly as they appear
 
-**Expected output format:**
-{translate_tag_in}
+**INCORRECT examples (DO NOT do this):**
+❌ "Here is the improved version: {translate_tag_in}Texte amélioré...{translate_tag_out}"
+❌ "{translate_tag_in}Texte amélioré...{translate_tag_out} (Much better now!)"
+❌ "Sure, I've improved it: {translate_tag_in}Texte...{translate_tag_out}"
+❌ "Texte amélioré..." (missing tags entirely)
+
+**CORRECT format (ONLY this):**
+✅ {translate_tag_in}
 Texte amélioré avec tous les ⟦TAG0⟧ préservés exactement.
 {translate_tag_out}
 """
@@ -332,6 +375,13 @@ Texte amélioré avec tous les ⟦TAG0⟧ préservés exactement.
 {INPUT_TAG_IN}
 {translated_text}
 {INPUT_TAG_OUT}
+
+REMINDER: Output ONLY your improved version in this exact format:
+{translate_tag_in}
+improved text here
+{translate_tag_out}
+
+Start with {translate_tag_in} and end with {translate_tag_out}. Nothing before or after.
 
 Provide your refined version now:"""
 
