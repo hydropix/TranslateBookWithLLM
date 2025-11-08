@@ -19,6 +19,13 @@ OLLAMA_NUM_CTX = int(os.getenv('OLLAMA_NUM_CTX', '2048'))
 MAX_TRANSLATION_ATTEMPTS = int(os.getenv('MAX_TRANSLATION_ATTEMPTS', '2'))
 RETRY_DELAY_SECONDS = int(os.getenv('RETRY_DELAY_SECONDS', '2'))
 
+# Context optimization settings
+MIN_RECOMMENDED_NUM_CTX = 4096  # Minimum recommended context for chunk_size=25
+SAFETY_MARGIN = 1.2  # 20% safety margin for token estimation
+AUTO_ADJUST_CONTEXT = os.getenv("AUTO_ADJUST_CONTEXT", "true").lower() == "true"
+MIN_CHUNK_SIZE = int(os.getenv("MIN_CHUNK_SIZE", "5"))
+MAX_CHUNK_SIZE = int(os.getenv("MAX_CHUNK_SIZE", "100"))
+
 # LLM Provider configuration
 LLM_PROVIDER = os.getenv('LLM_PROVIDER', 'ollama')  # 'ollama', 'gemini', or 'openai'
 GEMINI_API_KEY = os.getenv('GEMINI_API_KEY', '')
@@ -95,7 +102,12 @@ class TranslationConfig:
     max_attempts: int = MAX_TRANSLATION_ATTEMPTS
     retry_delay: int = RETRY_DELAY_SECONDS
     context_window: int = OLLAMA_NUM_CTX
-    
+
+    # Context optimization
+    auto_adjust_context: bool = AUTO_ADJUST_CONTEXT
+    min_chunk_size: int = MIN_CHUNK_SIZE
+    max_chunk_size: int = MAX_CHUNK_SIZE
+
     # Interface-specific
     interface_type: str = "cli"  # or "web"
     enable_colors: bool = True
@@ -134,6 +146,9 @@ class TranslationConfig:
             max_attempts=request_data.get('max_attempts', MAX_TRANSLATION_ATTEMPTS),
             retry_delay=request_data.get('retry_delay', RETRY_DELAY_SECONDS),
             context_window=request_data.get('context_window', OLLAMA_NUM_CTX),
+            auto_adjust_context=request_data.get('auto_adjust_context', AUTO_ADJUST_CONTEXT),
+            min_chunk_size=request_data.get('min_chunk_size', MIN_CHUNK_SIZE),
+            max_chunk_size=request_data.get('max_chunk_size', MAX_CHUNK_SIZE),
             interface_type="web",
             enable_interruption=True,
             llm_provider=request_data.get('llm_provider', LLM_PROVIDER),

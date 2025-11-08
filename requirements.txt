@@ -8,3 +8,4 @@ httpx
 lxml
 python-dotenv
 aiofiles
+tiktoken>=0.5.0

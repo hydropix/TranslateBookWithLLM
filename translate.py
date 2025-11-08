@@ -55,6 +55,29 @@ if __name__ == "__main__":
     if args.provider == "openai" and not args.openai_api_key:
         parser.error("--openai_api_key is required when using openai provider")
     
+    # PHASE 2: Validation of configuration at startup
+    if args.provider == "ollama":
+        from src.core.context_optimizer import validate_configuration
+        from src.config import OLLAMA_NUM_CTX, AUTO_ADJUST_CONTEXT
+
+        warnings = validate_configuration(
+            chunk_size=args.chunksize,
+            num_ctx=OLLAMA_NUM_CTX,
+            model_name=args.model
+        )
+
+        for warning in warnings:
+            logger.warning(warning)
+
+        # Optional: Ask for confirmation if configuration is suboptimal
+        if warnings and not AUTO_ADJUST_CONTEXT:
+            print("\n⚠️  Configuration warnings detected (see above)")
+            print("Consider enabling AUTO_ADJUST_CONTEXT=true in .env file")
+            response = input("Continue anyway? (y/n): ")
+            if response.lower() != 'y':
+                print("Aborted. Please adjust configuration and try again.")
+                exit(1)
+
     # Log translation start
     logger.info("Translation Started", LogType.TRANSLATION_START, {
         'source_lang': args.source_lang,
@@ -69,7 +92,7 @@ if __name__ == "__main__":
         'custom_instructions': args.custom_instructions,
         'post_processing': args.post_process
     })
-    
+
     # Create legacy callback for backward compatibility
     log_callback = logger.create_legacy_callback()
 
