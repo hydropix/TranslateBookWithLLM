@@ -21,6 +21,11 @@ socket.on('disconnect', () => {
 socket.on('translation_update', (data) => {
     if (currentProcessingJob && data.translation_id === currentProcessingJob.translationId) {
         handleTranslationUpdate(data);
+
+        // Handle structured log entries for translation preview
+        if (data.log_entry && data.log_entry.type === 'llm_response' && data.log_entry.data && data.log_entry.data.response) {
+            updateTranslationPreview(data.log_entry.data.response);
+        }
     } else {
         console.log("Received update for a different/old job:", data.translation_id);
     }
@@ -547,14 +552,53 @@ function showMessage(text, type) {
     const messagesDiv = document.getElementById('messages');
     messagesDiv.innerHTML = text ? `<div class="message ${type}">${text}</div>` : '';
 }
+function updateTranslationPreview(response) {
+    const lastTranslationPreview = document.getElementById('lastTranslationPreview');
+
+    // Extract text between <COMPLETED> tags from the response
+    const translateMatch = response.match(/<COMPLETED>([\s\S]*?)<\/COMPLETED>/);
+    if (translateMatch) {
+        let translatedText = translateMatch[1].trim();
+
+        // Remove placeholder tags (⟦TAG0⟧, ⟦TAG1⟧, etc.) for cleaner preview
+        translatedText = translatedText.replace(/⟦TAG\d+⟧/g, '');
+
+        // Update the last translation preview section with just the translated text
+        lastTranslationPreview.innerHTML = `<div style="background: #ffffff; border-left: 3px solid #22c55e; padding: 15px; color: #000000; white-space: pre-wrap; line-height: 1.6;">${escapeHtml(translatedText)}</div>`;
+    }
+}
+
 function addLog(message) {
     const logContainer = document.getElementById('logContainer');
     const timestamp = new Date().toLocaleTimeString();
-    
+
+    // Filter out technical/verbose messages - only show important logs and errors
+    const shouldSkip =
+        message.includes('LLM Request') ||
+        message.includes('LLM Response') ||
+        message.includes('🔍 Input file path:') ||
+        message.includes('🔍 Resolved path:') ||
+        message.includes('🔍 Parent directory:') ||
+        message.includes('📋 Path parts:') ||
+        message.includes('📋 Parent directory name:') ||
+        message.includes('📋 Expected uploads directory:') ||
+        message.includes('🔍 File is confirmed') ||
+        message.includes('🔍 File is NOT in uploads') ||
+        message.includes('🗑️ Cleaned up uploaded source file:') ||
+        message.includes('ℹ️ Skipped cleanup') ||
+        message.includes('🧹 Starting cleanup check') ||
+        message.includes('📁 File path in config:') ||
+        message.includes('🔍 Debug -');
+
+    if (shouldSkip) {
+        return; // Don't add this message to the log
+    }
+
+    // Add to activity log
     logContainer.innerHTML += `<div class="log-entry">
         <span class="log-timestamp">[${timestamp}]</span> ${message}
     </div>`;
-    
+
     logContainer.scrollTop = logContainer.scrollHeight;
 }
 

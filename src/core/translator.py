@@ -12,6 +12,12 @@ from src.config import (
 from prompts import generate_translation_prompt, generate_subtitle_block_prompt, generate_post_processing_prompt
 from .llm_client import default_client, LLMClient, create_llm_client
 from .post_processor import clean_translated_text
+from .context_optimizer import (
+    estimate_tokens_with_margin,
+    adjust_parameters_for_context,
+    validate_configuration,
+    format_estimation_info
+)
 from typing import List, Dict, Tuple, Optional
 
 
@@ -54,12 +60,16 @@ async def generate_translation_request(main_content, context_before, context_aft
         custom_instructions=custom_instructions
     )
     
-    print("\n-------SENT to LLM-------")
-    print(structured_prompt)
-    print("-------SENT to LLM-------\n")
+    # Log the LLM request with structured data for web interface
+    if log_callback:
+        log_callback("llm_request", "Sending request to LLM", data={
+            'type': 'llm_request',
+            'prompt': structured_prompt,
+            'model': model
+        })
 
     start_time = time.time()
-    
+
     # Use provided client or default
     client = llm_client or default_client
     full_raw_response = await client.make_request(structured_prompt, model)
@@ -73,9 +83,14 @@ async def generate_translation_request(main_content, context_before, context_aft
             tqdm.write(f"\n{err_msg}")
         return None
 
-    print("\n-------LLM RESPONSE-------")
-    print(full_raw_response)
-    print("-------LLM RESPONSE-------\n")
+    # Log the LLM response with structured data for web interface
+    if log_callback:
+        log_callback("llm_response", "LLM Response received", data={
+            'type': 'llm_response',
+            'response': full_raw_response,
+            'execution_time': execution_time,
+            'model': model
+        })
 
     translated_text = client.extract_translation(full_raw_response)
     
@@ -229,10 +244,11 @@ async def translate_chunks(chunks, source_language, target_language, model_name,
                           api_endpoint, progress_callback=None, log_callback=None,
                           stats_callback=None, check_interruption_callback=None, custom_instructions="",
                           llm_provider="ollama", gemini_api_key=None, openai_api_key=None,
-                          enable_post_processing=False, post_processing_instructions=""):
+                          enable_post_processing=False, post_processing_instructions="",
+                          context_window=2048, auto_adjust_context=True, min_chunk_size=5):
     """
     Translate a list of text chunks
-    
+
     Args:
         chunks (list): List of chunk dictionaries
         source_language (str): Source language
@@ -243,7 +259,10 @@ async def translate_chunks(chunks, source_language, target_language, model_name,
         log_callback (callable): Logging callback
         stats_callback (callable): Statistics update callback
         check_interruption_callback (callable): Interruption check callback
-        
+        context_window (int): Context window size (num_ctx)
+        auto_adjust_context (bool): Enable automatic context adjustment
+        min_chunk_size (int): Minimum chunk size when auto-adjusting
+
     Returns:
         list: List of translated chunks
     """
@@ -253,8 +272,26 @@ async def translate_chunks(chunks, source_language, target_language, model_name,
     completed_chunks_count = 0
     failed_chunks_count = 0
 
-    if log_callback: 
+    # Get chunk_size from first chunk (assuming consistent chunking)
+    chunk_size = 25  # Default fallback
+    if chunks and 'main_content' in chunks[0]:
+        # Estimate chunk size from first chunk's line count
+        chunk_size = len(chunks[0]['main_content'].split('\n'))
+
+    if log_callback:
         log_callback("txt_translation_loop_start", "Starting segment translation...")
+
+    # PHASE 2: Validation at startup
+    if llm_provider == "ollama" and auto_adjust_context:
+        validation_warnings = validate_configuration(
+            chunk_size=chunk_size,
+            num_ctx=context_window,
+            model_name=model_name
+        )
+
+        for warning in validation_warnings:
+            if log_callback:
+                log_callback("context_validation_warning", warning)
 
     # Create LLM client based on provider or custom endpoint
     llm_client = create_llm_client(llm_provider, gemini_api_key, api_endpoint, model_name, openai_api_key)
@@ -289,6 +326,61 @@ async def translate_chunks(chunks, source_language, target_language, model_name,
                 if stats_callback and total_chunks > 0:
                     stats_callback({'completed_chunks': completed_chunks_count, 'failed_chunks': failed_chunks_count})
                 continue
+
+            # PHASE 2: Estimate and adjust context before sending request
+            if llm_provider == "ollama" and auto_adjust_context:
+                # Generate the prompt (without sending it yet)
+                prompt = generate_translation_prompt(
+                    main_content_to_translate,
+                    context_before_text,
+                    context_after_text,
+                    last_successful_llm_context,
+                    source_language,
+                    target_language,
+                    custom_instructions=custom_instructions
+                )
+
+                # Estimate number of tokens
+                estimation = estimate_tokens_with_margin(
+                    text=prompt,
+                    language=source_language,
+                    apply_margin=True
+                )
+
+                if log_callback and (i == 0 or i % 10 == 0):  # Log periodically to avoid spam
+                    log_callback("context_estimation",
+                        f"Chunk {i+1}: {format_estimation_info(estimation)}")
+
+                # Adjust parameters if necessary
+                adjusted_num_ctx, adjusted_chunk_size, warnings = adjust_parameters_for_context(
+                    estimated_tokens=estimation.estimated_tokens,
+                    current_num_ctx=context_window,
+                    current_chunk_size=chunk_size,
+                    model_name=model_name,
+                    min_chunk_size=min_chunk_size
+                )
+
+                # Log adjustments
+                for warning in warnings:
+                    if log_callback:
+                        log_callback("context_adjustment_warning", warning)
+
+                # Apply adjustments if changed
+                if adjusted_num_ctx != context_window:
+                    context_window = adjusted_num_ctx
+                    # Update the LLM client's context window if possible
+                    if hasattr(llm_client, 'context_window'):
+                        llm_client.context_window = adjusted_num_ctx
+                    if log_callback:
+                        log_callback("context_adjustment_applied",
+                            f"Adjusted context window to {adjusted_num_ctx} tokens for this chunk")
+
+                if adjusted_chunk_size != chunk_size:
+                    # Note: We can't re-chunk dynamically here, just log the warning
+                    if log_callback:
+                        log_callback("chunk_size_warning",
+                            f"⚠️  Chunk size should be reduced to {adjusted_chunk_size} lines, "
+                            f"but current chunk already prepared. Consider restarting with smaller chunk_size.")
 
             translated_chunk_text = await generate_translation_request(
                 main_content_to_translate, context_before_text, context_after_text,
