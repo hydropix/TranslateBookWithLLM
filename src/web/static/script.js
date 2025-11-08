@@ -26,8 +26,6 @@ socket.on('translation_update', (data) => {
         if (data.log_entry && data.log_entry.type === 'llm_response' && data.log_entry.data && data.log_entry.data.response) {
             updateTranslationPreview(data.log_entry.data.response);
         }
-    } else {
-        console.log("Received update for a different/old job:", data.translation_id);
     }
 });
 
@@ -676,6 +674,10 @@ async function processNextFileInQueue() {
     document.getElementById('elapsedTime').textContent = '0s';
     // Don't clear the log when processing next file
     // document.getElementById('logContainer').innerHTML = '';
+
+    // Reset the translation preview for the new file
+    const lastTranslationPreview = document.getElementById('lastTranslationPreview');
+    lastTranslationPreview.innerHTML = '<div style="color: #6b7280; font-style: italic; padding: 10px;">No translation yet...</div>';
 
     if (fileToTranslate.fileType === 'epub') {
         document.getElementById('statsGrid').style.display = 'none';
