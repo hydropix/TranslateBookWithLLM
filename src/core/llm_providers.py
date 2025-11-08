@@ -117,68 +117,50 @@ class OllamaProvider(LLMProvider):
             "think": False,
             "options": {
                 "num_ctx": self.context_window,
-                "truncate": False  # Detect context overflow instead of silent truncation
+                "truncate": False
             }
         }
-        
+
         client = await self._get_client()
         for attempt in range(MAX_TRANSLATION_ATTEMPTS):
             try:
-                # print(f"Ollama API Request to {self.api_endpoint} with model {self.model}")
-                response = await client.post(
-                    self.api_endpoint, 
-                    json=payload, 
-                    timeout=timeout
-                )
+                response = await client.post(self.api_endpoint, json=payload, timeout=timeout)
                 response.raise_for_status()
-                
                 response_json = response.json()
-                response_text = response_json.get("response", "")
-                # print(f"Ollama API Response received: {len(response_text)} characters")
-                return response_text
-                
-            except httpx.TimeoutException as e:
-                    print(f"Ollama API Timeout (attempt {attempt + 1}/{MAX_TRANSLATION_ATTEMPTS}): {e}")
-                    if attempt < MAX_TRANSLATION_ATTEMPTS - 1:
-                        await asyncio.sleep(RETRY_DELAY_SECONDS)
-                        continue
-                    return None
+                return response_json.get("response", "")
+
+            except httpx.TimeoutException:
+                if attempt < MAX_TRANSLATION_ATTEMPTS - 1:
+                    await asyncio.sleep(RETRY_DELAY_SECONDS)
+                    continue
+                return None
             except httpx.HTTPStatusError as e:
-                    error_message = str(e)
-                    if e.response:
-                        try:
-                            error_data = e.response.json()
-                            error_message = error_data.get("error", str(e))
-                        except:
-                            pass
+                error_message = str(e)
+                if e.response:
+                    try:
+                        error_data = e.response.json()
+                        error_message = error_data.get("error", str(e))
+                    except:
+                        pass
 
-                    # Detect context size overflow errors
-                    if any(keyword in error_message.lower()
-                           for keyword in ["context", "truncate", "length", "too long"]):
-                        if self.log_callback:
-                            self.log_callback("error",
-                                f"Context size exceeded! Prompt is too large for model's context window.\n"
-                                f"Error: {error_message}\n"
-                                f"Consider: 1) Reducing chunk_size, or 2) Increasing OLLAMA_NUM_CTX")
-                        raise ContextOverflowError(error_message)
+                if any(keyword in error_message.lower()
+                       for keyword in ["context", "truncate", "length", "too long"]):
+                    if self.log_callback:
+                        self.log_callback("error",
+                            f"Context size exceeded! Prompt is too large for model's context window.\n"
+                            f"Error: {error_message}\n"
+                            f"Consider: 1) Reducing chunk_size, or 2) Increasing OLLAMA_NUM_CTX")
+                    raise ContextOverflowError(error_message)
 
-                    print(f"Ollama API HTTP Error (attempt {attempt + 1}/{MAX_TRANSLATION_ATTEMPTS}): {e}")
-                    if attempt < MAX_TRANSLATION_ATTEMPTS - 1:
-                        await asyncio.sleep(RETRY_DELAY_SECONDS)
-                        continue
-                    return None
-            except json.JSONDecodeError as e:
-                    print(f"Ollama API JSON Decode Error (attempt {attempt + 1}/{MAX_TRANSLATION_ATTEMPTS}): {e}")
-                    if attempt < MAX_TRANSLATION_ATTEMPTS - 1:
-                        await asyncio.sleep(RETRY_DELAY_SECONDS)
-                        continue
-                    return None
-            except Exception as e:
-                    print(f"Ollama API Unknown Error (attempt {attempt + 1}/{MAX_TRANSLATION_ATTEMPTS}): {e}")
-                    if attempt < MAX_TRANSLATION_ATTEMPTS - 1:
-                        await asyncio.sleep(RETRY_DELAY_SECONDS)
-                        continue
-                    return None
+                if attempt < MAX_TRANSLATION_ATTEMPTS - 1:
+                    await asyncio.sleep(RETRY_DELAY_SECONDS)
+                    continue
+                return None
+            except (json.JSONDecodeError, Exception):
+                if attempt < MAX_TRANSLATION_ATTEMPTS - 1:
+                    await asyncio.sleep(RETRY_DELAY_SECONDS)
+                    continue
+                return None
 
         return None
 
