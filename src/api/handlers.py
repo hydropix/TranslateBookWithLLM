@@ -77,7 +77,8 @@ async def perform_actual_translation(translation_id, config, state_manager, outp
             logs = []
         logs.append(log_entry)
         state_manager.set_translation_field(translation_id, 'logs', logs)
-        emit_update(socketio, translation_id, {'log': log_entry['message']}, state_manager)
+        # Send full log entry for structured processing on client side
+        emit_update(socketio, translation_id, {'log': log_entry['message'], 'log_entry': log_entry}, state_manager)
     
     def storage_callback(log_entry):
         """Callback for storing logs"""
@@ -131,6 +132,24 @@ async def perform_actual_translation(translation_id, config, state_manager, outp
             emit_update(socketio, translation_id, {'stats': current_stats}, state_manager)
 
     try:
+        # PHASE 2: Validation and warnings at startup
+        if config.get('llm_provider', 'ollama') == 'ollama':
+            from src.core.context_optimizer import validate_configuration
+
+            warnings = validate_configuration(
+                chunk_size=config.get('chunk_size', 25),
+                num_ctx=config.get('context_window', 2048),
+                model_name=config['model']
+            )
+
+            # Send warnings to client via WebSocket
+            for warning in warnings:
+                emit_update(socketio, translation_id, {
+                    'type': 'warning',
+                    'message': warning
+                }, state_manager)
+                _log_message_callback("context_validation_warning", warning)
+
         # Log translation start with unified logger
         logger.info("Translation Started", LogType.TRANSLATION_START, {
             'source_lang': config['source_language'],
@@ -175,6 +194,7 @@ async def perform_actual_translation(translation_id, config, state_manager, outp
                 custom_instructions=config.get('custom_instructions', ''),
                 llm_provider=config.get('llm_provider', 'ollama'),
                 gemini_api_key=config.get('gemini_api_key', ''),
+                openai_api_key=config.get('openai_api_key', ''),
                 enable_post_processing=config.get('enable_post_processing', False),
                 post_processing_instructions=config.get('post_processing_instructions', '')
             )
@@ -190,7 +210,7 @@ async def perform_actual_translation(translation_id, config, state_manager, outp
 
             # Use unified file processing logic
             from src.utils.file_utils import translate_text_file_with_callbacks
-            
+
             await translate_text_file_with_callbacks(
                 input_path_for_translate_module,
                 output_filepath_on_server,
@@ -206,8 +226,12 @@ async def perform_actual_translation(translation_id, config, state_manager, outp
                 custom_instructions=config.get('custom_instructions', ''),
                 llm_provider=config.get('llm_provider', 'ollama'),
                 gemini_api_key=config.get('gemini_api_key', ''),
+                openai_api_key=config.get('openai_api_key', ''),
                 enable_post_processing=config.get('enable_post_processing', False),
-                post_processing_instructions=config.get('post_processing_instructions', '')
+                post_processing_instructions=config.get('post_processing_instructions', ''),
+                context_window=config.get('context_window', 2048),
+                auto_adjust_context=config.get('auto_adjust_context', True),
+                min_chunk_size=config.get('min_chunk_size', 5)
             )
 
             if os.path.exists(output_filepath_on_server) and state_manager.get_translation_field(translation_id, 'status') not in ['error', 'interrupted_before_save']:
@@ -237,6 +261,7 @@ async def perform_actual_translation(translation_id, config, state_manager, outp
                 custom_instructions=config.get('custom_instructions', ''),
                 llm_provider=config.get('llm_provider', 'ollama'),
                 gemini_api_key=config.get('gemini_api_key', ''),
+                openai_api_key=config.get('openai_api_key', ''),
                 enable_post_processing=config.get('enable_post_processing', False),
                 post_processing_instructions=config.get('post_processing_instructions', '')
             )

@@ -624,25 +624,25 @@ def configure_routes(app, state_manager, output_dir, start_translation_job, star
             data = request.json
             if not data or 'file_paths' not in data:
                 return jsonify({"error": "No file paths provided"}), 400
-            
+
             file_paths = data['file_paths']
             if not isinstance(file_paths, list):
                 return jsonify({"error": "Invalid file paths list"}), 400
-            
+
             deleted_files = []
             failed_files = []
-            
+
             for file_path_str in file_paths:
                 try:
                     file_path = Path(file_path_str)
-                    
+
                     # Security check - ensure file is in uploads directory
                     upload_dir_path = Path(output_dir) / 'uploads'
                     try:
                         # Resolve to absolute paths for comparison
                         file_path_resolved = file_path.resolve()
                         upload_dir_resolved = upload_dir_path.resolve()
-                        
+
                         # Check if file is within uploads directory
                         if not str(file_path_resolved).startswith(str(upload_dir_resolved)):
                             failed_files.append({"file_path": file_path_str, "reason": "Security: File not in uploads directory"})
@@ -650,7 +650,7 @@ def configure_routes(app, state_manager, output_dir, start_translation_job, star
                     except Exception:
                         failed_files.append({"file_path": file_path_str, "reason": "Invalid file path"})
                         continue
-                    
+
                     # Delete the file if it exists
                     if file_path.exists() and file_path.is_file():
                         file_path.unlink()
@@ -658,20 +658,69 @@ def configure_routes(app, state_manager, output_dir, start_translation_job, star
                         app.logger.info(f"Deleted uploaded file: {file_path_str}")
                     else:
                         failed_files.append({"file_path": file_path_str, "reason": "File not found"})
-                        
+
                 except Exception as e:
                     failed_files.append({"file_path": file_path_str, "reason": str(e)})
-            
+
             return jsonify({
                 "success": True,
                 "deleted": deleted_files,
                 "failed": failed_files,
                 "total_deleted": len(deleted_files)
             })
-            
+
         except Exception as e:
             app.logger.error(f"Error clearing uploaded files: {str(e)}")
             return jsonify({"error": "Clear uploads failed", "details": str(e)}), 500
+
+    @app.route('/api/files/<path:filename>/open', methods=['POST'])
+    def open_local_file(filename):
+        """Open a file in the default system application"""
+        try:
+            import subprocess
+            import platform
+
+            # Security check - prevent directory traversal
+            if '..' in filename or filename.startswith('/'):
+                return jsonify({"error": "Invalid filename"}), 400
+
+            # Try to find file in main directory
+            file_path = Path(output_dir) / filename
+            if not file_path.exists():
+                # Try uploads subdirectory
+                file_path = Path(output_dir) / 'uploads' / filename
+
+            if not file_path.exists() or not file_path.is_file():
+                return jsonify({"error": "File not found"}), 404
+
+            # Get absolute path
+            abs_path = str(file_path.resolve())
+
+            # Open file with default application based on OS
+            system = platform.system()
+
+            try:
+                if system == 'Windows':
+                    os.startfile(abs_path)
+                elif system == 'Darwin':  # macOS
+                    subprocess.run(['open', abs_path], check=True)
+                else:  # Linux and others
+                    subprocess.run(['xdg-open', abs_path], check=True)
+
+                app.logger.info(f"Opened file: {filename} at {abs_path}")
+                return jsonify({
+                    "success": True,
+                    "message": f"File opened: {filename}",
+                    "file_path": abs_path
+                })
+
+            except Exception as e:
+                app.logger.error(f"Error opening file {filename}: {str(e)}")
+                return jsonify({"error": f"Failed to open file: {str(e)}"}), 500
+
+        except Exception as e:
+            app.logger.error(f"Error in open_local_file for {filename}: {str(e)}")
+            return jsonify({"error": "Failed to open file", "details": str(e)}), 500
 
     @app.errorhandler(404)
     def route_not_found(error): 

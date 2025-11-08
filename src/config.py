@@ -19,10 +19,18 @@ OLLAMA_NUM_CTX = int(os.getenv('OLLAMA_NUM_CTX', '2048'))
 MAX_TRANSLATION_ATTEMPTS = int(os.getenv('MAX_TRANSLATION_ATTEMPTS', '2'))
 RETRY_DELAY_SECONDS = int(os.getenv('RETRY_DELAY_SECONDS', '2'))
 
+# Context optimization settings
+MIN_RECOMMENDED_NUM_CTX = 4096  # Minimum recommended context for chunk_size=25
+SAFETY_MARGIN = 1.2  # 20% safety margin for token estimation
+AUTO_ADJUST_CONTEXT = os.getenv("AUTO_ADJUST_CONTEXT", "true").lower() == "true"
+MIN_CHUNK_SIZE = int(os.getenv("MIN_CHUNK_SIZE", "5"))
+MAX_CHUNK_SIZE = int(os.getenv("MAX_CHUNK_SIZE", "100"))
+
 # LLM Provider configuration
-LLM_PROVIDER = os.getenv('LLM_PROVIDER', 'ollama')  # 'ollama' or 'gemini'
+LLM_PROVIDER = os.getenv('LLM_PROVIDER', 'ollama')  # 'ollama', 'gemini', or 'openai'
 GEMINI_API_KEY = os.getenv('GEMINI_API_KEY', '')
 GEMINI_MODEL = os.getenv('GEMINI_MODEL', 'gemini-2.0-flash')
+OPENAI_API_KEY = os.getenv('OPENAI_API_KEY', '')
 
 # SRT-specific configuration
 SRT_LINES_PER_BLOCK = int(os.getenv('SRT_LINES_PER_BLOCK', '5'))
@@ -32,11 +40,11 @@ SRT_MAX_CHARS_PER_BLOCK = int(os.getenv('SRT_MAX_CHARS_PER_BLOCK', '500'))
 DEFAULT_SOURCE_LANGUAGE = os.getenv('DEFAULT_SOURCE_LANGUAGE', 'English')
 DEFAULT_TARGET_LANGUAGE = os.getenv('DEFAULT_TARGET_LANGUAGE', 'French')
 
-# Translation tags
-TRANSLATE_TAG_IN = "<COMPLETED>"
-TRANSLATE_TAG_OUT = "</COMPLETED>"
-INPUT_TAG_IN = "<TODO>"
-INPUT_TAG_OUT = "</TODO>"
+# Translation tags - Improved for LLM clarity and reliability
+TRANSLATE_TAG_IN = "<TRANSLATION>"
+TRANSLATE_TAG_OUT = "</TRANSLATION>"
+INPUT_TAG_IN = "<SOURCE_TEXT>"
+INPUT_TAG_OUT = "</SOURCE_TEXT>"
 
 # Sentence terminators
 SENTENCE_TERMINATORS = tuple(list(".!?") + ['."', '?"', '!"', '."', ".'", "?'", "!'", ":", ".)"])
@@ -81,6 +89,7 @@ class TranslationConfig:
     # LLM Provider settings
     llm_provider: str = LLM_PROVIDER
     gemini_api_key: str = GEMINI_API_KEY
+    openai_api_key: str = OPENAI_API_KEY
     
     # Translation parameters
     chunk_size: int = MAIN_LINES_PER_CHUNK
@@ -93,7 +102,12 @@ class TranslationConfig:
     max_attempts: int = MAX_TRANSLATION_ATTEMPTS
     retry_delay: int = RETRY_DELAY_SECONDS
     context_window: int = OLLAMA_NUM_CTX
-    
+
+    # Context optimization
+    auto_adjust_context: bool = AUTO_ADJUST_CONTEXT
+    min_chunk_size: int = MIN_CHUNK_SIZE
+    max_chunk_size: int = MAX_CHUNK_SIZE
+
     # Interface-specific
     interface_type: str = "cli"  # or "web"
     enable_colors: bool = True
@@ -113,6 +127,7 @@ class TranslationConfig:
             enable_colors=not args.no_color,
             llm_provider=getattr(args, 'provider', LLM_PROVIDER),
             gemini_api_key=getattr(args, 'gemini_api_key', GEMINI_API_KEY),
+            openai_api_key=getattr(args, 'openai_api_key', OPENAI_API_KEY),
             enable_post_processing=getattr(args, 'post_process', False),
             post_processing_instructions=getattr(args, 'post_process_instructions', '')
         )
@@ -131,10 +146,14 @@ class TranslationConfig:
             max_attempts=request_data.get('max_attempts', MAX_TRANSLATION_ATTEMPTS),
             retry_delay=request_data.get('retry_delay', RETRY_DELAY_SECONDS),
             context_window=request_data.get('context_window', OLLAMA_NUM_CTX),
+            auto_adjust_context=request_data.get('auto_adjust_context', AUTO_ADJUST_CONTEXT),
+            min_chunk_size=request_data.get('min_chunk_size', MIN_CHUNK_SIZE),
+            max_chunk_size=request_data.get('max_chunk_size', MAX_CHUNK_SIZE),
             interface_type="web",
             enable_interruption=True,
             llm_provider=request_data.get('llm_provider', LLM_PROVIDER),
             gemini_api_key=request_data.get('gemini_api_key', GEMINI_API_KEY),
+            openai_api_key=request_data.get('openai_api_key', OPENAI_API_KEY),
             enable_post_processing=request_data.get('enable_post_processing', False),
             post_processing_instructions=request_data.get('post_processing_instructions', '')
         )
@@ -154,6 +173,7 @@ class TranslationConfig:
             'context_window': self.context_window,
             'llm_provider': self.llm_provider,
             'gemini_api_key': self.gemini_api_key,
+            'openai_api_key': self.openai_api_key,
             'enable_post_processing': self.enable_post_processing,
             'post_processing_instructions': self.post_processing_instructions
         }

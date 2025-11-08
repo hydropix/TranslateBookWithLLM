@@ -21,6 +21,11 @@ socket.on('disconnect', () => {
 socket.on('translation_update', (data) => {
     if (currentProcessingJob && data.translation_id === currentProcessingJob.translationId) {
         handleTranslationUpdate(data);
+
+        // Handle structured log entries for translation preview
+        if (data.log_entry && data.log_entry.type === 'llm_response' && data.log_entry.data && data.log_entry.data.response) {
+            updateTranslationPreview(data.log_entry.data.response);
+        }
     } else {
         console.log("Received update for a different/old job:", data.translation_id);
     }
@@ -155,18 +160,26 @@ function toggleProviderSettings() {
     const provider = document.getElementById('llmProvider').value;
     const ollamaSettings = document.getElementById('ollamaSettings');
     const geminiSettings = document.getElementById('geminiSettings');
+    const openaiSettings = document.getElementById('openaiSettings');
     const modelSelect = document.getElementById('model');
-    
+
     // console.log(`[DEBUG] toggleProviderSettings called with provider: ${provider}`);
-    
+
     if (provider === 'ollama') {
         ollamaSettings.style.display = 'block';
         geminiSettings.style.display = 'none';
+        openaiSettings.style.display = 'none';
         loadAvailableModels();
     } else if (provider === 'gemini') {
         ollamaSettings.style.display = 'none';
         geminiSettings.style.display = 'block';
+        openaiSettings.style.display = 'none';
         loadGeminiModels();
+    } else if (provider === 'openai') {
+        ollamaSettings.style.display = 'none';
+        geminiSettings.style.display = 'none';
+        openaiSettings.style.display = 'block';
+        loadOpenAIModels();
     }
 }
 
@@ -176,6 +189,8 @@ function refreshModels() {
         loadAvailableModels();
     } else if (provider === 'gemini') {
         loadGeminiModels();
+    } else if (provider === 'openai') {
+        loadOpenAIModels();
     }
 }
 
@@ -185,23 +200,23 @@ let currentModelLoadRequest = null;
 async function loadGeminiModels() {
     const modelSelect = document.getElementById('model');
     modelSelect.innerHTML = '<option value="">Loading Gemini models...</option>';
-    
+
     try {
         const apiKey = document.getElementById('geminiApiKey').value.trim();
         const response = await fetch(`${API_BASE_URL}/api/models?provider=gemini&api_key=${encodeURIComponent(apiKey)}`);
-        
+
         if (!response.ok) {
             const errData = await response.json();
             throw new Error(errData.error || `HTTP error ${response.status}`);
         }
-        
+
         const data = await response.json();
-        
+
         modelSelect.innerHTML = '';
-        
+
         if (data.models && data.models.length > 0) {
             showMessage('', '');
-            
+
             data.models.forEach(model => {
                 const option = document.createElement('option');
                 option.value = model.name;
@@ -210,7 +225,7 @@ async function loadGeminiModels() {
                 if (model.name === data.default) option.selected = true;
                 modelSelect.appendChild(option);
             });
-            
+
             addLog(`✅ ${data.count} Gemini model(s) loaded (excluding thinking models)`);
         } else {
             const errorMessage = data.error || 'No Gemini models available.';
@@ -225,10 +240,33 @@ async function loadGeminiModels() {
     }
 }
 
+async function loadOpenAIModels() {
+    const modelSelect = document.getElementById('model');
+    modelSelect.innerHTML = '';
+
+    // Common OpenAI models
+    const commonModels = [
+        { value: 'gpt-4o', label: 'GPT-4o (Latest)' },
+        { value: 'gpt-4o-mini', label: 'GPT-4o Mini' },
+        { value: 'gpt-4-turbo', label: 'GPT-4 Turbo' },
+        { value: 'gpt-4', label: 'GPT-4' },
+        { value: 'gpt-3.5-turbo', label: 'GPT-3.5 Turbo' }
+    ];
+
+    commonModels.forEach(model => {
+        const option = document.createElement('option');
+        option.value = model.value;
+        option.textContent = model.label;
+        modelSelect.appendChild(option);
+    });
+
+    addLog(`✅ OpenAI models loaded (common models)`);
+}
+
 async function loadAvailableModels() {
     const provider = document.getElementById('llmProvider').value;
-    if (provider === 'gemini') {
-        return; // Gemini models are loaded separately
+    if (provider === 'gemini' || provider === 'openai') {
+        return; // Gemini and OpenAI models are loaded separately
     }
     
     // Cancel any pending request
@@ -514,14 +552,53 @@ function showMessage(text, type) {
     const messagesDiv = document.getElementById('messages');
     messagesDiv.innerHTML = text ? `<div class="message ${type}">${text}</div>` : '';
 }
+function updateTranslationPreview(response) {
+    const lastTranslationPreview = document.getElementById('lastTranslationPreview');
+
+    // Extract text between <TRANSLATION> tags from the response
+    const translateMatch = response.match(/<TRANSLATION>([\s\S]*?)<\/TRANSLATION>/);
+    if (translateMatch) {
+        let translatedText = translateMatch[1].trim();
+
+        // Remove placeholder tags (⟦TAG0⟧, ⟦TAG1⟧, etc.) for cleaner preview
+        translatedText = translatedText.replace(/⟦TAG\d+⟧/g, '');
+
+        // Update the last translation preview section with just the translated text
+        lastTranslationPreview.innerHTML = `<div style="background: #ffffff; border-left: 3px solid #22c55e; padding: 15px; color: #000000; white-space: pre-wrap; line-height: 1.6;">${escapeHtml(translatedText)}</div>`;
+    }
+}
+
 function addLog(message) {
     const logContainer = document.getElementById('logContainer');
     const timestamp = new Date().toLocaleTimeString();
-    
+
+    // Filter out technical/verbose messages - only show important logs and errors
+    const shouldSkip =
+        message.includes('LLM Request') ||
+        message.includes('LLM Response') ||
+        message.includes('🔍 Input file path:') ||
+        message.includes('🔍 Resolved path:') ||
+        message.includes('🔍 Parent directory:') ||
+        message.includes('📋 Path parts:') ||
+        message.includes('📋 Parent directory name:') ||
+        message.includes('📋 Expected uploads directory:') ||
+        message.includes('🔍 File is confirmed') ||
+        message.includes('🔍 File is NOT in uploads') ||
+        message.includes('🗑️ Cleaned up uploaded source file:') ||
+        message.includes('ℹ️ Skipped cleanup') ||
+        message.includes('🧹 Starting cleanup check') ||
+        message.includes('📁 File path in config:') ||
+        message.includes('🔍 Debug -');
+
+    if (shouldSkip) {
+        return; // Don't add this message to the log
+    }
+
+    // Add to activity log
     logContainer.innerHTML += `<div class="log-entry">
         <span class="log-timestamp">[${timestamp}]</span> ${message}
     </div>`;
-    
+
     logContainer.scrollTop = logContainer.scrollHeight;
 }
 
@@ -619,8 +696,8 @@ async function processNextFileInQueue() {
     if (targetLanguageVal === 'Other') targetLanguageVal = document.getElementById('customTargetLang').value.trim();
 
     const provider = document.getElementById('llmProvider').value;
-    
-    // Validate Gemini API key if using Gemini
+
+    // Validate API keys if using Gemini or OpenAI
     if (provider === 'gemini') {
         const geminiApiKey = document.getElementById('geminiApiKey').value.trim();
         if (!geminiApiKey) {
@@ -632,14 +709,27 @@ async function processNextFileInQueue() {
             return;
         }
     }
+
+    if (provider === 'openai') {
+        const openaiApiKey = document.getElementById('openaiApiKey').value.trim();
+        if (!openaiApiKey) {
+            addLog('❌ Error: OpenAI API key is required when using OpenAI provider');
+            showMessage('Please enter your OpenAI API key', 'error');
+            updateFileStatusInList(fileToTranslate.name, 'Error: Missing API key');
+            currentProcessingJob = null;
+            processNextFileInQueue();
+            return;
+        }
+    }
     
     const config = {
         source_language: sourceLanguageVal,
         target_language: targetLanguageVal,
         model: document.getElementById('model').value,
-        llm_api_endpoint: document.getElementById('apiEndpoint').value,
+        llm_api_endpoint: provider === 'openai' ? document.getElementById('openaiEndpoint').value : document.getElementById('apiEndpoint').value,
         llm_provider: provider,
         gemini_api_key: provider === 'gemini' ? document.getElementById('geminiApiKey').value : '',
+        openai_api_key: provider === 'openai' ? document.getElementById('openaiApiKey').value : '',
         chunk_size: parseInt(document.getElementById('chunkSize').value),
         timeout: parseInt(document.getElementById('timeout').value),
         context_window: parseInt(document.getElementById('contextWindow').value),
@@ -870,7 +960,11 @@ async function refreshFileList() {
                     <td>
                         <input type="checkbox" class="file-checkbox" data-filename="${file.filename}" onchange="toggleFileSelection('${file.filename}')">
                     </td>
-                    <td>${fileIcon} ${file.filename}</td>
+                    <td>
+                        <span class="clickable-filename" onclick="openLocalFile('${file.filename}')" title="Click to open file">
+                            ${fileIcon} ${file.filename}
+                        </span>
+                    </td>
                     <td>${file.file_type.toUpperCase()}</td>
                     <td>${file.size_mb} MB</td>
                     <td>${formattedDate}</td>
@@ -1017,11 +1111,11 @@ async function deleteSelectedFiles() {
         showMessage('No files selected for deletion', 'error');
         return;
     }
-    
+
     if (!confirm(`Are you sure you want to delete ${selectedFiles.size} file(s)?`)) {
         return;
     }
-    
+
     try {
         const response = await fetch(`${API_BASE_URL}/api/files/batch/delete`, {
             method: 'POST',
@@ -1032,9 +1126,9 @@ async function deleteSelectedFiles() {
                 filenames: Array.from(selectedFiles)
             })
         });
-        
+
         const data = await response.json();
-        
+
         if (response.ok) {
             let message = `Deleted ${data.total_deleted} file(s)`;
             if (data.failed.length > 0) {
@@ -1050,301 +1144,21 @@ async function deleteSelectedFiles() {
     }
 }
 
-// Audiobook Generation Functions
-let activeAudiobookJobs = new Map();
-
-async function createAudiobook(filename, filepath) {
-    // First, find the translation job that created this file
-    const translationId = await findTranslationIdForFile(filename);
-    
-    if (!translationId) {
-        showMessage('Could not find the translation job for this file', 'error');
-        return;
-    }
-    
-    // Show audiobook configuration dialog
-    showAudiobookDialog(filename, filepath, translationId);
-}
-
-async function findTranslationIdForFile(filename) {
+async function openLocalFile(filename) {
     try {
-        const response = await fetch(`${API_BASE_URL}/api/translations`);
-        const data = await response.json();
-        
-        // Find the translation job that created this file
-        for (const translation of data.translations) {
-            if (translation.output_filename === filename) {
-                return translation.translation_id;
-            }
-        }
-        
-        // If not found by exact match, try to find by pattern
-        const baseFilename = filename.replace(/^translated_/, '').replace(/_to_.*/, '');
-        for (const translation of data.translations) {
-            const translatedName = translation.output_filename;
-            if (translatedName && translatedName.includes(baseFilename)) {
-                return translation.translation_id;
-            }
-        }
-        
-        return null;
-    } catch (error) {
-        console.error('Error finding translation ID:', error);
-        return null;
-    }
-}
-
-function showAudiobookDialog(filename, filepath, translationId) {
-    // Create modal dialog for audiobook settings
-    const modal = document.createElement('div');
-    modal.className = 'modal-overlay';
-    modal.innerHTML = `
-        <div class="modal-content" style="max-width: 500px;">
-            <div class="modal-header">
-                <h3>🎧 Create Audiobook</h3>
-                <button class="close-btn" onclick="closeAudiobookDialog()">&times;</button>
-            </div>
-            <div class="modal-body">
-                <p>Generate audiobook for: <strong>${filename}</strong></p>
-                
-                <div class="form-group">
-                    <label>Target Language</label>
-                    <select id="audioTargetLang" class="form-control">
-                        <option value="en">English</option>
-                        <option value="fr">French</option>
-                        <option value="es">Spanish</option>
-                        <option value="de">German</option>
-                        <option value="it">Italian</option>
-                        <option value="pt">Portuguese</option>
-                        <option value="zh-cn">Chinese</option>
-                        <option value="ja">Japanese</option>
-                        <option value="ru">Russian</option>
-                        <option value="ar">Arabic</option>
-                    </select>
-                </div>
-                
-                <div class="form-group">
-                    <label>Voice Gender</label>
-                    <select id="audioVoiceGender" class="form-control">
-                        <option value="neutral">Neutral (Best Quality)</option>
-                        <option value="female">Female</option>
-                        <option value="male">Male</option>
-                    </select>
-                </div>
-                
-                <div class="form-group">
-                    <label>Speed</label>
-                    <input type="range" id="audioSpeed" min="0.5" max="1.5" step="0.1" value="1.0" class="form-control">
-                    <span id="speedValue">1.0x</span>
-                </div>
-                
-                <div class="form-group">
-                    <label>Output Format</label>
-                    <select id="audioFormat" class="form-control">
-                        <option value="mp3">MP3 (Recommended)</option>
-                        <option value="wav">WAV</option>
-                        <option value="flac">FLAC</option>
-                    </select>
-                </div>
-                
-                <div class="form-group">
-                    <label>
-                        <input type="checkbox" id="audioChapterSplit" checked>
-                        Split by chapters (for EPUB files)
-                    </label>
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button class="btn btn-secondary" onclick="closeAudiobookDialog()">Cancel</button>
-                <button class="btn btn-primary" onclick="startAudiobookGeneration('${filename}', '${filepath}', '${translationId}')">
-                    Generate Audiobook
-                </button>
-            </div>
-        </div>
-    `;
-    
-    document.body.appendChild(modal);
-    
-    // Add speed slider listener
-    document.getElementById('audioSpeed').addEventListener('input', (e) => {
-        document.getElementById('speedValue').textContent = e.target.value + 'x';
-    });
-}
-
-function closeAudiobookDialog() {
-    const modal = document.querySelector('.modal-overlay');
-    if (modal) {
-        modal.remove();
-    }
-}
-
-async function startAudiobookGeneration(filename, filepath, translationId) {
-    const targetLang = document.getElementById('audioTargetLang').value;
-    const voiceGender = document.getElementById('audioVoiceGender').value;
-    const speed = parseFloat(document.getElementById('audioSpeed').value);
-    const format = document.getElementById('audioFormat').value;
-    const chapterSplit = document.getElementById('audioChapterSplit').checked;
-    
-    closeAudiobookDialog();
-    
-    try {
-        const response = await fetch(`${API_BASE_URL}/api/audiobook`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                translation_id: translationId,
-                target_language: targetLang,
-                voice_gender: voiceGender,
-                speed: speed,
-                output_format: format,
-                chapter_split: chapterSplit
-            })
+        const response = await fetch(`${API_BASE_URL}/api/files/${encodeURIComponent(filename)}/open`, {
+            method: 'POST'
         });
-        
+
         const data = await response.json();
-        
+
         if (response.ok) {
-            showMessage(`Audiobook generation started for ${filename}`, 'success');
-            
-            // Add to active jobs
-            activeAudiobookJobs.set(data.audiobook_id, {
-                filename: filename,
-                audiobook_id: data.audiobook_id
-            });
-            
-            // Show progress panel
-            showAudiobookProgress(data.audiobook_id, filename);
-            
-            // Start monitoring the job
-            monitorAudiobookJob(data.audiobook_id);
+            showMessage(`File opened: ${filename}`, 'success');
+            addLog(`📂 Opened file: ${filename}`);
         } else {
-            showMessage(data.error || 'Failed to start audiobook generation', 'error');
+            showMessage(data.error || 'Failed to open file', 'error');
         }
     } catch (error) {
-        showMessage(`Error starting audiobook generation: ${error.message}`, 'error');
+        showMessage(`Error opening file: ${error.message}`, 'error');
     }
 }
-
-function showAudiobookProgress(audiobookId, filename) {
-    // Add audiobook progress card to the page
-    const progressContainer = document.getElementById('progressSection');
-    
-    const audioCard = document.createElement('div');
-    audioCard.id = `audiobook-${audiobookId}`;
-    audioCard.className = 'audio-progress-card';
-    audioCard.innerHTML = `
-        <div class="card-header">
-            <h3>🎧 Generating Audiobook: ${filename}</h3>
-            <button class="close-btn" onclick="cancelAudiobookGeneration('${audiobookId}')">&times;</button>
-        </div>
-        <div class="card-body">
-            <div class="progress-bar">
-                <div class="progress-fill" id="audio-progress-${audiobookId}" style="width: 0%"></div>
-            </div>
-            <div class="audio-status" id="audio-status-${audiobookId}">Initializing...</div>
-            <div class="audio-logs" id="audio-logs-${audiobookId}" style="max-height: 200px; overflow-y: auto; margin-top: 10px; font-size: 12px; background: #f5f5f5; padding: 10px; border-radius: 4px;">
-            </div>
-        </div>
-    `;
-    
-    progressContainer.appendChild(audioCard);
-    progressContainer.classList.remove('hidden');
-}
-
-async function monitorAudiobookJob(audiobookId) {
-    // Poll for status updates
-    const pollInterval = setInterval(async () => {
-        try {
-            const response = await fetch(`${API_BASE_URL}/api/audiobook/${audiobookId}`);
-            const data = await response.json();
-            
-            if (response.ok) {
-                updateAudiobookProgress(audiobookId, data);
-                
-                if (data.status === 'completed' || data.status === 'error') {
-                    clearInterval(pollInterval);
-                    activeAudiobookJobs.delete(audiobookId);
-                    
-                    if (data.status === 'completed') {
-                        showAudiobookComplete(audiobookId, data);
-                    }
-                }
-            }
-        } catch (error) {
-            console.error('Error monitoring audiobook job:', error);
-        }
-    }, 2000); // Poll every 2 seconds
-}
-
-function updateAudiobookProgress(audiobookId, data) {
-    const progressBar = document.getElementById(`audio-progress-${audiobookId}`);
-    const statusDiv = document.getElementById(`audio-status-${audiobookId}`);
-    const logsDiv = document.getElementById(`audio-logs-${audiobookId}`);
-    
-    if (progressBar) {
-        progressBar.style.width = `${data.progress || 0}%`;
-    }
-    
-    if (statusDiv) {
-        let statusText = data.status;
-        if (data.current_chapter && data.total_chapters) {
-            statusText += ` - Chapter ${data.current_chapter}/${data.total_chapters}`;
-        }
-        if (data.estimated_duration) {
-            statusText += ` - Est. duration: ${data.estimated_duration}`;
-        }
-        statusDiv.textContent = statusText;
-    }
-    
-    if (logsDiv && data.logs && data.logs.length > 0) {
-        logsDiv.innerHTML = data.logs.map(log => `<div>${log}</div>`).join('');
-        logsDiv.scrollTop = logsDiv.scrollHeight;
-    }
-}
-
-function showAudiobookComplete(audiobookId, data) {
-    const card = document.getElementById(`audiobook-${audiobookId}`);
-    if (card) {
-        const bodyDiv = card.querySelector('.card-body');
-        bodyDiv.innerHTML += `
-            <div class="audio-complete" style="margin-top: 20px;">
-                <h4>✅ Audiobook Generated Successfully!</h4>
-                <button class="btn btn-primary" onclick="downloadAudiobook('${audiobookId}')">
-                    📥 Download Audiobook
-                </button>
-            </div>
-        `;
-    }
-}
-
-async function downloadAudiobook(audiobookId) {
-    try {
-        window.location.href = `${API_BASE_URL}/api/audiobook/${audiobookId}/download`;
-        showMessage('Audiobook download started', 'success');
-    } catch (error) {
-        showMessage(`Error downloading audiobook: ${error.message}`, 'error');
-    }
-}
-
-function cancelAudiobookGeneration(audiobookId) {
-    // Remove the progress card
-    const card = document.getElementById(`audiobook-${audiobookId}`);
-    if (card) {
-        card.remove();
-    }
-    activeAudiobookJobs.delete(audiobookId);
-    
-    // Check if we should hide the progress section
-    if (document.querySelectorAll('.audio-progress-card').length === 0 && !currentProcessingJob) {
-        document.getElementById('progressSection').classList.add('hidden');
-    }
-}
-
-// Listen for audiobook updates via WebSocket
-socket.on('audiobook_update', (data) => {
-    if (data.audiobook_id && activeAudiobookJobs.has(data.audiobook_id)) {
-        updateAudiobookProgress(data.audiobook_id, data);
-    }
-});

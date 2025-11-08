@@ -96,24 +96,27 @@ class LLMClient:
 default_client = LLMClient(provider_type="ollama", api_endpoint=API_ENDPOINT, model=DEFAULT_MODEL)
 
 
-def create_llm_client(llm_provider: str, gemini_api_key: Optional[str], 
-                      api_endpoint: str, model_name: str) -> Optional[LLMClient]:
+def create_llm_client(llm_provider: str, gemini_api_key: Optional[str],
+                      api_endpoint: str, model_name: str,
+                      openai_api_key: Optional[str] = None) -> Optional[LLMClient]:
     """
     Factory function to create LLM client based on provider or custom endpoint
-    
+
     Args:
-        llm_provider: Provider type ('ollama' or 'gemini')
+        llm_provider: Provider type ('ollama', 'gemini', or 'openai')
         gemini_api_key: API key for Gemini provider
-        api_endpoint: API endpoint for custom Ollama instance
+        api_endpoint: API endpoint for custom Ollama instance or OpenAI-compatible API
         model_name: Model name to use
-        
+        openai_api_key: API key for OpenAI provider
+
     Returns:
         LLMClient instance or None if using default client
     """
     if llm_provider == "gemini" and gemini_api_key:
         return LLMClient(provider_type="gemini", api_key=gemini_api_key, model=model_name)
     if llm_provider == "openai":
-        return LLMClient(provider_type="openai", api_endpoint=api_endpoint, model=model_name)
-    elif api_endpoint and api_endpoint != default_client.api_endpoint:
+        return LLMClient(provider_type="openai", api_endpoint=api_endpoint, model=model_name, api_key=openai_api_key)
+    if llm_provider == "ollama":
+        # Always create a new client for Ollama to ensure proper configuration
         return LLMClient(provider_type="ollama", api_endpoint=api_endpoint, model=model_name)
     return None

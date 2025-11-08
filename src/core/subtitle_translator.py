@@ -12,12 +12,12 @@ from .translator import generate_translation_request, post_process_translation
 from .epub_processor import TagPreserver
 
 
-async def translate_subtitles(subtitles: List[Dict[str, str]], source_language: str, 
+async def translate_subtitles(subtitles: List[Dict[str, str]], source_language: str,
                             target_language: str, model_name: str, api_endpoint: str,
-                            progress_callback=None, log_callback=None, 
+                            progress_callback=None, log_callback=None,
                             stats_callback=None, check_interruption_callback=None, custom_instructions="",
-                            llm_provider="ollama", gemini_api_key=None, enable_post_processing=False,
-                            post_processing_instructions="") -> Dict[int, str]:
+                            llm_provider="ollama", gemini_api_key=None, openai_api_key=None,
+                            enable_post_processing=False, post_processing_instructions="") -> Dict[int, str]:
     """
     Translate subtitle entries preserving structure
     
@@ -44,7 +44,7 @@ async def translate_subtitles(subtitles: List[Dict[str, str]], source_language: 
         log_callback("srt_translation_start", f"Starting translation of {total_subtitles} subtitles...")
     
     # Create LLM client based on provider or custom endpoint
-    llm_client = create_llm_client(llm_provider, gemini_api_key, api_endpoint, model_name)
+    llm_client = create_llm_client(llm_provider, gemini_api_key, api_endpoint, model_name, openai_api_key)
     
     try:
         iterator = tqdm(enumerate(subtitles), total=total_subtitles, 
@@ -141,13 +141,14 @@ async def translate_subtitles(subtitles: List[Dict[str, str]], source_language: 
     return translations
 
 
-async def translate_subtitles_in_blocks(subtitle_blocks: List[List[Dict[str, str]]], 
-                                      source_language: str, target_language: str, 
+async def translate_subtitles_in_blocks(subtitle_blocks: List[List[Dict[str, str]]],
+                                      source_language: str, target_language: str,
                                       model_name: str, api_endpoint: str,
-                                      progress_callback=None, log_callback=None, 
+                                      progress_callback=None, log_callback=None,
                                       stats_callback=None, check_interruption_callback=None,
-                                      custom_instructions="", llm_provider="ollama", 
-                                      gemini_api_key=None, enable_post_processing=False,
+                                      custom_instructions="", llm_provider="ollama",
+                                      gemini_api_key=None, openai_api_key=None,
+                                      enable_post_processing=False,
                                       post_processing_instructions="") -> Dict[int, str]:
     """
     Translate subtitle entries in blocks for better context preservation.
@@ -184,7 +185,7 @@ async def translate_subtitles_in_blocks(subtitle_blocks: List[List[Dict[str, str
                     f"Starting block translation: {total_subtitles} subtitles in {total_blocks} blocks...")
     
     # Create LLM client based on provider or custom endpoint
-    llm_client = create_llm_client(llm_provider, gemini_api_key, api_endpoint, model_name)
+    llm_client = create_llm_client(llm_provider, gemini_api_key, api_endpoint, model_name, openai_api_key)
     
     try:
         for block_idx, block in enumerate(subtitle_blocks):

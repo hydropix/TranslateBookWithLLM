@@ -25,6 +25,7 @@
                         <select class="form-control" id="llmProvider">
                             <option value="ollama">Ollama (Local)</option>
                             <option value="gemini">Google Gemini</option>
+                            <option value="openai">OpenAI</option>
                         </select>
                     </div>
 
@@ -38,6 +39,13 @@
                         <input type="password" class="form-control" id="geminiApiKey" placeholder="Enter your Gemini API key">
                     </div>
 
+                    <div class="form-group" id="openaiSettings" style="display: none;">
+                        <label>OpenAI API Endpoint</label>
+                        <input type="text" class="form-control" id="openaiEndpoint" value="https://api.openai.com/v1/chat/completions" placeholder="OpenAI API endpoint">
+                        <label style="margin-top: 10px;">OpenAI API Key</label>
+                        <input type="password" class="form-control" id="openaiApiKey" placeholder="Enter your OpenAI API key">
+                    </div>
+
                     <div class="form-group">
                         <label>LLM Model</label>
                         <div class="model-select-container">
@@ -48,32 +56,34 @@
                         </div>
                     </div>
 
-                    <div class="form-group">
-                        <label>Source Language</label>
-                        <select class="form-control" id="sourceLang" onchange="checkCustomSourceLanguage(this)">
-                            <option value="English">English</option>
-                            <option value="Chinese">Chinese</option>
-                            <option value="Spanish">Spanish</option>
-                            <option value="French">French</option>
-                            <option value="German">German</option>
-                            <option value="Italian">Italian</option>
-                            <option value="Other">Other (Specify)</option>
-                        </select>
-                        <input type="text" class="form-control" id="customSourceLang" placeholder="Enter custom source language" style="margin-top: 10px; display: none;">
-                    </div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                        <div class="form-group">
+                            <label>Source Language</label>
+                            <select class="form-control" id="sourceLang" onchange="checkCustomSourceLanguage(this)">
+                                <option value="English">English</option>
+                                <option value="Chinese">Chinese</option>
+                                <option value="Spanish">Spanish</option>
+                                <option value="French">French</option>
+                                <option value="German">German</option>
+                                <option value="Italian">Italian</option>
+                                <option value="Other">Other (Specify)</option>
+                            </select>
+                            <input type="text" class="form-control" id="customSourceLang" placeholder="Enter custom source language" style="margin-top: 10px; display: none;">
+                        </div>
 
-                    <div class="form-group">
-                        <label>Target Language</label>
-                        <select class="form-control" id="targetLang" onchange="checkCustomTargetLanguage(this)">
-                            <option value="French">French</option>
-                            <option value="English">English</option>
-                            <option value="Chinese">Chinese</option>
-                            <option value="Spanish">Spanish</option>
-                            <option value="German">German</option>
-                            <option value="Italian">Italian</option>
-                            <option value="Other">Other (Specify)</option>
-                        </select>
-                        <input type="text" class="form-control" id="customTargetLang" placeholder="Enter custom target language (e.g., Portuguese)" style="margin-top: 10px; display: none;">
+                        <div class="form-group">
+                            <label>Target Language</label>
+                            <select class="form-control" id="targetLang" onchange="checkCustomTargetLanguage(this)">
+                                <option value="French">French</option>
+                                <option value="English">English</option>
+                                <option value="Chinese">Chinese</option>
+                                <option value="Spanish">Spanish</option>
+                                <option value="German">German</option>
+                                <option value="Italian">Italian</option>
+                                <option value="Other">Other (Specify)</option>
+                            </select>
+                            <input type="text" class="form-control" id="customTargetLang" placeholder="Enter custom target language (e.g., Portuguese)" style="margin-top: 10px; display: none;">
+                        </div>
                     </div>
                      <div class="form-group">
                         <label>Output Filename Pattern</label>
@@ -165,6 +175,12 @@
                         <button class="btn btn-secondary" onclick="clearActivityLog()" style="font-size: 12px; padding: 5px 10px;">🗑️ Clear Log</button>
                     </div>
                     <div class="log-container" id="logContainer"></div>
+                    <div style="margin-top: 20px;">
+                        <h4 style="margin: 0 0 10px 0;">📝 Last Translation Preview</h4>
+                        <div class="log-container" id="lastTranslationPreview" style="min-height: 300px; max-height: 400px;">
+                            <div style="color: #6b7280; font-style: italic; padding: 10px;">No translation yet...</div>
+                        </div>
+                    </div>
                 </div>
 
             </div>

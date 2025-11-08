@@ -5,7 +5,7 @@ import os
 import argparse
 import asyncio
 
-from src.config import DEFAULT_MODEL, MAIN_LINES_PER_CHUNK, API_ENDPOINT, LLM_PROVIDER, GEMINI_API_KEY, DEFAULT_SOURCE_LANGUAGE, DEFAULT_TARGET_LANGUAGE
+from src.config import DEFAULT_MODEL, MAIN_LINES_PER_CHUNK, API_ENDPOINT, LLM_PROVIDER, GEMINI_API_KEY, OPENAI_API_KEY, DEFAULT_SOURCE_LANGUAGE, DEFAULT_TARGET_LANGUAGE
 from src.utils.file_utils import translate_file
 from src.utils.unified_logger import setup_cli_logger, LogType
 
@@ -18,9 +18,10 @@ if __name__ == "__main__":
     parser.add_argument("-tl", "--target_lang", default=DEFAULT_TARGET_LANGUAGE, help=f"Target language (default: {DEFAULT_TARGET_LANGUAGE}).")
     parser.add_argument("-m", "--model", default=DEFAULT_MODEL, help=f"LLM model (default: {DEFAULT_MODEL}).")
     parser.add_argument("-cs", "--chunksize", type=int, default=MAIN_LINES_PER_CHUNK, help=f"Target lines per chunk (default: {MAIN_LINES_PER_CHUNK}).")
-    parser.add_argument("--api_endpoint", default=API_ENDPOINT, help=f"API endpoint for Ollama or OpenAI compatible provider(default: {API_ENDPOINT}).")
+    parser.add_argument("--api_endpoint", default=API_ENDPOINT, help=f"API endpoint for Ollama or OpenAI compatible provider (default: {API_ENDPOINT}).")
     parser.add_argument("--provider", default=LLM_PROVIDER, choices=["ollama", "gemini", "openai"], help=f"LLM provider to use (default: {LLM_PROVIDER}).")
     parser.add_argument("--gemini_api_key", default=GEMINI_API_KEY, help="Google Gemini API key (required if using gemini provider).")
+    parser.add_argument("--openai_api_key", default=OPENAI_API_KEY, help="OpenAI API key (required if using openai provider).")
     parser.add_argument("--custom_instructions", default="", help="Additional custom instructions for translation.")
     parser.add_argument("--post-process", action="store_true", help="Enable post-processing to improve translation quality.")
     parser.add_argument("--post-process-instructions", default="", help="Additional instructions for post-processing.")
@@ -48,10 +49,35 @@ if __name__ == "__main__":
     # Setup unified logger
     logger = setup_cli_logger(enable_colors=not args.no_color)
     
-    # Validate Gemini API key if using Gemini provider
+    # Validate API keys for providers
     if args.provider == "gemini" and not args.gemini_api_key:
         parser.error("--gemini_api_key is required when using gemini provider")
+    if args.provider == "openai" and not args.openai_api_key:
+        parser.error("--openai_api_key is required when using openai provider")
     
+    # PHASE 2: Validation of configuration at startup
+    if args.provider == "ollama":
+        from src.core.context_optimizer import validate_configuration
+        from src.config import OLLAMA_NUM_CTX, AUTO_ADJUST_CONTEXT
+
+        warnings = validate_configuration(
+            chunk_size=args.chunksize,
+            num_ctx=OLLAMA_NUM_CTX,
+            model_name=args.model
+        )
+
+        for warning in warnings:
+            logger.warning(warning)
+
+        # Optional: Ask for confirmation if configuration is suboptimal
+        if warnings and not AUTO_ADJUST_CONTEXT:
+            print("\n⚠️  Configuration warnings detected (see above)")
+            print("Consider enabling AUTO_ADJUST_CONTEXT=true in .env file")
+            response = input("Continue anyway? (y/n): ")
+            if response.lower() != 'y':
+                print("Aborted. Please adjust configuration and try again.")
+                exit(1)
+
     # Log translation start
     logger.info("Translation Started", LogType.TRANSLATION_START, {
         'source_lang': args.source_lang,
@@ -66,7 +92,7 @@ if __name__ == "__main__":
         'custom_instructions': args.custom_instructions,
         'post_processing': args.post_process
     })
-    
+
     # Create legacy callback for backward compatibility
     log_callback = logger.create_legacy_callback()
 
@@ -86,6 +112,7 @@ if __name__ == "__main__":
             custom_instructions=args.custom_instructions,
             llm_provider=args.provider,
             gemini_api_key=args.gemini_api_key,
+            openai_api_key=args.openai_api_key,
             enable_post_processing=args.post_process,
             post_processing_instructions=args.post_process_instructions
         ))

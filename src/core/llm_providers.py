@@ -2,7 +2,7 @@
 LLM Provider abstraction and implementations
 """
 from abc import ABC, abstractmethod
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, Callable
 import re
 import httpx
 import json
@@ -13,6 +13,11 @@ from src.config import (
     MAX_TRANSLATION_ATTEMPTS, RETRY_DELAY_SECONDS,
     TRANSLATE_TAG_IN, TRANSLATE_TAG_OUT
 )
+
+
+class ContextOverflowError(Exception):
+    """Raised when prompt exceeds model's context window"""
+    pass
 
 
 class LLMProvider(ABC):
@@ -47,13 +52,42 @@ class LLMProvider(ABC):
         pass
     
     def extract_translation(self, response: str) -> Optional[str]:
-        """Extract translation from response using configured tags"""
+        """
+        Extract translation from response using configured tags with strict validation.
+
+        Returns the content between TRANSLATE_TAG_IN and TRANSLATE_TAG_OUT.
+        Prefers responses where tags are at exact boundaries for better reliability.
+        """
         if not response:
             return None
-            
+
+        # Trim whitespace from response
+        response = response.strip()
+
+        # STRICT VALIDATION: Check if response starts and ends with correct tags
+        starts_correctly = response.startswith(TRANSLATE_TAG_IN)
+        ends_correctly = response.endswith(TRANSLATE_TAG_OUT)
+
+        if starts_correctly and ends_correctly:
+            # Perfect format - extract content between boundary tags
+            content = response[len(TRANSLATE_TAG_IN):-len(TRANSLATE_TAG_OUT)]
+            return content.strip()
+
+        # FALLBACK: Try regex search for tags anywhere in response (less strict)
         match = self._compiled_regex.search(response)
         if match:
-            return match.group(1).strip()
+            extracted = match.group(1).strip()
+
+            # Warn if extraction was from middle of response (indicates LLM didn't follow instructions)
+            if not starts_correctly or not ends_correctly:
+                print(f"⚠️  Warning: Translation tags found but not at response boundaries.")
+                print(f"   Response started with tags: {starts_correctly}")
+                print(f"   Response ended with tags: {ends_correctly}")
+                print(f"   This may indicate the LLM added extra text. Using extracted content anyway.")
+
+            return extracted
+
+        # No tags found at all
         return None
     
     async def translate_text(self, prompt: str) -> Optional[str]:
@@ -66,10 +100,13 @@ class LLMProvider(ABC):
 
 class OllamaProvider(LLMProvider):
     """Ollama API provider"""
-    
-    def __init__(self, api_endpoint: str = API_ENDPOINT, model: str = DEFAULT_MODEL):
+
+    def __init__(self, api_endpoint: str = API_ENDPOINT, model: str = DEFAULT_MODEL,
+                 context_window: int = OLLAMA_NUM_CTX, log_callback: Optional[Callable] = None):
         super().__init__(model)
         self.api_endpoint = api_endpoint
+        self.context_window = context_window
+        self.log_callback = log_callback
     
     async def generate(self, prompt: str, timeout: int = REQUEST_TIMEOUT) -> Optional[str]:
         """Generate text using Ollama API"""
@@ -78,7 +115,10 @@ class OllamaProvider(LLMProvider):
             "prompt": prompt,
             "stream": False,
             "think": False,
-            "options": {"num_ctx": OLLAMA_NUM_CTX}
+            "options": {
+                "num_ctx": self.context_window,
+                "truncate": False  # Detect context overflow instead of silent truncation
+            }
         }
         
         client = await self._get_client()
@@ -104,6 +144,24 @@ class OllamaProvider(LLMProvider):
                         continue
                     return None
             except httpx.HTTPStatusError as e:
+                    error_message = str(e)
+                    if e.response:
+                        try:
+                            error_data = e.response.json()
+                            error_message = error_data.get("error", str(e))
+                        except:
+                            pass
+
+                    # Detect context size overflow errors
+                    if any(keyword in error_message.lower()
+                           for keyword in ["context", "truncate", "length", "too long"]):
+                        if self.log_callback:
+                            self.log_callback("error",
+                                f"Context size exceeded! Prompt is too large for model's context window.\n"
+                                f"Error: {error_message}\n"
+                                f"Consider: 1) Reducing chunk_size, or 2) Increasing OLLAMA_NUM_CTX")
+                        raise ContextOverflowError(error_message)
+
                     print(f"Ollama API HTTP Error (attempt {attempt + 1}/{MAX_TRANSLATION_ATTEMPTS}): {e}")
                     if attempt < MAX_TRANSLATION_ATTEMPTS - 1:
                         await asyncio.sleep(RETRY_DELAY_SECONDS)
@@ -121,8 +179,69 @@ class OllamaProvider(LLMProvider):
                         await asyncio.sleep(RETRY_DELAY_SECONDS)
                         continue
                     return None
-                    
+
         return None
+
+    async def get_model_context_size(self) -> int:
+        """
+        Query Ollama API to get the model's context size.
+
+        Returns:
+            int: Maximum context size in tokens
+        """
+        try:
+            client = await self._get_client()
+            show_endpoint = self.api_endpoint.replace('/api/generate', '/api/show')
+
+            response = await client.post(
+                show_endpoint,
+                json={"name": self.model},
+                timeout=10.0
+            )
+            response.raise_for_status()
+            data = response.json()
+
+            # Parse modelfile and parameters to find num_ctx
+            modelfile = data.get("modelfile", "")
+            parameters = data.get("parameters", "")
+            combined = modelfile + "\n" + parameters
+
+            # Look for PARAMETER num_ctx or num_ctx in parameters
+            match = re.search(r'num_ctx[\s"]+(\d+)', combined, re.IGNORECASE)
+            if match:
+                detected_ctx = int(match.group(1))
+                if self.log_callback:
+                    self.log_callback("info", f"Detected model context size: {detected_ctx} tokens")
+                return detected_ctx
+
+            # Default values by model family
+            model_family_defaults = {
+                "llama": 4096,
+                "mistral": 8192,
+                "gemma": 8192,
+                "phi": 2048,
+                "qwen": 8192,
+            }
+
+            model_lower = self.model.lower()
+            for family, default_ctx in model_family_defaults.items():
+                if family in model_lower:
+                    if self.log_callback:
+                        self.log_callback("info",
+                            f"Using default context size for {family}: {default_ctx} tokens")
+                    return default_ctx
+
+            # Conservative fallback
+            if self.log_callback:
+                self.log_callback("warning",
+                    "Could not detect model context size, using default: 2048 tokens")
+            return 2048
+
+        except Exception as e:
+            if self.log_callback:
+                self.log_callback("warning",
+                    f"Failed to query model context size: {e}. Using configured value.")
+            return self.context_window
 
 
 class OpenAICompatibleProvider(LLMProvider):
