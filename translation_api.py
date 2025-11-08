@@ -17,7 +17,7 @@ from src.config import (
 )
 from src.api.routes import configure_routes
 from src.api.websocket import configure_websocket_handlers
-from src.api.handlers import start_translation_job
+from src.api.handlers import start_translation_job, start_audiobook_generation
 from src.api.translation_state import get_state_manager
 
 # Initialize Flask app with static folder configuration
@@ -46,8 +46,13 @@ def start_job_wrapper(translation_id, config):
     """Wrapper to inject dependencies into job starter"""
     start_translation_job(translation_id, config, state_manager, OUTPUT_DIR, socketio)
 
+# Wrapper function for starting audiobook generation
+def start_audiobook_wrapper(audiobook_id, config):
+    """Wrapper to inject dependencies into audiobook generator"""
+    start_audiobook_generation(audiobook_id, config, state_manager, OUTPUT_DIR, socketio)
+
 # Configure routes and WebSocket handlers
-configure_routes(app, state_manager, OUTPUT_DIR, start_job_wrapper)
+configure_routes(app, state_manager, OUTPUT_DIR, start_job_wrapper, start_audiobook_wrapper)
 configure_websocket_handlers(socketio, state_manager)
 
 if __name__ == '__main__':
@@ -55,6 +60,7 @@ if __name__ == '__main__':
     print(f"   - Default Ollama Endpoint: {DEFAULT_OLLAMA_API_ENDPOINT}")
     print(f"   - Interface: http://localhost:{PORT} (or http://<your_ip>:{PORT})")
     print(f"   - API: http://localhost:{PORT}/api/")
-    print(f"   - Supported formats: .txt and .epub")
+    print(f"   - Supported formats: .txt, .epub, and .srt")
+    print(f"   - Audio features: Text-to-Speech audiobook generation")
     print("\n💡 Press Ctrl+C to stop the server\n")
     socketio.run(app, debug=False, host='0.0.0.0', port=PORT, allow_unsafe_werkzeug=True)
