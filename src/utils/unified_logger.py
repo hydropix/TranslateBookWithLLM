@@ -378,17 +378,23 @@ _global_logger = None
 def get_logger(name: str = "TranslateBookWithLLM", **kwargs) -> UnifiedLogger:
     """
     Get or create the global logger instance
-    
+
     Args:
         name: Logger name
         **kwargs: Additional arguments for UnifiedLogger
-    
+
     Returns:
         UnifiedLogger instance
     """
     global _global_logger
     if _global_logger is None:
         _global_logger = UnifiedLogger(name, **kwargs)
+    else:
+        # Update callbacks if provided (for multi-job scenarios)
+        if 'web_callback' in kwargs:
+            _global_logger.web_callback = kwargs['web_callback']
+        if 'storage_callback' in kwargs:
+            _global_logger.storage_callback = kwargs['storage_callback']
     return _global_logger
 
 
