@@ -115,23 +115,63 @@ function handleTranslationUpdate(data) {
     }
 }
 
+// Prevent accidental page closure during active translation
+window.addEventListener('beforeunload', (e) => {
+    if (isBatchActive && currentProcessingJob) {
+        // Modern browsers require both preventDefault and returnValue
+        const confirmationMessage = 'Une traduction est en cours. Êtes-vous sûr de vouloir quitter cette page ?';
+
+        e.preventDefault();
+        e.returnValue = confirmationMessage;
+
+        return confirmationMessage;
+    }
+});
+
+// Handle actual page unload - interrupt translation if user confirms closure
+window.addEventListener('pagehide', (e) => {
+    // If there's an active translation, interrupt it before page closes
+    if (isBatchActive && currentProcessingJob && currentProcessingJob.translationId) {
+        // Use sendBeacon for reliable delivery even during page unload
+        const interruptUrl = `${API_BASE_URL}/api/translation/${currentProcessingJob.translationId}/interrupt`;
+
+        // sendBeacon is specifically designed to work during page unload
+        // It queues the request and sends it even after the page is gone
+        if (navigator.sendBeacon) {
+            // Create a Blob with proper content type for POST request
+            const blob = new Blob(['{}'], { type: 'application/json' });
+            navigator.sendBeacon(interruptUrl, blob);
+        } else {
+            // Fallback: try synchronous XMLHttpRequest (older browsers)
+            try {
+                const xhr = new XMLHttpRequest();
+                xhr.open('POST', interruptUrl, false); // false = synchronous
+                xhr.setRequestHeader('Content-Type', 'application/json');
+                xhr.send('{}');
+            } catch (error) {
+                console.error('Error interrupting translation on page close:', error);
+            }
+        }
+    }
+});
+
 window.addEventListener('load', async () => {
     // Set up event listener for provider change
     document.getElementById('llmProvider').addEventListener('change', toggleProviderSettings);
-    
+
     try {
         const response = await fetch(`${API_BASE_URL}/api/health`);
         if (!response.ok) throw new Error('Server health check failed');
         const healthData = await response.json();
         addLog('Server health check OK.');
-        
+
         if (healthData.supported_formats) {
             addLog(`Supported file formats: ${healthData.supported_formats.join(', ')}`);
         }
-        
+
         // Initialize provider settings first
         toggleProviderSettings();
-        
+
         const configResponse = await fetch(`${API_BASE_URL}/api/config`);
         if (configResponse.ok) {
             const defaultConfig = await configResponse.json();
@@ -142,7 +182,7 @@ window.addEventListener('load', async () => {
             document.getElementById('maxAttempts').value = defaultConfig.max_attempts || 2;
             document.getElementById('retryDelay').value = defaultConfig.retry_delay || 2;
             document.getElementById('outputFilenamePattern').value = "translated_{originalName}.{ext}";
-            
+
             // Load Gemini API key from environment if available
             if (defaultConfig.gemini_api_key) {
                 document.getElementById('geminiApiKey').value = defaultConfig.gemini_api_key;
