@@ -23,7 +23,7 @@ from src.config import (
 )
 
 
-def configure_routes(app, state_manager, output_dir, start_translation_job):
+def configure_routes(app, state_manager, output_dir, start_translation_job, start_audiobook_generation=None):
     """Configure Flask routes"""
     
     # Initialize secure file handler
@@ -44,7 +44,8 @@ def configure_routes(app, state_manager, output_dir, start_translation_job):
             "message": "Translation API is running",
             "translate_module": "loaded",
             "ollama_default_endpoint": DEFAULT_OLLAMA_API_ENDPOINT,
-            "supported_formats": ["txt", "epub", "srt"]
+            "supported_formats": ["txt", "epub", "srt"],
+            "audio_features": "enabled"  # New audio features
         })
 
     @app.route('/api/models', methods=['GET'])
@@ -724,6 +725,161 @@ def configure_routes(app, state_manager, output_dir, start_translation_job):
     @app.errorhandler(404)
     def route_not_found(error): 
         return jsonify({"error": "API Endpoint not found"}), 404
+    
+    @app.route('/api/audiobook', methods=['POST'])
+    def create_audiobook():
+        """Create audiobook from translated text or files"""
+        data = request.json
+        
+        # Validate required fields
+        required_fields = ['translation_id', 'target_language']
+        for field in required_fields:
+            if field not in data:
+                return jsonify({"error": f"Missing field: {field}"}), 400
+        
+        translation_id = data['translation_id']
+        job_data = state_manager.get_translation(translation_id)
+        
+        if not job_data:
+            return jsonify({"error": "Translation not found"}), 404
+            
+        if job_data.get('status') != 'completed':
+            return jsonify({"error": "Translation must be completed before creating audiobook"}), 400
+        
+        # Create audiobook job ID
+        audiobook_id = f"audio_{int(time.time() * 1000)}"
+        
+        # Prepare audiobook configuration
+        audiobook_config = {
+            'translation_id': translation_id,
+            'source_file': job_data.get('output_filepath'),
+            'target_language': data['target_language'],
+            'voice_sample': data.get('voice_sample'),  # Optional voice cloning
+            'voice_gender': data.get('voice_gender', 'neutral'),  # male, female, neutral
+            'speed': data.get('speed', 1.0),
+            'output_format': data.get('output_format', 'mp3'),  # mp3, wav, flac
+            'chapter_split': data.get('chapter_split', True),  # Split by chapters for EPUB
+            'model_name': data.get('tts_model', 'tts_models/multilingual/multi-dataset/xtts_v2')
+        }
+        
+        # Create audiobook job in state manager
+        state_manager.create_audiobook_job(audiobook_id, audiobook_config)
+        
+        # Start audiobook generation in background
+        start_audiobook_generation(audiobook_id, audiobook_config)
+        
+        return jsonify({
+            "audiobook_id": audiobook_id,
+            "message": "Audiobook generation started",
+            "config": audiobook_config
+        })
+    
+    @app.route('/api/audiobook/<audiobook_id>', methods=['GET'])
+    def get_audiobook_status(audiobook_id):
+        """Get status of audiobook generation"""
+        job_data = state_manager.get_audiobook_job(audiobook_id)
+        
+        if not job_data:
+            return jsonify({"error": "Audiobook job not found"}), 404
+        
+        return jsonify({
+            "audiobook_id": audiobook_id,
+            "status": job_data.get('status'),
+            "progress": job_data.get('progress', 0),
+            "current_chapter": job_data.get('current_chapter'),
+            "total_chapters": job_data.get('total_chapters'),
+            "estimated_duration": job_data.get('estimated_duration'),
+            "output_files": job_data.get('output_files', []),
+            "error": job_data.get('error'),
+            "logs": job_data.get('logs', [])[-50:]  # Last 50 log entries
+        })
+    
+    @app.route('/api/audiobook/<audiobook_id>/download', methods=['GET'])
+    def download_audiobook(audiobook_id):
+        """Download generated audiobook files"""
+        job_data = state_manager.get_audiobook_job(audiobook_id)
+        
+        if not job_data:
+            return jsonify({"error": "Audiobook job not found"}), 404
+            
+        if job_data.get('status') != 'completed':
+            return jsonify({"error": "Audiobook generation not completed"}), 400
+        
+        output_files = job_data.get('output_files', [])
+        if not output_files:
+            return jsonify({"error": "No audio files generated"}), 404
+        
+        # If single file, return it directly
+        if len(output_files) == 1:
+            file_path = Path(output_files[0])
+            if file_path.exists():
+                return send_file(str(file_path), as_attachment=True)
+        
+        # If multiple files, create a zip
+        import zipfile
+        import io
+        
+        zip_buffer = io.BytesIO()
+        with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
+            for file_path_str in output_files:
+                file_path = Path(file_path_str)
+                if file_path.exists():
+                    zip_file.write(file_path, file_path.name)
+        
+        zip_buffer.seek(0)
+        return send_file(
+            zip_buffer,
+            mimetype='application/zip',
+            as_attachment=True,
+            download_name=f"audiobook_{audiobook_id}.zip"
+        )
+    
+    @app.route('/api/tts/models', methods=['GET'])
+    def get_tts_models():
+        """Get available TTS models"""
+        try:
+            from src.core.audio_processor import COQUI_AVAILABLE
+            
+            if not COQUI_AVAILABLE:
+                return jsonify({
+                    "available": False,
+                    "error": "Coqui TTS not installed. Run: pip install TTS"
+                })
+            
+            # List of recommended models for audiobooks
+            models = [
+                {
+                    "name": "tts_models/multilingual/multi-dataset/xtts_v2",
+                    "description": "Best quality multilingual model (13 languages)",
+                    "languages": ["en", "es", "fr", "de", "it", "pt", "pl", "tr", "ru", "nl", "cs", "ar", "zh-cn"],
+                    "supports_voice_cloning": True,
+                    "recommended": True
+                },
+                {
+                    "name": "tts_models/en/ljspeech/tacotron2-DDC",
+                    "description": "High quality English-only model",
+                    "languages": ["en"],
+                    "supports_voice_cloning": False
+                },
+                {
+                    "name": "tts_models/en/vctk/vits",
+                    "description": "Fast English model with multiple speakers",
+                    "languages": ["en"],
+                    "supports_voice_cloning": False
+                }
+            ]
+            
+            return jsonify({
+                "available": True,
+                "models": models,
+                "default": "tts_models/multilingual/multi-dataset/xtts_v2"
+            })
+            
+        except Exception as e:
+            return jsonify({
+                "available": False,
+                "error": str(e)
+            }), 500
     
     @app.errorhandler(500)
     def internal_server_error(error):

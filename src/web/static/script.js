@@ -955,6 +955,9 @@ async function refreshFileList() {
                                file.file_type === 'srt' ? '🎬' : 
                                file.file_type === 'txt' ? '📄' : '📎';
                 
+                // Check if file is a translated file (for audiobook generation)
+                const isTranslatedFile = file.filename.includes('translated_') || file.filename.includes('_to_');
+                
                 row.innerHTML = `
                     <td>
                         <input type="checkbox" class="file-checkbox" data-filename="${file.filename}" onchange="toggleFileSelection('${file.filename}')">
@@ -968,6 +971,9 @@ async function refreshFileList() {
                     <td>${file.size_mb} MB</td>
                     <td>${formattedDate}</td>
                     <td style="text-align: center;">
+                        ${isTranslatedFile ? `<button class="file-action-btn audiobook" onclick="createAudiobook('${file.filename}', '${file.file_path}')" title="Create Audiobook">
+                            🎧
+                        </button>` : ''}
                         <button class="file-action-btn download" onclick="downloadSingleFile('${file.filename}')" title="Download">
                             📥
                         </button>
