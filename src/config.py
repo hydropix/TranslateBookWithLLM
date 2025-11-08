@@ -20,9 +20,10 @@ MAX_TRANSLATION_ATTEMPTS = int(os.getenv('MAX_TRANSLATION_ATTEMPTS', '2'))
 RETRY_DELAY_SECONDS = int(os.getenv('RETRY_DELAY_SECONDS', '2'))
 
 # LLM Provider configuration
-LLM_PROVIDER = os.getenv('LLM_PROVIDER', 'ollama')  # 'ollama' or 'gemini'
+LLM_PROVIDER = os.getenv('LLM_PROVIDER', 'ollama')  # 'ollama', 'gemini', or 'openai'
 GEMINI_API_KEY = os.getenv('GEMINI_API_KEY', '')
 GEMINI_MODEL = os.getenv('GEMINI_MODEL', 'gemini-2.0-flash')
+OPENAI_API_KEY = os.getenv('OPENAI_API_KEY', '')
 
 # SRT-specific configuration
 SRT_LINES_PER_BLOCK = int(os.getenv('SRT_LINES_PER_BLOCK', '5'))
@@ -81,6 +82,7 @@ class TranslationConfig:
     # LLM Provider settings
     llm_provider: str = LLM_PROVIDER
     gemini_api_key: str = GEMINI_API_KEY
+    openai_api_key: str = OPENAI_API_KEY
     
     # Translation parameters
     chunk_size: int = MAIN_LINES_PER_CHUNK
@@ -113,6 +115,7 @@ class TranslationConfig:
             enable_colors=not args.no_color,
             llm_provider=getattr(args, 'provider', LLM_PROVIDER),
             gemini_api_key=getattr(args, 'gemini_api_key', GEMINI_API_KEY),
+            openai_api_key=getattr(args, 'openai_api_key', OPENAI_API_KEY),
             enable_post_processing=getattr(args, 'post_process', False),
             post_processing_instructions=getattr(args, 'post_process_instructions', '')
         )
@@ -135,6 +138,7 @@ class TranslationConfig:
             enable_interruption=True,
             llm_provider=request_data.get('llm_provider', LLM_PROVIDER),
             gemini_api_key=request_data.get('gemini_api_key', GEMINI_API_KEY),
+            openai_api_key=request_data.get('openai_api_key', OPENAI_API_KEY),
             enable_post_processing=request_data.get('enable_post_processing', False),
             post_processing_instructions=request_data.get('post_processing_instructions', '')
         )
@@ -154,6 +158,7 @@ class TranslationConfig:
             'context_window': self.context_window,
             'llm_provider': self.llm_provider,
             'gemini_api_key': self.gemini_api_key,
+            'openai_api_key': self.openai_api_key,
             'enable_post_processing': self.enable_post_processing,
             'post_processing_instructions': self.post_processing_instructions
         }

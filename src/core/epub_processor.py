@@ -654,7 +654,7 @@ async def translate_epub_file(input_filepath, output_filepath,
                               cli_api_endpoint=API_ENDPOINT,
                               progress_callback=None, log_callback=None, stats_callback=None,
                               check_interruption_callback=None, custom_instructions="",
-                              llm_provider="ollama", gemini_api_key=None,
+                              llm_provider="ollama", gemini_api_key=None, openai_api_key=None,
                               enable_post_processing=False, post_processing_instructions=""):
     """
     Translate an EPUB file
@@ -783,15 +783,9 @@ async def translate_epub_file(input_filepath, output_filepath,
             if log_callback: 
                 log_callback("epub_phase2_start", "\nPhase 2: Translating EPUB text segments...")
 
-            # Create LLM client if custom endpoint is provided
-            from .llm_client import LLMClient, default_client
-            llm_client = None
-            if llm_provider == "gemini" and gemini_api_key:
-                llm_client = LLMClient(provider_type="gemini", api_key=gemini_api_key, model=model_name)
-            elif cli_api_endpoint and cli_api_endpoint != default_client.api_endpoint:
-                llm_client = LLMClient(provider_type="openai", api_endpoint=cli_api_endpoint, model=model_name)
-            elif cli_api_endpoint and cli_api_endpoint != default_client.api_endpoint:
-                llm_client = LLMClient(provider_type="ollama", api_endpoint=cli_api_endpoint, model=model_name)
+            # Create LLM client based on provider or custom endpoint
+            from .llm_client import create_llm_client
+            llm_client = create_llm_client(llm_provider, gemini_api_key, cli_api_endpoint, model_name, openai_api_key)
 
             last_successful_llm_context = ""
             completed_jobs_count = 0

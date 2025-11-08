@@ -175,6 +175,7 @@ async def perform_actual_translation(translation_id, config, state_manager, outp
                 custom_instructions=config.get('custom_instructions', ''),
                 llm_provider=config.get('llm_provider', 'ollama'),
                 gemini_api_key=config.get('gemini_api_key', ''),
+                openai_api_key=config.get('openai_api_key', ''),
                 enable_post_processing=config.get('enable_post_processing', False),
                 post_processing_instructions=config.get('post_processing_instructions', '')
             )
@@ -206,6 +207,7 @@ async def perform_actual_translation(translation_id, config, state_manager, outp
                 custom_instructions=config.get('custom_instructions', ''),
                 llm_provider=config.get('llm_provider', 'ollama'),
                 gemini_api_key=config.get('gemini_api_key', ''),
+                openai_api_key=config.get('openai_api_key', ''),
                 enable_post_processing=config.get('enable_post_processing', False),
                 post_processing_instructions=config.get('post_processing_instructions', '')
             )
@@ -237,6 +239,7 @@ async def perform_actual_translation(translation_id, config, state_manager, outp
                 custom_instructions=config.get('custom_instructions', ''),
                 llm_provider=config.get('llm_provider', 'ollama'),
                 gemini_api_key=config.get('gemini_api_key', ''),
+                openai_api_key=config.get('openai_api_key', ''),
                 enable_post_processing=config.get('enable_post_processing', False),
                 post_processing_instructions=config.get('post_processing_instructions', '')
             )

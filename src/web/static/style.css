@@ -423,6 +423,17 @@ body {
     color: #FF6B6B;
 }
 
+.clickable-filename {
+    cursor: pointer;
+    color: #79CDDE;
+    transition: color 0.2s, text-decoration 0.2s;
+}
+
+.clickable-filename:hover {
+    color: #9CE5F4;
+    text-decoration: underline;
+}
+
 #fileListEmpty {
     padding: 60px 20px;
     text-align: center;

@@ -155,18 +155,26 @@ function toggleProviderSettings() {
     const provider = document.getElementById('llmProvider').value;
     const ollamaSettings = document.getElementById('ollamaSettings');
     const geminiSettings = document.getElementById('geminiSettings');
+    const openaiSettings = document.getElementById('openaiSettings');
     const modelSelect = document.getElementById('model');
-    
+
     // console.log(`[DEBUG] toggleProviderSettings called with provider: ${provider}`);
-    
+
     if (provider === 'ollama') {
         ollamaSettings.style.display = 'block';
         geminiSettings.style.display = 'none';
+        openaiSettings.style.display = 'none';
         loadAvailableModels();
     } else if (provider === 'gemini') {
         ollamaSettings.style.display = 'none';
         geminiSettings.style.display = 'block';
+        openaiSettings.style.display = 'none';
         loadGeminiModels();
+    } else if (provider === 'openai') {
+        ollamaSettings.style.display = 'none';
+        geminiSettings.style.display = 'none';
+        openaiSettings.style.display = 'block';
+        loadOpenAIModels();
     }
 }
 
@@ -176,6 +184,8 @@ function refreshModels() {
         loadAvailableModels();
     } else if (provider === 'gemini') {
         loadGeminiModels();
+    } else if (provider === 'openai') {
+        loadOpenAIModels();
     }
 }
 
@@ -185,23 +195,23 @@ let currentModelLoadRequest = null;
 async function loadGeminiModels() {
     const modelSelect = document.getElementById('model');
     modelSelect.innerHTML = '<option value="">Loading Gemini models...</option>';
-    
+
     try {
         const apiKey = document.getElementById('geminiApiKey').value.trim();
         const response = await fetch(`${API_BASE_URL}/api/models?provider=gemini&api_key=${encodeURIComponent(apiKey)}`);
-        
+
         if (!response.ok) {
             const errData = await response.json();
             throw new Error(errData.error || `HTTP error ${response.status}`);
         }
-        
+
         const data = await response.json();
-        
+
         modelSelect.innerHTML = '';
-        
+
         if (data.models && data.models.length > 0) {
             showMessage('', '');
-            
+
             data.models.forEach(model => {
                 const option = document.createElement('option');
                 option.value = model.name;
@@ -210,7 +220,7 @@ async function loadGeminiModels() {
                 if (model.name === data.default) option.selected = true;
                 modelSelect.appendChild(option);
             });
-            
+
             addLog(`✅ ${data.count} Gemini model(s) loaded (excluding thinking models)`);
         } else {
             const errorMessage = data.error || 'No Gemini models available.';
@@ -225,10 +235,33 @@ async function loadGeminiModels() {
     }
 }
 
+async function loadOpenAIModels() {
+    const modelSelect = document.getElementById('model');
+    modelSelect.innerHTML = '';
+
+    // Common OpenAI models
+    const commonModels = [
+        { value: 'gpt-4o', label: 'GPT-4o (Latest)' },
+        { value: 'gpt-4o-mini', label: 'GPT-4o Mini' },
+        { value: 'gpt-4-turbo', label: 'GPT-4 Turbo' },
+        { value: 'gpt-4', label: 'GPT-4' },
+        { value: 'gpt-3.5-turbo', label: 'GPT-3.5 Turbo' }
+    ];
+
+    commonModels.forEach(model => {
+        const option = document.createElement('option');
+        option.value = model.value;
+        option.textContent = model.label;
+        modelSelect.appendChild(option);
+    });
+
+    addLog(`✅ OpenAI models loaded (common models)`);
+}
+
 async function loadAvailableModels() {
     const provider = document.getElementById('llmProvider').value;
-    if (provider === 'gemini') {
-        return; // Gemini models are loaded separately
+    if (provider === 'gemini' || provider === 'openai') {
+        return; // Gemini and OpenAI models are loaded separately
     }
     
     // Cancel any pending request
@@ -619,8 +652,8 @@ async function processNextFileInQueue() {
     if (targetLanguageVal === 'Other') targetLanguageVal = document.getElementById('customTargetLang').value.trim();
 
     const provider = document.getElementById('llmProvider').value;
-    
-    // Validate Gemini API key if using Gemini
+
+    // Validate API keys if using Gemini or OpenAI
     if (provider === 'gemini') {
         const geminiApiKey = document.getElementById('geminiApiKey').value.trim();
         if (!geminiApiKey) {
@@ -632,14 +665,27 @@ async function processNextFileInQueue() {
             return;
         }
     }
+
+    if (provider === 'openai') {
+        const openaiApiKey = document.getElementById('openaiApiKey').value.trim();
+        if (!openaiApiKey) {
+            addLog('❌ Error: OpenAI API key is required when using OpenAI provider');
+            showMessage('Please enter your OpenAI API key', 'error');
+            updateFileStatusInList(fileToTranslate.name, 'Error: Missing API key');
+            currentProcessingJob = null;
+            processNextFileInQueue();
+            return;
+        }
+    }
     
     const config = {
         source_language: sourceLanguageVal,
         target_language: targetLanguageVal,
         model: document.getElementById('model').value,
-        llm_api_endpoint: document.getElementById('apiEndpoint').value,
+        llm_api_endpoint: provider === 'openai' ? document.getElementById('openaiEndpoint').value : document.getElementById('apiEndpoint').value,
         llm_provider: provider,
         gemini_api_key: provider === 'gemini' ? document.getElementById('geminiApiKey').value : '',
+        openai_api_key: provider === 'openai' ? document.getElementById('openaiApiKey').value : '',
         chunk_size: parseInt(document.getElementById('chunkSize').value),
         timeout: parseInt(document.getElementById('timeout').value),
         context_window: parseInt(document.getElementById('contextWindow').value),
@@ -867,7 +913,11 @@ async function refreshFileList() {
                     <td>
                         <input type="checkbox" class="file-checkbox" data-filename="${file.filename}" onchange="toggleFileSelection('${file.filename}')">
                     </td>
-                    <td>${fileIcon} ${file.filename}</td>
+                    <td>
+                        <span class="clickable-filename" onclick="openLocalFile('${file.filename}')" title="Click to open file">
+                            ${fileIcon} ${file.filename}
+                        </span>
+                    </td>
                     <td>${file.file_type.toUpperCase()}</td>
                     <td>${file.size_mb} MB</td>
                     <td>${formattedDate}</td>
@@ -1011,11 +1061,11 @@ async function deleteSelectedFiles() {
         showMessage('No files selected for deletion', 'error');
         return;
     }
-    
+
     if (!confirm(`Are you sure you want to delete ${selectedFiles.size} file(s)?`)) {
         return;
     }
-    
+
     try {
         const response = await fetch(`${API_BASE_URL}/api/files/batch/delete`, {
             method: 'POST',
@@ -1026,9 +1076,9 @@ async function deleteSelectedFiles() {
                 filenames: Array.from(selectedFiles)
             })
         });
-        
+
         const data = await response.json();
-        
+
         if (response.ok) {
             let message = `Deleted ${data.total_deleted} file(s)`;
             if (data.failed.length > 0) {
@@ -1041,5 +1091,24 @@ async function deleteSelectedFiles() {
         }
     } catch (error) {
         showMessage(`Error deleting files: ${error.message}`, 'error');
+    }
+}
+
+async function openLocalFile(filename) {
+    try {
+        const response = await fetch(`${API_BASE_URL}/api/files/${encodeURIComponent(filename)}/open`, {
+            method: 'POST'
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+            showMessage(`File opened: ${filename}`, 'success');
+            addLog(`📂 Opened file: ${filename}`);
+        } else {
+            showMessage(data.error || 'Failed to open file', 'error');
+        }
+    } catch (error) {
+        showMessage(`Error opening file: ${error.message}`, 'error');
     }
 }

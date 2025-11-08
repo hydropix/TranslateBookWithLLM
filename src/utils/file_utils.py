@@ -18,7 +18,7 @@ async def translate_text_file_with_callbacks(input_filepath, output_filepath,
                                              cli_api_endpoint=API_ENDPOINT,
                                              progress_callback=None, log_callback=None, stats_callback=None,
                                              check_interruption_callback=None, custom_instructions="",
-                                             llm_provider="ollama", gemini_api_key=None,
+                                             llm_provider="ollama", gemini_api_key=None, openai_api_key=None,
                                              enable_post_processing=False, post_processing_instructions=""):
     """
     Translate a text file with callback support
@@ -108,6 +108,7 @@ async def translate_text_file_with_callbacks(input_filepath, output_filepath,
         custom_instructions=custom_instructions,
         llm_provider=llm_provider,
         gemini_api_key=gemini_api_key,
+        openai_api_key=openai_api_key,
         enable_post_processing=enable_post_processing,
         post_processing_instructions=post_processing_instructions
     )
@@ -136,7 +137,7 @@ async def translate_srt_file_with_callbacks(input_filepath, output_filepath,
                                            cli_api_endpoint=API_ENDPOINT,
                                            progress_callback=None, log_callback=None, stats_callback=None,
                                            check_interruption_callback=None, custom_instructions="",
-                                           llm_provider="ollama", gemini_api_key=None,
+                                           llm_provider="ollama", gemini_api_key=None, openai_api_key=None,
                                            enable_post_processing=False, post_processing_instructions=""):
     """
     Translate an SRT subtitle file with callback support
@@ -240,6 +241,7 @@ async def translate_srt_file_with_callbacks(input_filepath, output_filepath,
         custom_instructions=custom_instructions,
         llm_provider=llm_provider,
         gemini_api_key=gemini_api_key,
+        openai_api_key=openai_api_key,
         enable_post_processing=enable_post_processing,
         post_processing_instructions=post_processing_instructions
     )
@@ -279,7 +281,7 @@ async def translate_file(input_filepath, output_filepath,
                         cli_api_endpoint=API_ENDPOINT,
                         progress_callback=None, log_callback=None, stats_callback=None,
                         check_interruption_callback=None, custom_instructions="",
-                        llm_provider="ollama", gemini_api_key=None,
+                        llm_provider="ollama", gemini_api_key=None, openai_api_key=None,
                         enable_post_processing=False, post_processing_instructions=""):
     """
     Translate a file (auto-detect format)
@@ -309,6 +311,7 @@ async def translate_file(input_filepath, output_filepath,
                                   custom_instructions=custom_instructions,
                                   llm_provider=llm_provider,
                                   gemini_api_key=gemini_api_key,
+                                  openai_api_key=openai_api_key,
                                   enable_post_processing=enable_post_processing,
                                   post_processing_instructions=post_processing_instructions)
     elif ext == '.srt':
@@ -322,6 +325,7 @@ async def translate_file(input_filepath, output_filepath,
             custom_instructions=custom_instructions,
             llm_provider=llm_provider,
             gemini_api_key=gemini_api_key,
+            openai_api_key=openai_api_key,
             enable_post_processing=enable_post_processing,
             post_processing_instructions=post_processing_instructions
         )
@@ -336,6 +340,7 @@ async def translate_file(input_filepath, output_filepath,
             custom_instructions=custom_instructions,
             llm_provider=llm_provider,
             gemini_api_key=gemini_api_key,
+            openai_api_key=openai_api_key,
             enable_post_processing=enable_post_processing,
             post_processing_instructions=post_processing_instructions
         )
