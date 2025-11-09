@@ -19,8 +19,8 @@ from datetime import datetime
 import aiofiles
 
 from src.config import NAMESPACES, DEFAULT_MODEL, MAIN_LINES_PER_CHUNK, API_ENDPOINT
-from .text_processor import split_text_into_chunks_with_context
-from .translator import translate_chunks
+from ..text_processor import split_text_into_chunks_with_context
+from ..translator import translate_chunks
 
 
 async def extract_pure_text_from_epub(epub_path: str, log_callback=None) -> tuple[str, dict]:

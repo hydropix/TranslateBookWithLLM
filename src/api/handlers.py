@@ -9,7 +9,7 @@ import threading
 from datetime import datetime
 from pathlib import Path
 
-from src.core.epub_processor import translate_epub_file
+from src.core.epub import translate_epub_file
 from src.utils.unified_logger import setup_web_logger, LogType
 from .websocket import emit_update
 
