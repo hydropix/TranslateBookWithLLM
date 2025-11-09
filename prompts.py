@@ -1,14 +1,109 @@
+from typing import List, Tuple
 from src.config import TRANSLATE_TAG_IN, TRANSLATE_TAG_OUT, INPUT_TAG_IN, INPUT_TAG_OUT
 
-def generate_translation_prompt(main_content, context_before, context_after, previous_translation_context,
-                               source_language="English", target_language="French", 
-                               translate_tag_in=TRANSLATE_TAG_IN, translate_tag_out=TRANSLATE_TAG_OUT,
-                               custom_instructions=""):
+
+# ============================================================================
+# SHARED PROMPT SECTIONS
+# ============================================================================
+
+PLACEHOLDER_PRESERVATION_SECTION = """# PLACEHOLDER PRESERVATION (CRITICAL)
+
+You will encounter placeholders like: ⟦TAG0⟧, ⟦TAG1⟧, ⟦TAG2⟧
+These represent HTML/XML tags that have been temporarily replaced.
+
+**MANDATORY RULES:**
+1. Keep ALL placeholders EXACTLY as they appear
+2. Do NOT translate, modify, remove, or explain them
+3. Maintain their EXACT position in the sentence structure
+4. Do NOT add spaces around them unless present in the source
+
+**Example with placeholders:**
+English: "This is ⟦TAG0⟧very important⟦TAG1⟧ information"
+✅ CORRECT: "Voici une information ⟦TAG0⟧très importante⟦TAG1⟧"
+❌ WRONG: "Voici une information très importante" (placeholders removed)
+❌ WRONG: "Voici une information ⟦ TAG0 ⟧très importante⟦ TAG1 ⟧" (spaces added)
+❌ WRONG: "Voici une information ⟦TAG0_translated⟧très importante⟦TAG1⟧" (modified)
+"""
+
+
+def _get_output_format_section(
+    translate_tag_in: str,
+    translate_tag_out: str,
+    input_tag_in: str,
+    input_tag_out: str,
+    additional_rules: str = "",
+    example_format: str = "Your translated text here"
+) -> str:
+    """
+    Generate standardized output format instructions.
+
+    Args:
+        translate_tag_in: Opening tag for translation output
+        translate_tag_out: Closing tag for translation output
+        input_tag_in: Opening tag for input text
+        input_tag_out: Closing tag for input text
+        additional_rules: Optional additional formatting rules
+        example_format: Example text to show in correct format
+
+    Returns:
+        str: Formatted output format instructions
+    """
+    additional_rules_text = f"\n{additional_rules}" if additional_rules else ""
+
+    return f"""# OUTPUT FORMAT
+
+**CRITICAL OUTPUT RULES:**
+1. Translate ONLY the text between "{input_tag_in}" and "{input_tag_out}" tags
+2. Your response MUST start with {translate_tag_in} (first characters, no text before)
+3. Your response MUST end with {translate_tag_out} (last characters, no text after)
+4. Include NOTHING before {translate_tag_in} and NOTHING after {translate_tag_out}
+5. Do NOT add explanations, comments, notes, or greetings{additional_rules_text}
+
+**INCORRECT examples (DO NOT do this):**
+❌ "Here is the translation: {translate_tag_in}Text...{translate_tag_out}"
+❌ "{translate_tag_in}Text...{translate_tag_out} (Additional comment)"
+❌ "Sure! {translate_tag_in}Text...{translate_tag_out}"
+❌ "Text..." (missing tags entirely)
+❌ "{translate_tag_in}Text..." (missing closing tag)
+
+**CORRECT format (ONLY this):**
+✅ {translate_tag_in}
+{example_format}
+{translate_tag_out}
+"""
+
+
+# ============================================================================
+# TRANSLATION PROMPT FUNCTIONS
+# ============================================================================
+
+def generate_translation_prompt(
+    main_content: str,
+    context_before: str,
+    context_after: str,
+    previous_translation_context: str,
+    source_language: str = "English",
+    target_language: str = "French",
+    translate_tag_in: str = TRANSLATE_TAG_IN,
+    translate_tag_out: str = TRANSLATE_TAG_OUT,
+    custom_instructions: str = ""
+) -> str:
     """
     Generate the translation prompt with all contextual elements.
-    
+
+    Args:
+        main_content: The text to translate
+        context_before: Text appearing before main_content for context
+        context_after: Text appearing after main_content for context
+        previous_translation_context: Previously translated text for consistency
+        source_language: Source language name
+        target_language: Target language name
+        translate_tag_in: Opening tag for translation output
+        translate_tag_out: Closing tag for translation output
+        custom_instructions: Additional custom translation instructions
+
     Returns:
-    str: The complete prompt formatted for translation
+        str: The complete prompt formatted for translation
     """
     source_lang = source_language.upper()
 
@@ -58,46 +153,16 @@ English: "She has been working on this project for three years"
 ✅ CORRECT (active voice): "L'analyse a permis d'obtenir les résultats"
 English: "The results were obtained after analysis"
 
-# PLACEHOLDER PRESERVATION (CRITICAL)
+{PLACEHOLDER_PRESERVATION_SECTION}
 
-You will encounter placeholders like: ⟦TAG0⟧, ⟦TAG1⟧, ⟦TAG2⟧
-These represent HTML/XML tags that have been temporarily replaced.
-
-**MANDATORY RULES:**
-1. Keep ALL placeholders EXACTLY as they appear
-2. Do NOT translate, modify, remove, or explain them
-3. Maintain their EXACT position in the sentence structure
-4. Do NOT add spaces around them unless present in the source
-
-**Example with placeholders:**
-English: "This is ⟦TAG0⟧very important⟦TAG1⟧ information"
-✅ CORRECT: "Voici une information ⟦TAG0⟧très importante⟦TAG1⟧"
-❌ WRONG: "Voici une information très importante" (placeholders removed)
-❌ WRONG: "Voici une information ⟦ TAG0 ⟧très importante⟦ TAG1 ⟧" (spaces added)
-❌ WRONG: "Voici une information ⟦TAG0_translated⟧très importante⟦TAG1⟧" (modified)
-
-# OUTPUT FORMAT
-
-**CRITICAL OUTPUT RULES:**
-1. Translate ONLY the text between "{INPUT_TAG_IN}" and "{INPUT_TAG_OUT}" tags
-2. Your response MUST start with {translate_tag_in} (first characters, no text before)
-3. Your response MUST end with {translate_tag_out} (last characters, no text after)
-4. Include NOTHING before {translate_tag_in} and NOTHING after {translate_tag_out}
-5. Do NOT add explanations, comments, notes, or greetings
-6. Do NOT repeat the input text or tags
-7. Preserve all spacing, indentation, and line breaks exactly as in source
-
-**INCORRECT examples (DO NOT do this):**
-❌ "Here is the translation: {translate_tag_in}Voici le texte...{translate_tag_out}"
-❌ "{translate_tag_in}Voici le texte...{translate_tag_out} (This is natural French)"
-❌ "Sure! {translate_tag_in}Voici le texte...{translate_tag_out}"
-❌ "Voici le texte..." (missing tags entirely)
-❌ "{translate_tag_in}Voici le texte..." (missing closing tag)
-
-**CORRECT format (ONLY this):**
-✅ {translate_tag_in}
-Votre texte traduit ici avec tous les ⟦TAG0⟧ préservés exactement.
-{translate_tag_out}
+{_get_output_format_section(
+    translate_tag_in,
+    translate_tag_out,
+    INPUT_TAG_IN,
+    INPUT_TAG_OUT,
+    additional_rules="\n6. Do NOT repeat the input text or tags\n7. Preserve all spacing, indentation, and line breaks exactly as in source",
+    example_format="Votre texte traduit ici avec tous les ⟦TAG0⟧ préservés exactement."
+)}
 """
 
     previous_translation_block_text = ""
@@ -138,36 +203,42 @@ Start with {translate_tag_in} and end with {translate_tag_out}. Nothing before o
 
 Provide your translation now:"""
 
-    structured_prompt_parts = [
+    parts = [part.strip() for part in [
         role_and_instructions_block,
         custom_instructions_block,
         previous_translation_block_text,
         text_to_translate_block
-    ]
-    
-    return "\n\n".join(part.strip() for part in structured_prompt_parts if part and part.strip()).strip()
+    ] if part]
+
+    return "\n\n".join(parts).strip()
 
 
-def generate_subtitle_block_prompt(subtitle_blocks, previous_translation_block, 
-                                 source_language="English", target_language="French",
-                                 translate_tag_in=TRANSLATE_TAG_IN, translate_tag_out=TRANSLATE_TAG_OUT,
-                                 custom_instructions=""):
+def generate_subtitle_block_prompt(
+    subtitle_blocks: List[Tuple[int, str]],
+    previous_translation_block: str,
+    source_language: str = "English",
+    target_language: str = "French",
+    translate_tag_in: str = TRANSLATE_TAG_IN,
+    translate_tag_out: str = TRANSLATE_TAG_OUT,
+    custom_instructions: str = ""
+) -> str:
     """
     Generate translation prompt for multiple subtitle blocks with index markers.
-    
+
     Args:
         subtitle_blocks: List of tuples (index, text) for subtitles to translate
         previous_translation_block: Previous translated block for context
-        source_language: Source language 
+        source_language: Source language
         target_language: Target language
-        translate_tag_in/out: Tags for translation markers
+        translate_tag_in: Opening tag for translation output
+        translate_tag_out: Closing tag for translation output
         custom_instructions: Additional translation instructions
-        
+
     Returns:
         str: The complete prompt formatted for subtitle block translation
     """
     source_lang = source_language.upper()
-    
+
     # Enhanced instructions for subtitle translation
     role_and_instructions_block = f"""You are a professional {target_language} subtitle translator and dialogue adaptation specialist.
 
@@ -202,27 +273,14 @@ English: "That's so cool, dude"
 ✅ CORRECT: "On devrait partir maintenant"
 English: "I think it would be better if we left now"
 
-# OUTPUT FORMAT
-
-**CRITICAL OUTPUT RULES:**
-1. Translate ONLY the text between "{INPUT_TAG_IN}" and "{INPUT_TAG_OUT}" tags
-2. Each subtitle has an index marker: [index]text - PRESERVE these markers exactly
-3. Your response MUST start with {translate_tag_in} (first characters, no text before)
-4. Your response MUST end with {translate_tag_out} (last characters, no text after)
-5. Include NOTHING before {translate_tag_in} and NOTHING after {translate_tag_out}
-6. Maintain line breaks between indexed subtitles
-7. Do NOT add explanations, comments, or greetings
-
-**INCORRECT examples (DO NOT do this):**
-❌ "Here are the subtitles: {translate_tag_in}[1]Texte...{translate_tag_out}"
-❌ "{translate_tag_in}[1]Texte...{translate_tag_out} Hope this helps!"
-❌ "[1]Texte traduit..." (missing tags entirely)
-
-**CORRECT format (ONLY this):**
-✅ {translate_tag_in}
-[1]Première ligne traduite
-[2]Deuxième ligne traduite
-{translate_tag_out}
+{_get_output_format_section(
+    translate_tag_in,
+    translate_tag_out,
+    INPUT_TAG_IN,
+    INPUT_TAG_OUT,
+    additional_rules="\n6. Each subtitle has an index marker: [index]text - PRESERVE these markers exactly\n7. Maintain line breaks between indexed subtitles",
+    example_format="[1]Première ligne traduite\n[2]Deuxième ligne traduite"
+)}
 """
 
     # Custom instructions
@@ -248,17 +306,15 @@ For continuity and consistency, here's the previous subtitle block:
 {previous_translation_block}
 
 """
-        
+
     # Format subtitle blocks with indices
-    formatted_subtitles = []
-    for idx, text in subtitle_blocks:
-        formatted_subtitles.append(f"[{idx}]{text}")
+    formatted_subtitles = [f"[{idx}]{text}" for idx, text in subtitle_blocks]
 
     text_to_translate_block = f"""
 # SUBTITLES TO TRANSLATE
 
 {INPUT_TAG_IN}
-{chr(10).join(formatted_subtitles)}
+{"\n".join(formatted_subtitles)}
 {INPUT_TAG_OUT}
 
 REMINDER: Output format must be:
@@ -271,32 +327,37 @@ Start with {translate_tag_in} and end with {translate_tag_out}. Nothing before o
 
 Provide your translation now:"""
 
-    structured_prompt_parts = [
+    parts = [part.strip() for part in [
         role_and_instructions_block,
         custom_instructions_block,
         previous_translation_block_text,
         text_to_translate_block
-    ]
+    ] if part]
 
-    return "\n".join(part.strip() for part in structured_prompt_parts if part and part.strip()).strip()
+    return "\n".join(parts).strip()
 
 
-def generate_post_processing_prompt(translated_text, target_language="French", 
-                                  translate_tag_in=TRANSLATE_TAG_IN, translate_tag_out=TRANSLATE_TAG_OUT,
-                                  custom_instructions=""):
+def generate_post_processing_prompt(
+    translated_text: str,
+    target_language: str = "French",
+    translate_tag_in: str = TRANSLATE_TAG_IN,
+    translate_tag_out: str = TRANSLATE_TAG_OUT,
+    custom_instructions: str = ""
+) -> str:
     """
     Generate the post-processing prompt to improve translated text quality.
-    
+
     Args:
         translated_text: The already translated text to improve
         target_language: Target language for the text
-        translate_tag_in/out: Tags for marking the improved text
+        translate_tag_in: Opening tag for marking the improved text
+        translate_tag_out: Closing tag for marking the improved text
         custom_instructions: Additional improvement instructions
-        
+
     Returns:
         str: The complete prompt formatted for post-processing
     """
-    
+
     role_and_instructions_block = f"""You are a professional {target_language} editor and proofreader specializing in translation quality.
 
 # POST-PROCESSING PRINCIPLES
@@ -337,26 +398,14 @@ def generate_post_processing_prompt(translated_text, target_language="French",
 ❌ BEFORE: "Utilisez la fonction print(). Servez-vous de print() pour afficher."
 ✅ AFTER: "Utilisez la fonction print() pour afficher."
 
-# OUTPUT FORMAT
-
-**CRITICAL OUTPUT RULES:**
-1. Review ONLY the text between "{INPUT_TAG_IN}" and "{INPUT_TAG_OUT}" tags
-2. Your response MUST start with {translate_tag_in} (first characters, no text before)
-3. Your response MUST end with {translate_tag_out} (last characters, no text after)
-4. Include NOTHING before {translate_tag_in} and NOTHING after {translate_tag_out}
-5. Do NOT add explanations, comments, notes, or greetings
-6. Keep ALL placeholders (⟦TAG0⟧, etc.) exactly as they appear
-
-**INCORRECT examples (DO NOT do this):**
-❌ "Here is the improved version: {translate_tag_in}Texte amélioré...{translate_tag_out}"
-❌ "{translate_tag_in}Texte amélioré...{translate_tag_out} (Much better now!)"
-❌ "Sure, I've improved it: {translate_tag_in}Texte...{translate_tag_out}"
-❌ "Texte amélioré..." (missing tags entirely)
-
-**CORRECT format (ONLY this):**
-✅ {translate_tag_in}
-Texte amélioré avec tous les ⟦TAG0⟧ préservés exactement.
-{translate_tag_out}
+{_get_output_format_section(
+    translate_tag_in,
+    translate_tag_out,
+    INPUT_TAG_IN,
+    INPUT_TAG_OUT,
+    additional_rules="\n6. Keep ALL placeholders (⟦TAG0⟧, etc.) exactly as they appear",
+    example_format="Texte amélioré avec tous les ⟦TAG0⟧ préservés exactement."
+)}
 """
 
     custom_instructions_block = ""
@@ -385,10 +434,10 @@ Start with {translate_tag_in} and end with {translate_tag_out}. Nothing before o
 
 Provide your refined version now:"""
 
-    structured_prompt_parts = [
+    parts = [part.strip() for part in [
         role_and_instructions_block,
         custom_instructions_block,
         text_to_improve_block
-    ]
+    ] if part]
 
-    return "\n".join(part.strip() for part in structured_prompt_parts if part and part.strip()).strip()
+    return "\n".join(parts).strip()
