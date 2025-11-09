@@ -12,12 +12,10 @@ Components:
     - job_collector: Translation job collection from EPUB structure
     - tag_preservation: HTML/XML tag preservation during translation
     - xml_helpers: Safe XML manipulation utilities
-    - audio_processor: EPUB text extraction for TTS
     - constants: Configuration constants
 """
 
 from .translator import translate_epub_file
-from .audio_processor import EPUBProcessor
 from .tag_preservation import TagPreserver
 from .job_collector import collect_translation_jobs
 from .constants import (
@@ -31,9 +29,6 @@ from .constants import (
 __all__ = [
     # Main translation function
     'translate_epub_file',
-
-    # Audio processing
-    'EPUBProcessor',
 
     # Tag preservation
     'TagPreserver',
