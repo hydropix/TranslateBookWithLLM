@@ -40,6 +40,10 @@ SRT_MAX_CHARS_PER_BLOCK = int(os.getenv('SRT_MAX_CHARS_PER_BLOCK', '500'))
 DEFAULT_SOURCE_LANGUAGE = os.getenv('DEFAULT_SOURCE_LANGUAGE', 'English')
 DEFAULT_TARGET_LANGUAGE = os.getenv('DEFAULT_TARGET_LANGUAGE', 'French')
 
+# Server configuration
+HOST = os.getenv('HOST', '127.0.0.1')
+OUTPUT_DIR = os.getenv('OUTPUT_DIR', 'translated_files')
+
 # Translation tags - Improved for LLM clarity and reliability
 TRANSLATE_TAG_IN = "<TRANSLATION>"
 TRANSLATE_TAG_OUT = "</TRANSLATION>"

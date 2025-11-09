@@ -29,6 +29,12 @@ socket.on('translation_update', (data) => {
     }
 });
 
+socket.on('file_list_changed', (data) => {
+    console.log('File list changed:', data.reason, '-', data.filename);
+    // Automatically refresh the file management list
+    refreshFileList();
+});
+
 function updateFileStatusInList(fileName, newStatus, translationId = null) {
     const fileListItem = document.querySelector(`#fileListContainer li[data-filename="${fileName}"] .file-status`);
     if (fileListItem) {
