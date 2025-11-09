@@ -9,7 +9,7 @@ from src.config import TRANSLATE_TAG_IN, TRANSLATE_TAG_OUT
 from .llm_client import create_llm_client
 from .post_processor import clean_translated_text
 from .translator import generate_translation_request, post_process_translation
-from .epub_processor import TagPreserver
+from .epub import TagPreserver
 
 
 async def translate_subtitles(subtitles: List[Dict[str, str]], source_language: str,

@@ -139,7 +139,7 @@ async def post_process_translation(translated_text, target_language="French", mo
         return translated_text
     
     # Import TagPreserver for placeholder validation
-    from .epub_processor import TagPreserver
+    from .epub import TagPreserver
     
     # Check for placeholders in input if tag_map provided
     has_placeholders = tag_map is not None and len(tag_map) > 0

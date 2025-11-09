@@ -7,7 +7,7 @@ import aiofiles
 from src.core.text_processor import split_text_into_chunks_with_context
 from src.core.translator import translate_chunks
 from src.core.subtitle_translator import translate_subtitles, translate_subtitles_in_blocks
-from src.core.epub_processor import translate_epub_file
+from src.core.epub import translate_epub_file
 from src.core.srt_processor import SRTProcessor
 from src.config import DEFAULT_MODEL, MAIN_LINES_PER_CHUNK, API_ENDPOINT, SRT_LINES_PER_BLOCK, SRT_MAX_CHARS_PER_BLOCK
 

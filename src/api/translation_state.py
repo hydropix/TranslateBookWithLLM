@@ -12,7 +12,6 @@ class TranslationStateManager:
     
     def __init__(self):
         self._translations: Dict[str, Dict[str, Any]] = {}
-        self._audiobook_jobs: Dict[str, Dict[str, Any]] = {}  # Store audiobook generation jobs
         self._lock = threading.RLock()  # Use RLock to allow nested locking
     
     def create_translation(self, translation_id: str, config: Dict[str, Any]) -> None:
@@ -141,59 +140,6 @@ class TranslationStateManager:
             if translation_id not in self._translations:
                 return False
             self._translations[translation_id]['interrupted'] = interrupted
-            return True
-    
-    # Audiobook-specific methods
-    def create_audiobook_job(self, audiobook_id: str, config: Dict[str, Any]) -> None:
-        """Create a new audiobook generation job"""
-        with self._lock:
-            self._audiobook_jobs[audiobook_id] = {
-                'status': 'queued',
-                'progress': 0,
-                'current_chapter': None,
-                'total_chapters': 0,
-                'estimated_duration': None,
-                'output_files': [],
-                'logs': [f"[{datetime.now().strftime('%H:%M:%S')}] Audiobook job {audiobook_id} created."],
-                'config': config,
-                'start_time': time.time(),
-                'error': None
-            }
-    
-    def update_audiobook_job(self, audiobook_id: str, updates: Dict[str, Any]) -> bool:
-        """Update audiobook job state"""
-        with self._lock:
-            if audiobook_id not in self._audiobook_jobs:
-                return False
-            
-            job = self._audiobook_jobs[audiobook_id]
-            
-            # Handle logs append
-            if 'log' in updates:
-                if 'logs' not in job:
-                    job['logs'] = []
-                job['logs'].append(updates['log'])
-                updates = {k: v for k, v in updates.items() if k != 'log'}
-            
-            # Update remaining fields
-            job.update(updates)
-            return True
-    
-    def get_audiobook_job(self, audiobook_id: str) -> Optional[Dict[str, Any]]:
-        """Get audiobook job state"""
-        with self._lock:
-            if audiobook_id not in self._audiobook_jobs:
-                return None
-            return self._audiobook_jobs[audiobook_id].copy()
-    
-    def append_audiobook_log(self, audiobook_id: str, log_entry: str) -> bool:
-        """Append a log entry to audiobook job"""
-        with self._lock:
-            if audiobook_id not in self._audiobook_jobs:
-                return False
-            if 'logs' not in self._audiobook_jobs[audiobook_id]:
-                self._audiobook_jobs[audiobook_id]['logs'] = []
-            self._audiobook_jobs[audiobook_id]['logs'].append(log_entry)
             return True
 
 

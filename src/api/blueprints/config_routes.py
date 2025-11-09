@@ -1,0 +1,156 @@
+"""
+Configuration and health check routes
+"""
+import os
+import asyncio
+import requests
+from flask import Blueprint, request, jsonify, send_from_directory
+
+from src.config import (
+    API_ENDPOINT as DEFAULT_OLLAMA_API_ENDPOINT,
+    DEFAULT_MODEL,
+    MAIN_LINES_PER_CHUNK,
+    REQUEST_TIMEOUT,
+    OLLAMA_NUM_CTX,
+    MAX_TRANSLATION_ATTEMPTS,
+    RETRY_DELAY_SECONDS,
+    DEFAULT_SOURCE_LANGUAGE,
+    DEFAULT_TARGET_LANGUAGE
+)
+
+
+def create_config_blueprint():
+    """Create and configure the config blueprint"""
+    bp = Blueprint('config', __name__)
+
+    @bp.route('/')
+    def serve_interface():
+        """Serve the main translation interface"""
+        interface_path = 'src/web/templates/translation_interface.html'
+        if os.path.exists(interface_path):
+            return send_from_directory('src/web/templates', 'translation_interface.html')
+        return "<h1>Error: Interface not found</h1>", 404
+
+    @bp.route('/api/health', methods=['GET'])
+    def health_check():
+        """API health check endpoint"""
+        return jsonify({
+            "status": "ok",
+            "message": "Translation API is running",
+            "translate_module": "loaded",
+            "ollama_default_endpoint": DEFAULT_OLLAMA_API_ENDPOINT,
+            "supported_formats": ["txt", "epub", "srt"]
+        })
+
+    @bp.route('/api/models', methods=['GET'])
+    def get_available_models():
+        """Get available models from Ollama or Gemini"""
+        provider = request.args.get('provider', 'ollama')
+
+        if provider == 'gemini':
+            return _get_gemini_models()
+        else:
+            return _get_ollama_models()
+
+    @bp.route('/api/config', methods=['GET'])
+    def get_default_config():
+        """Get default configuration values"""
+        gemini_api_key = os.getenv('GEMINI_API_KEY', '')
+
+        return jsonify({
+            "api_endpoint": DEFAULT_OLLAMA_API_ENDPOINT,
+            "default_model": DEFAULT_MODEL,
+            "chunk_size": MAIN_LINES_PER_CHUNK,
+            "timeout": REQUEST_TIMEOUT,
+            "context_window": OLLAMA_NUM_CTX,
+            "max_attempts": MAX_TRANSLATION_ATTEMPTS,
+            "retry_delay": RETRY_DELAY_SECONDS,
+            "supported_formats": ["txt", "epub", "srt"],
+            "gemini_api_key": gemini_api_key,
+            "default_source_language": DEFAULT_SOURCE_LANGUAGE,
+            "default_target_language": DEFAULT_TARGET_LANGUAGE
+        })
+
+    def _get_gemini_models():
+        """Get available models from Gemini API"""
+        api_key = request.args.get('api_key')
+        if not api_key:
+            api_key = os.getenv('GEMINI_API_KEY')
+
+        if not api_key:
+            return jsonify({
+                "models": [],
+                "default": "gemini-2.0-flash",
+                "status": "api_key_missing",
+                "count": 0,
+                "error": "Gemini API key is required. Set GEMINI_API_KEY environment variable or pass api_key parameter."
+            })
+
+        try:
+            from src.core.llm_providers import GeminiProvider
+
+            gemini_provider = GeminiProvider(api_key=api_key)
+            models = asyncio.run(gemini_provider.get_available_models())
+
+            if models:
+                model_names = [m['name'] for m in models]
+                return jsonify({
+                    "models": models,
+                    "model_names": model_names,
+                    "default": "gemini-2.0-flash",
+                    "status": "gemini_connected",
+                    "count": len(models)
+                })
+            else:
+                return jsonify({
+                    "models": [],
+                    "default": "gemini-2.0-flash",
+                    "status": "gemini_error",
+                    "count": 0,
+                    "error": "Failed to retrieve Gemini models"
+                })
+
+        except Exception as e:
+            print(f"❌ Error retrieving Gemini models: {e}")
+            return jsonify({
+                "models": [],
+                "default": "gemini-2.0-flash",
+                "status": "gemini_error",
+                "count": 0,
+                "error": f"Error connecting to Gemini API: {str(e)}"
+            })
+
+    def _get_ollama_models():
+        """Get available models from Ollama API"""
+        ollama_base_from_ui = request.args.get('api_endpoint', DEFAULT_OLLAMA_API_ENDPOINT)
+
+        try:
+            base_url = ollama_base_from_ui.split('/api/')[0]
+            tags_url = f"{base_url}/api/tags"
+            response = requests.get(tags_url, timeout=5)
+
+            if response.status_code == 200:
+                data = response.json()
+                models_data = data.get('models', [])
+                model_names = [m.get('name') for m in models_data if m.get('name')]
+
+                return jsonify({
+                    "models": model_names,
+                    "default": DEFAULT_MODEL if DEFAULT_MODEL in model_names else (model_names[0] if model_names else DEFAULT_MODEL),
+                    "status": "ollama_connected",
+                    "count": len(model_names)
+                })
+        except requests.exceptions.RequestException as e:
+            print(f"❌ Could not connect to Ollama at {ollama_base_from_ui}: {e}")
+        except Exception as e:
+            print(f"❌ Error retrieving models from {ollama_base_from_ui}: {e}")
+
+        return jsonify({
+            "models": [],
+            "default": DEFAULT_MODEL,
+            "status": "ollama_offline_or_error",
+            "count": 0,
+            "error": f"Ollama is not accessible at {ollama_base_from_ui} or an error occurred. Verify that Ollama is running ('ollama serve') and the endpoint is correct."
+        })
+
+    return bp

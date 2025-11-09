@@ -9,7 +9,7 @@ import threading
 from datetime import datetime
 from pathlib import Path
 
-from src.core.epub_processor import translate_epub_file
+from src.core.epub import translate_epub_file
 from src.utils.unified_logger import setup_web_logger, LogType
 from .websocket import emit_update
 
@@ -398,6 +398,13 @@ async def perform_actual_translation(translation_id, config, state_manager, outp
         
         emit_update(socketio, translation_id, final_status_payload, state_manager)
 
+        # Trigger file list refresh in the frontend if a file was saved
+        if os.path.exists(output_filepath_on_server) and final_status_payload['status'] in ['completed', 'interrupted']:
+            socketio.emit('file_list_changed', {
+                'reason': final_status_payload['status'],
+                'filename': config.get('output_filename', 'unknown')
+            }, namespace='/')
+
     except Exception as e:
         critical_error_msg = f"Critical error during translation task ({translation_id}): {str(e)}"
         _log_message_callback("critical_error_perform_task", critical_error_msg)
@@ -433,178 +440,6 @@ def start_translation_job(translation_id, config, state_manager, output_dir, soc
     thread = threading.Thread(
         target=run_translation_async_wrapper,
         args=(translation_id, config, state_manager, output_dir, socketio)
-    )
-    thread.daemon = True
-    thread.start()
-
-
-def run_audiobook_async_wrapper(audiobook_id, config, state_manager, output_dir, socketio):
-    """
-    Wrapper for running audiobook generation in async context
-    """
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    try:
-        loop.run_until_complete(perform_audiobook_generation(audiobook_id, config, state_manager, output_dir, socketio))
-    except Exception as e:
-        error_msg = f"Critical error in audiobook generation {audiobook_id}: {str(e)}"
-        print(error_msg)
-        if state_manager.get_audiobook_job(audiobook_id):
-            state_manager.update_audiobook_job(audiobook_id, {
-                'status': 'error',
-                'error': error_msg,
-                'log': f"[{datetime.now().strftime('%H:%M:%S')}] ERROR: {error_msg}"
-            })
-            emit_update(socketio, f"audiobook_{audiobook_id}", {'error': error_msg, 'status': 'error'}, state_manager)
-    finally:
-        loop.close()
-
-
-async def perform_audiobook_generation(audiobook_id, config, state_manager, output_dir, socketio):
-    """
-    Perform the actual audiobook generation
-    """
-    from src.core.audio_processor import AudioProcessor, COQUI_AVAILABLE
-    from src.config import Config
-    
-    # Update status to running
-    state_manager.update_audiobook_job(audiobook_id, {
-        'status': 'running',
-        'log': f"[{datetime.now().strftime('%H:%M:%S')}] Starting audiobook generation..."
-    })
-    emit_update(socketio, f"audiobook_{audiobook_id}", {'status': 'running'}, state_manager)
-    
-    if not COQUI_AVAILABLE:
-        error_msg = "Coqui TTS is not installed. Please install it with: pip install TTS"
-        state_manager.update_audiobook_job(audiobook_id, {
-            'status': 'error',
-            'error': error_msg,
-            'log': f"[{datetime.now().strftime('%H:%M:%S')}] ERROR: {error_msg}"
-        })
-        return
-    
-    try:
-        # Get the translation data
-        translation_id = config['translation_id']
-        translation_data = state_manager.get_translation(translation_id)
-        
-        if not translation_data:
-            raise ValueError(f"Translation {translation_id} not found")
-        
-        source_file = config['source_file']
-        if not source_file or not os.path.exists(source_file):
-            raise ValueError(f"Source file not found: {source_file}")
-        
-        # Initialize audio processor
-        app_config = Config()
-        audio_processor = AudioProcessor(app_config)
-        
-        # Create output directory for audiobook
-        audiobook_dir = os.path.join(output_dir, f"audiobook_{audiobook_id}")
-        os.makedirs(audiobook_dir, exist_ok=True)
-        
-        # Progress callback
-        async def progress_callback(message):
-            state_manager.update_audiobook_job(audiobook_id, {
-                'log': f"[{datetime.now().strftime('%H:%M:%S')}] {message}"
-            })
-            emit_update(socketio, f"audiobook_{audiobook_id}", {'log': message}, state_manager)
-        
-        # Determine file type and process accordingly
-        file_type = translation_data['config'].get('file_type', 'txt')
-        
-        if file_type == 'epub':
-            # Process EPUB to audiobook
-            from src.core.epub_processor import EPUBProcessor
-            
-            # Extract text content from EPUB
-            epub_processor = EPUBProcessor()
-            chapters = await epub_processor.extract_chapters_for_audio(source_file)
-            
-            state_manager.update_audiobook_job(audiobook_id, {
-                'total_chapters': len(chapters),
-                'log': f"[{datetime.now().strftime('%H:%M:%S')}] Found {len(chapters)} chapters to convert"
-            })
-            
-            # Convert chapters to audiobook
-            audio_files = await audio_processor.process_epub_to_audiobook(
-                chapters,
-                audiobook_dir,
-                language=config['target_language'],
-                voice_sample=config.get('voice_sample'),
-                progress_callback=progress_callback
-            )
-            
-        else:
-            # Process text file to single audio
-            with open(source_file, 'r', encoding='utf-8') as f:
-                text_content = f.read()
-            
-            # Estimate duration
-            duration = audio_processor.estimate_audio_duration(text_content)
-            state_manager.update_audiobook_job(audiobook_id, {
-                'estimated_duration': f"{duration:.1f} minutes",
-                'log': f"[{datetime.now().strftime('%H:%M:%S')}] Estimated duration: {duration:.1f} minutes"
-            })
-            
-            # Generate audio
-            output_file = os.path.join(
-                audiobook_dir,
-                f"{Path(source_file).stem}_audiobook.{config.get('output_format', 'mp3')}"
-            )
-            
-            result = await audio_processor.text_to_speech(
-                text_content,
-                output_file,
-                language=config['target_language'],
-                voice_sample=config.get('voice_sample'),
-                progress_callback=progress_callback
-            )
-            
-            audio_files = [result] if result else []
-        
-        # Update final status
-        if audio_files:
-            state_manager.update_audiobook_job(audiobook_id, {
-                'status': 'completed',
-                'output_files': audio_files,
-                'progress': 100,
-                'log': f"[{datetime.now().strftime('%H:%M:%S')}] ✅ Audiobook generation completed!"
-            })
-            emit_update(socketio, f"audiobook_{audiobook_id}", {
-                'status': 'completed',
-                'output_files': audio_files,
-                'progress': 100
-            }, state_manager)
-        else:
-            raise ValueError("No audio files were generated")
-        
-        # Cleanup
-        audio_processor.close()
-        
-    except Exception as e:
-        error_msg = f"Audiobook generation failed: {str(e)}"
-        state_manager.update_audiobook_job(audiobook_id, {
-            'status': 'error',
-            'error': error_msg,
-            'log': f"[{datetime.now().strftime('%H:%M:%S')}] ERROR: {error_msg}"
-        })
-        emit_update(socketio, f"audiobook_{audiobook_id}", {
-            'status': 'error',
-            'error': error_msg
-        }, state_manager)
-        
-        import traceback
-        print(f"Audiobook generation error: {traceback.format_exc()}")
-
-
-def start_audiobook_generation(audiobook_id, config, state_manager, output_dir, socketio):
-    """
-    Start audiobook generation in a separate thread
-    """
-    thread = threading.Thread(
-        target=run_audiobook_async_wrapper,
-        args=(audiobook_id, config, state_manager, output_dir, socketio)
     )
     thread.daemon = True
     thread.start()
