@@ -47,10 +47,7 @@ async def translate_epub_file(
     simple_mode: bool = False,
     context_window: int = 2048,
     auto_adjust_context: bool = True,
-    min_chunk_size: int = 5,
-    custom_instructions: str = "",
-    enable_post_processing: bool = False,
-    post_processing_instructions: str = ""
+    min_chunk_size: int = 5
 ) -> None:
     """
     Translate an EPUB file using LLM
@@ -77,9 +74,6 @@ async def translate_epub_file(
         context_window: Context window size for LLM
         auto_adjust_context: Auto-adjust context based on model
         min_chunk_size: Minimum chunk size
-        custom_instructions: Custom translation instructions (deprecated, kept for compatibility)
-        enable_post_processing: Enable post-processing (deprecated, kept for compatibility)
-        post_processing_instructions: Post-processing instructions (deprecated, kept for compatibility)
     """
     if not os.path.exists(input_filepath):
         err_msg = f"ERROR: Input EPUB file '{input_filepath}' not found."
@@ -95,9 +89,8 @@ async def translate_epub_file(
             input_filepath, output_filepath, source_language, target_language,
             model_name, chunk_target_lines_arg, cli_api_endpoint,
             progress_callback, log_callback, stats_callback,
-            check_interruption_callback, custom_instructions,
+            check_interruption_callback,
             llm_provider, gemini_api_key, openai_api_key,
-            enable_post_processing, post_processing_instructions,
             context_window, auto_adjust_context, min_chunk_size
         )
         return
@@ -126,7 +119,6 @@ async def translate_epub_file(
             completed, failed = await _translate_jobs(
                 jobs, source_language, target_language, model_name,
                 cli_api_endpoint, llm_provider, gemini_api_key, openai_api_key,
-                custom_instructions, enable_post_processing, post_processing_instructions,
                 progress_callback, log_callback, stats_callback, check_interruption_callback
             )
 
@@ -277,9 +269,6 @@ async def _translate_jobs(
     llm_provider: str,
     gemini_api_key: Optional[str],
     openai_api_key: Optional[str],
-    custom_instructions: str,
-    enable_post_processing: bool,
-    post_processing_instructions: str,
     progress_callback: Optional[Callable],
     log_callback: Optional[Callable],
     stats_callback: Optional[Callable],
@@ -297,9 +286,6 @@ async def _translate_jobs(
         llm_provider: LLM provider
         gemini_api_key: Gemini API key
         openai_api_key: OpenAI API key
-        custom_instructions: Custom instructions
-        enable_post_processing: Enable post-processing
-        post_processing_instructions: Post-processing instructions
         progress_callback: Progress callback
         log_callback: Logging callback
         stats_callback: Statistics callback
@@ -335,8 +321,7 @@ async def _translate_jobs(
         translated_parts = await _translate_epub_chunks_with_context(
             job['sub_chunks'], source_language, target_language,
             model_name, llm_client, last_successful_context,
-            log_callback, check_interruption_callback, custom_instructions,
-            enable_post_processing, post_processing_instructions
+            log_callback, check_interruption_callback
         )
 
         # Join translated parts
@@ -375,10 +360,7 @@ async def _translate_epub_chunks_with_context(
     llm_client: Any,
     previous_context: str,
     log_callback: Optional[Callable],
-    check_interruption_callback: Optional[Callable],
-    custom_instructions: str,
-    enable_post_processing: bool,
-    post_processing_instructions: str
+    check_interruption_callback: Optional[Callable]
 ) -> List[str]:
     """
     Translate EPUB chunks with previous translation context for consistency
@@ -392,9 +374,6 @@ async def _translate_epub_chunks_with_context(
         previous_context: Previous translation for context
         log_callback: Logging callback
         check_interruption_callback: Interruption check callback
-        custom_instructions: Custom instructions
-        enable_post_processing: Enable post-processing
-        post_processing_instructions: Post-processing instructions
 
     Returns:
         List of translated chunks
@@ -424,8 +403,7 @@ async def _translate_epub_chunks_with_context(
         translated_chunk = await generate_translation_request(
             main_content, context_before, context_after,
             previous_context, source_language, target_language,
-            model_name, llm_client=llm_client, log_callback=log_callback,
-            custom_instructions=custom_instructions
+            model_name, llm_client=llm_client, log_callback=log_callback
         )
 
         if translated_chunk is not None:
@@ -435,7 +413,7 @@ async def _translate_epub_chunks_with_context(
                     translated_chunk, source_placeholders, main_content,
                     context_before, context_after, previous_context,
                     source_language, target_language, model_name,
-                    llm_client, custom_instructions, log_callback
+                    llm_client, log_callback
                 )
 
             translated_parts.append(translated_chunk)
@@ -461,7 +439,6 @@ async def _validate_placeholders_and_retry(
     target_language: str,
     model_name: str,
     llm_client: Any,
-    custom_instructions: str,
     log_callback: Optional[Callable]
 ) -> str:
     """
@@ -478,7 +455,6 @@ async def _validate_placeholders_and_retry(
         target_language: Target language
         model_name: Model name
         llm_client: LLM client
-        custom_instructions: Custom instructions
         log_callback: Logging callback
 
     Returns:
@@ -490,20 +466,13 @@ async def _validate_placeholders_and_retry(
     if missing:
         if log_callback:
             log_callback("epub_translation_missing_placeholders",
-                       f"Translation missing placeholders: {missing}")
+                       f"Translation missing placeholders: {missing}. Missing: {', '.join(sorted(missing))}")
 
-        # Retry with stronger instructions
-        retry_instructions = (
-            f"{custom_instructions}\n\n"
-            f"CRITICAL: You MUST preserve ALL placeholder tags exactly as they appear. "
-            f"Tags like {', '.join(sorted(source_placeholders))} must remain UNCHANGED in your translation."
-        )
-
+        # Retry translation (prompt already includes placeholder preservation instructions)
         retry_text = await generate_translation_request(
             main_content, context_before, context_after,
             previous_context, source_language, target_language,
-            model_name, llm_client=llm_client, log_callback=log_callback,
-            custom_instructions=retry_instructions
+            model_name, llm_client=llm_client, log_callback=log_callback
         )
 
         if retry_text is not None:
@@ -735,12 +704,9 @@ async def _translate_epub_simple_mode(
     log_callback: Optional[Callable],
     stats_callback: Optional[Callable],
     check_interruption_callback: Optional[Callable],
-    custom_instructions: str,
     llm_provider: str,
     gemini_api_key: Optional[str],
     openai_api_key: Optional[str],
-    enable_post_processing: bool,
-    post_processing_instructions: str,
     context_window: int,
     auto_adjust_context: bool,
     min_chunk_size: int
