@@ -1,237 +1,436 @@
 <p align="center">
-    <img src="https://github.com/hydropix/TranslateBookWithLLM/blob/main/src/web/static/TBL-Logo.png?raw=true" alt="Logo de l'application">
+    <img src="https://github.com/hydropix/TranslateBookWithLLM/blob/main/src/web/static/TBL-Logo.png?raw=true" alt="Application Logo">
 </p>
 
-*TBL is a Python application designed for large-scale text translation, such as entire books (.EPUB), subtitle file (.SRT) and plain text, leveraging local LLMs via the **Ollama** API or **Gemini** API. The tool offers both a **web interface** for ease of use and a command-line interface for advanced users.*
+# 📚 TranslateBook with LLM (TBL)
 
-## Features
+**Translate entire books, subtitles, and large texts with AI - simply and efficiently.**
 
-- 📚 **Multiple Format Support**: Translate plain text (.txt), book (.EPUB) and subtitle (.SRT) files while preserving formatting
-- 🌐 **Web Interface**: User-friendly browser-based interface
-- 💻 **CLI Support**: Command-line interface for automation and scripting
-- 🤖 **Multiple LLM Providers**: Support for both local Ollama models OpenAI and Google Gemini API
-- 🐳 **Docker Support**: Easy deployment with Docker container
+TBL is an application that lets you translate large volumes of text using Language Models (LLMs). Whether you want to translate an ebook, movie subtitles, or long documents, TBL does it automatically while preserving formatting.
 
-## Windows Installation Guide
+## ✨ Why use TBL?
 
-This comprehensive guide walks you through setting up the complete environment on Windows.
+- 🎯 **Easy to use**: Intuitive web interface, no technical skills required
+- 🔒 **Private & Local**: Use Ollama to translate without sending your texts to the internet
+- 💰 **Cost-effective**: Free with Ollama, controlled costs with cloud APIs
+- 📖 **Preserves formatting**: EPUB files keep their structure, subtitles keep their timings
+- 🚀 **Batch translation**: Translate multiple files at once
+- 🌍 **Multi-language**: Translate between any languages
 
-### 1\. Prerequisites: Software Installation
+## 🎯 Use Cases
 
-1.  **Miniconda (Python Environment Manager)**
+- Translate ebooks (EPUB)
+- Translate movie subtitles (SRT)
+- Translate long documents
 
-      - **Purpose:** Creates isolated Python environments to manage dependencies
-      - **Download:** Get the latest Windows 64-bit installer from the [Miniconda install page](https://www.anaconda.com/docs/getting-started/miniconda/install#windows-installation)
-      - **Installation:** Run installer, choose "Install for me only", use default settings
+---
 
-2.  **Ollama (Local LLM Runner)**
+## 🚀 Quick Start
 
-      - **Purpose:** Runs large language models locally
-      - **Download:** Get the Windows installer from [Ollama website](https://ollama.com/)
-      - **Installation:** Run installer and follow instructions
+### Easy Installation (Windows)
 
-3.  **Git (Version Control)**
+**Step 1: Install Required Software**
 
-      - **Purpose:** Download and update the script from GitHub
-      - **Download:** Get from [https://git-scm.com/download/win](https://git-scm.com/download/win)
-      - **Installation:** Use default settings
+1. **Miniconda** - Manages Python easily
+   
+   - Download: [Miniconda Windows Installer](https://www.anaconda.com/docs/getting-started/miniconda/install#windows-installation)
+   - Install with default settings
 
------
+2. **Ollama** - Runs AI models locally (free!)
+   
+   - Download: [Ollama for Windows](https://ollama.com/)
+   - Install and it will start automatically
 
-### 2\. Setting up the Python Environment
+3. **Git** - Downloads TBL
+   
+   - Download: [Git for Windows](https://git-scm.com/download/win)
+   - Install with default settings
 
-1.  **Open Anaconda Prompt** (search in Start Menu)
+**Step 2: Install TBL**
 
-2.  **Create and Activate Environment:**
-
-    ```bash
-    # Create environment
-    conda create -n translate_book_env python=3.9
-
-    # Activate environment (do this every time)
-    conda activate translate_book_env
-    ```
-    
------
-
-### 3\. Getting the Translation Application
+Open **Anaconda Prompt** (search in Start Menu) and run:
 
 ```bash
-# Navigate to your projects folder
-cd C:\Projects
-mkdir TranslateBookWithLLM
-cd TranslateBookWithLLM
+# Create a Python environment for TBL
+conda create -n translate_book_env python=3.9
 
-# Clone the repository
-git clone https://github.com/hydropix/TranslateBookWithLLM.git .
-```
-
------
-
-### 4\. Installing Dependencies
-
-```bash
-# Ensure environment is active
+# Activate it (do this every time)
 conda activate translate_book_env
+
+# Download TBL
+cd C:\
+mkdir Projects
+cd Projects
+git clone https://github.com/hydropix/TranslateBookWithLLM.git
+cd TranslateBookWithLLM
 
 # Install dependencies
 pip install -r requirements.txt
 ```
 
------
+**Step 3: Download an AI Model**
 
-### 5\. Preparing Ollama
+[Ollama Search](https://ollama.com/search)
 
-1.  **Download an LLM Model:**
+📊 Qwen3 Installation by VRAM (GPU)
 
-    ```bash
-    # Download the default model (recommended for French translation)
-    ollama pull mistral-small:24b
-
-    # Or try other models
-    ollama pull qwen2:7b
-    ollama pull llama3:8b
-
-    # List available models
-    ollama list
-    ```
-
-2.  **Start Ollama Service:**
-
-      - Ollama usually runs automatically after installation
-      - Look for Ollama icon in system tray
-      - If not running, launch from Start Menu
-
------
-
-### 6\. Using the Application
-
-## Option A: Web Interface (Recommended)
-
-1.  **Start the Server:**
-
-    ```bash
-    conda activate translate_book_env
-    cd C:\Projects\TranslateBookWithLLM
-    python translation_api.py
-    ```
-
-2.  **Open Browser:** Navigate to `http://localhost:5000`
-    - Port can be configured via `PORT` environment variable
-    - Example: `PORT=8080 python translation_api.py`
-
-3. **Configure and Translate:**
-   - Select source and target languages
-   - Choose your LLM model
-   - Upload your .txt or .epub file
-   - Adjust advanced settings if needed
-   - Start translation and monitor real-time progress
-   - Download the translated result
-
-## Option B: Command Line Interface
-
-Basic usage:
-
-```bash
-python translate.py -i input.txt -o output.txt
+```
+6-10 GB  → ollama pull qwen3:8b      (5.2 GB, minimal quality translations)
+10-16 GB → ollama pull qwen3:14b     (9.3 GB, acceptable translations)
+16-24 GB → ollama pull qwen3:30b     (19 GB, very good translation)
+48+ GB   → ollama pull qwen3:235b    (142 GB, professional translation)ction)
 ```
 
-**Command Arguments**
-
-  - `-i, --input`: (Required) Path to the input file (.txt, .epub, or .srt).
-  - `-o, --output`: Output file path. If not specified, a default name will be generated (format: input_translated.ext).
-  - `-sl, --source_lang`: Source language (default: "English").
-  - `-tl, --target_lang`: Target language (default: "French").
-  - `-m, --model`: LLM model to use (default: "mistral-small:24b").
-  - `-cs, --chunksize`: Target lines per chunk for text files (default: 25).
-  - `--api_endpoint`: Ollama API endpoint (default: "http://localhost:11434/api/generate").
-  - `--provider`: LLM provider to use ("ollama" or "gemini", default: "ollama").
-  - `--gemini_api_key`: Google Gemini API key (required when using gemini provider).
-
-**Examples:**
-
 ```bash
-# Basic English to French translation (text file)
-python translate.py -i book.txt -o book_fr.txt
+# Recommended model for quality translation (24GB VRAM)
+ollama pull qwen3:30b
 
-# Translate EPUB file
-python translate.py -i book.epub -o book_fr.epub
-
-# Translate SRT subtitle file
-python translate.py -i movie.srt -o movie_fr.srt
-
-# English to German with different model
-python translate.py -i story.txt -o story_de.txt -sl English -tl German -m qwen2:7b
-
-# Custom chunk size for better context with a text file
-python translate.py -i novel.txt -o novel_fr.txt -cs 40
-
-# Using Google Gemini instead of Ollama
-python translate.py -i book.txt -o book_fr.txt --provider gemini --gemini_api_key YOUR_API_KEY -m gemini-2.0-flash
+# Check your installed models
+ollama list
 ```
 
-### EPUB File Support
+**Step 4: Launch the Web Interface**
 
-The application fully supports EPUB files:
-- **Preserves Structure**: Maintains most of the original EPUB structure and formatting
-- **Selective Translation**: Only translates content blocks (paragraphs, headings, etc.)
-
-### SRT Subtitle File Support
-
-The application fully supports SRT subtitle files:
-- **Preserves Timing**: Maintains all original timestamp information
-- **Format Preservation**: Keeps subtitle numbering and structure intact
-- **Smart Translation**: Translates only the subtitle text, preserving technical elements
-
-### Google Gemini Support
-
-In addition to local Ollama models, the application now supports Google Gemini API:
-
-**Setup:**
-1. Get your API key from [Google AI Studio](https://makersuite.google.com/app/apikey)
-2. Use the `--provider gemini` flag with your API key
-
-**Available Gemini Models:**
-- `gemini-2.0-flash` (default, fast and efficient)
-- `gemini-1.5-pro` (more capable, slower)
-- `gemini-1.5-flash` (balanced performance)
-
-**Web Interface:**
-- Select "Google Gemini" from the LLM Provider dropdown
-- Enter your API key in the secure field
-- Choose your preferred Gemini model
-
-**CLI Example:**
 ```bash
-python translate.py -i book.txt -o book_translated.txt \
-    --provider gemini \
-    --gemini_api_key YOUR_API_KEY \
-    -m gemini-2.0-flash \
-    -sl English -tl Spanish
+conda activate translate_book_env
+cd C:\Projects\TranslateBookWithLLM
+python translation_api.py
 ```
 
-**Note:** Gemini API requires an internet connection and has usage quotas. Check [Google's pricing](https://ai.google.dev/pricing) for details.
+Open your browser and go to: **http://localhost:5000**
+
+🎉 **Ready!** You can now translate your files.
 
 ---
 
-## Docker Support
+## 📖 Web Interface Guide
 
-### Quick Start with Docker
+### Basic Configuration
+
+1. **Choose your LLM Provider**:
+   
+   - **Ollama** (recommended): Free, private, works offline
+   - **OpenAI**: Paid, requires API key, high quality (GPT-4, etc.)
+   - **Google Gemini**: Paid, requires API key, fast and efficient
+
+2. **Select your Model**:
+   
+   - The list fills automatically based on your provider
+   - Click 🔄 to refresh the list
+
+3. **Languages**:
+   
+   - **Source Language**: The language of your original text
+   - **Target Language**: The language to translate into
+   - Use "Other" to specify any language
+
+4. **Add your Files**:
+   
+   - Drag and drop or click to select
+   - Accepted formats: `.txt`, `.epub`, `.srt`
+   - You can add multiple files at once
+
+5. **Start Translation**:
+   
+   - Click "Start Translation"
+   - Follow real-time progress
+   - Download translated files when complete
+
+### 📚 Translating EPUB Files (Ebooks)
+
+TBL offers **two modes** for translating EPUB files:
+
+#### Standard Mode (Default)
+
+- ✅ Preserves all original formatting (bold, italic, tables, etc.)
+- ✅ Keeps images and complex structure
+- ⚠️ Requires a capable model (>12 billion parameters)
+- ⚠️ May have issues with strict EPUB readers
+
+**When to use**: You have a good model and formatting is important.
+
+#### Simple Mode ⭐ (Recommended for Compatibility)
+
+- ✅ **Maximum compatibility** with all EPUB readers
+- ✅ Works with **small models** (7B, 8B parameters)
+- ✅ **No issues** with tags or placeholders
+- ✅ Creates standard EPUB 2.0 output
+- ❌ Complex formatting is simplified (basic text only)
+
+**When to use**:
+
+- You're using a small model (qwen2:7b, llama3:8b, etc.)
+- You're having problems with Standard Mode
+- Your EPUB reader is strict (Aquile Reader, Adobe Digital Editions)
+- Formatting is not critical
+
+💡 **Tip**: TBL automatically detects small models and recommends Simple Mode!
+
+**How to enable Simple Mode**:
+
+- ✅ Check the "Simple Mode (Recommended for small models)" checkbox in the web interface
+- Or use `--simple-mode` flag in command line
+
+### 🎬 Translating Subtitles (SRT)
+
+- ✅ **Timings are preserved** exactly
+- ✅ Numbering remains intact
+- ✅ Only the text is translated
+- ✅ SRT format perfectly maintained
+
+Simply drag your `.srt` file and start translation!
+
+### 🎛️ Advanced Settings
+
+Click "▼ Advanced Settings" to access:
+
+**Chunk Size** (5-200 lines)
+
+- Controls how many lines are translated together
+- Larger = better context, but slower (make sure you have enough VRAM)
+- Recommended: 25 for most cases
+
+**Timeout** (30-600 seconds)
+
+- Maximum wait time per request
+- Increase if you're experiencing timeouts
+- Recommended: 180s for web, 900s for CLI
+
+**Context Window** (1024-32768 tokens)
+
+- The context adjusts automatically, so this setting is no longer very important.
+- Recommended: 2048.
+
+**Max Retries** (1-5)
+
+- Number of retry attempts on failure
+- Recommended: 2
+
+**Auto-Adjustment**
+
+- ✅ Enabled by default
+- Automatically adapts parameters if needed
+- Leave enabled unless you have specific needs
+
+**Output Filename Pattern**
+
+- Customize translated file names
+- Example: `{originalName}_FR.{ext}`
+- Placeholders: `{originalName}`, `{ext}`
+
+### 📦 Batch Translation
+
+You can translate **multiple files at once**:
+
+1. Add all your files ("Add Files" button)
+2. Each file appears in the list with its status
+3. Click "Start Batch" to translate all sequentially
+4. Follow the progress of each file individually
+
+---
+
+## 💻 Command Line Interface (CLI)
+
+For advanced users or automation:
+
+### Basic Command
 
 ```bash
-# Build the Docker image
+python translate.py -i input_file.txt -o output_file.txt
+```
+
+### Available Options
+
+| Option               | Description                        | Default                             |
+| -------------------- | ---------------------------------- | ----------------------------------- |
+| `-i, --input`        | 📄 Input file (.txt, .epub, .srt)  | **Required**                        |
+| `-o, --output`       | 📄 Output file                     | Auto-generated                      |
+| `-sl, --source_lang` | 🌍 Source language                 | English                             |
+| `-tl, --target_lang` | 🌍 Target language                 | French                              |
+| `-m, --model`        | 🤖 LLM model to use                | mistral-small:24b                   |
+| `-cs, --chunksize`   | 📏 Lines per chunk                 | 25                                  |
+| `--provider`         | 🏢 Provider (ollama/gemini/openai) | ollama                              |
+| `--api_endpoint`     | 🔗 API URL                         | http://localhost:11434/api/generate |
+| `--gemini_api_key`   | 🔑 Gemini API key                  | -                                   |
+| `--openai_api_key`   | 🔑 OpenAI API key                  | -                                   |
+| `--simple-mode`      | 📚 Simple Mode for EPUB            | Disabled                            |
+| `--no-color`         | 🎨 Disable colors                  | Colors enabled                      |
+
+### Practical Examples
+
+**Translate an EPUB book (Simple Mode)**
+
+```bash
+python translate.py -i book.epub -o book_fr.epub -sl English -tl French --simple-mode
+```
+
+**Translate with OpenAI GPT-4**
+
+```bash
+python translate.py -i text.txt -o text_es.txt \
+    --provider openai \
+    --openai_api_key sk-your-key-here \
+    --api_endpoint https://api.openai.com/v1/chat/completions \
+    -m gpt-4o \
+    -sl English -tl Spanish
+```
+
+**Translate with Google Gemini**
+
+```bash
+python translate.py -i document.txt -o document_de.txt \
+    --provider gemini \
+    --gemini_api_key your-gemini-key \
+    -m gemini-2.0-flash \
+    -sl French -tl German
+```
+
+**Translate subtitles**
+
+```bash
+python translate.py -i movie.srt -o movie_fr.srt -sl English -tl French
+```
+
+**Translation with larger chunks for better context**
+
+```bash
+python translate.py -i novel.txt -o novel_fr.txt -cs 50
+```
+
+---
+
+## 🔌 LLM Providers (AI Models)
+
+TBL supports three types of providers:
+
+### 1. 🏠 Ollama (Local - Free)
+
+**Advantages**:
+
+- ✅ Totally free
+- ✅ Works offline
+- ✅ Your texts stay private (nothing sent to the internet)
+- ✅ No usage limits
+
+**Disadvantages**:
+
+- ⚠️ Requires a powerful computer (GPU recommended)
+- ⚠️ Slower than cloud APIs
+- ⚠️ Quality varies by model
+
+### 2. ☁️ OpenAI (Cloud - Paid)
+
+**Advantages**:
+
+- ✅ Excellent translation quality
+- ✅ Fast
+- ✅ No powerful hardware needed
+- ✅ Very capable models (GPT-4, etc.)
+
+**Disadvantages**:
+
+- ⚠️ Paid (cost per token)
+- ⚠️ Requires internet connection
+- ⚠️ Your texts are sent to OpenAI
+
+**Available models**:
+
+- `gpt-4o` - Latest version, very capable
+- `gpt-4o-mini` - More economical, still excellent
+- `gpt-4-turbo` - Turbo version of GPT-4
+- `gpt-3.5-turbo` - Most economical
+
+**Setup**:
+
+1. Get an API key at [platform.openai.com](https://platform.openai.com/api-keys)
+
+2. **Web Interface**:
+   
+   - Select "OpenAI" in the dropdown
+   - Enter your API key
+   - Endpoint is automatically configured
+
+3. **Command Line**:
+   
+   ```bash
+   python translate.py -i book.txt -o book_fr.txt \
+    --provider openai \
+    --openai_api_key sk-your-key \
+    --api_endpoint https://api.openai.com/v1/chat/completions \
+    -m gpt-4o
+   ```
+
+💰 **Estimated cost**: About $0.50 - $2.00 for a 300-page book with GPT-4o-mini.
+
+### 3. 🌐 Google Gemini (Cloud - Paid)
+
+**Advantages**:
+
+- ✅ Very fast
+- ✅ Excellent quality/price ratio
+- ✅ Generous free quota
+
+**Disadvantages**:
+
+- ⚠️ Requires internet connection
+- ⚠️ Quota limits
+
+**Available models**:
+
+- `gemini-2.0-flash` - Fast and efficient (recommended)
+- `gemini-1.5-pro` - More capable, slower
+- `gemini-1.5-flash` - Balanced
+
+**Setup**:
+
+1. Get an API key at [Google AI Studio](https://makersuite.google.com/app/apikey)
+
+2. **Web Interface**:
+   
+   - Select "Google Gemini"
+   - Enter your API key
+   - Choose your model
+
+3. **Command Line**:
+   
+   ```bash
+   python translate.py -i document.txt -o document_fr.txt \
+    --provider gemini \
+    --gemini_api_key your-key \
+    -m gemini-2.0-flash
+   ```
+
+💡 **Tip**: Gemini offers a generous monthly free quota, perfect for testing!
+
+---
+
+## 🐳 Docker Installation
+
+For simplified installation with Docker:
+
+### Quick Method
+
+```bash
+# Build the image
 docker build -t translatebook .
 
 # Run the container
 docker run -p 5000:5000 -v $(pwd)/translated_files:/app/translated_files translatebook
+```
 
-# Or with custom port
+The web interface will be accessible at **http://localhost:5000**
+
+### With Custom Port
+
+```bash
 docker run -p 8080:5000 -e PORT=5000 -v $(pwd)/translated_files:/app/translated_files translatebook
 ```
 
-### Docker Compose (Optional)
+Access at **http://localhost:8080**
 
-Create a `docker-compose.yml` file:
+### With Docker Compose
+
+Create `docker-compose.yml`:
 
 ```yaml
 version: '3'
@@ -244,237 +443,335 @@ services:
       - ./translated_files:/app/translated_files
     environment:
       - PORT=5000
+      - API_ENDPOINT=http://localhost:11434/api/generate
+      - DEFAULT_MODEL=mistral-small:24b
 ```
 
-Then run: `docker-compose up`
+Then run:
+
+```bash
+docker-compose up
+```
+
+💡 **Note**: Translated files will be saved in `./translated_files` on your machine.
 
 ---
 
-## Advanced Configuration
+## ⚙️ Advanced Configuration
 
-### Web Interface Settings
+### Configuration File (.env)
 
-The web interface provides easy access to:
-
-  - **Chunk Size**: Lines per translation chunk (10-100)
-  - **Timeout**: Request timeout in seconds (30-600)
-  - **Context Window**: Model context size (1024-32768)
-  - **Max Attempts**: Retry attempts for failed chunks (1-5)
-  - **Custom Instructions** (optional): Add specific translation guidelines or requirements
-  - **Enable Post-processing**: Improve translation quality with additional refinement
-
-### Configuration Files
-
-Configuration is centralized in `src/config.py` with support for environment variables:
-
-#### Environment Variables (.env file)
-
-Create a `.env` file in the project root to override default settings:
+You can create a `.env` file at the project root to set default values:
 
 ```bash
 # Copy the example file
 cp .env.example .env
 
-# Edit with your settings
+# Edit with your parameters
+```
+
+**Important variables**:
+
+```bash
+# Default LLM provider
+LLM_PROVIDER=ollama  # or gemini, openai
+
+# Ollama configuration
 API_ENDPOINT=http://localhost:11434/api/generate
 DEFAULT_MODEL=mistral-small:24b
+OLLAMA_NUM_CTX=8192  # Context window size
+
+# OpenAI configuration
+OPENAI_API_KEY=sk-your-key
+# Endpoint configured automatically
+
+# Gemini configuration
+GEMINI_API_KEY=your-key
+GEMINI_MODEL=gemini-2.0-flash
+
+# Default languages
+DEFAULT_SOURCE_LANGUAGE=English
+DEFAULT_TARGET_LANGUAGE=Chinese
+
+# Translation parameters
 MAIN_LINES_PER_CHUNK=25
-# ... see .env.example for all available settings
+REQUEST_TIMEOUT=900
+MAX_TRANSLATION_ATTEMPTS=3
+RETRY_DELAY_SECONDS=5
+
+# Automatic adjustment (recommended)
+AUTO_ADJUST_CONTEXT=true
+
+# Web server
+PORT=5000
+HOST=127.0.0.1
+OUTPUT_DIR=translated_files
 ```
 
-#### prompts.py - Translation Prompts
-
-The translation quality depends heavily on the prompt. The prompts are now managed in `prompts.py`:
-
-```python
-# The prompt template uses the actual tags from config.py
-structured_prompt = f"""
-## [ROLE] 
-# You are a {target_language} professional translator.
-
-## [TRANSLATION INSTRUCTIONS] 
-+ Translate in the author's style.
-+ Precisely preserve the deeper meaning of the text.
-+ Adapt expressions and culture to the {target_language} language.
-+ Vary your vocabulary with synonyms, avoid repetition.
-+ Maintain the original layout, remove typos and line-break hyphens.
-
-## [FORMATTING INSTRUCTIONS] 
-+ Translate ONLY the main content between the specified tags.
-+ Surround your translation with {TRANSLATE_TAG_IN} and {TRANSLATE_TAG_OUT} tags.
-+ Return only the translation, nothing else.
-"""
-```
-
-**Note:** The translation tags are defined in `config.py` and automatically used by the prompt generator.
-
-#### Custom Instructions Feature
-
-You can enhance translation quality by providing custom instructions through the web interface or API:
-
-**Web Interface:**
-- Add custom instructions in the "Custom Instructions" text field
-- Examples:
-  - "Maintain formal tone throughout the translation"
-  - "Keep technical terms in English"
-  - "Use Quebec French dialect"
-
-The custom instructions are automatically integrated into the translation prompt.
-
-#### Post-processing Feature
-
-Enable post-processing to improve translation quality through an additional refinement pass:
-
-**How it works:**
-1. Initial translation is performed as usual
-2. A second pass reviews and refines the translation
-3. The post-processor checks for:
-   - Grammar and fluency
-   - Consistency in terminology
-   - Natural language flow
-   - Cultural appropriateness
-
-**Web Interface:**
-- Toggle "Enable Post-processing" in advanced settings
-- Optionally add specific post-processing instructions
-
-**Post-processing Instructions Examples:**
-- "Ensure consistent use of formal pronouns"
-- "Check for gender agreement in French"
-- "Verify technical terminology accuracy"
-- "Improve readability for children"
-
-**Note:** Post-processing increases translation time but generally improves quality, especially for literary or professional texts.
-
-
-## Troubleshooting
+## 🔧 Troubleshooting
 
 ### Common Issues
 
-**Web Interface Won't Start:**
+#### ❌ Web interface won't start
 
-```bash
-# Check if the configured port is in use (default 5000)
-netstat -an | find "5000"
+**Symptom**: Error when launching `python translation_api.py`
 
-# Try different port
-# Default port is 5000, configured via PORT environment variable
-```
+**Solutions**:
 
-**Ollama Connection Issues:**
+1. Check that the port is free:
+   
+   ```bash
+   netstat -an | find "5000"
+   ```
+2. Change the port in `.env`:
+   
+   ```bash
+   PORT=8080
+   ```
+3. Check that conda environment is activated:
+   
+   ```bash
+   conda activate translate_book_env
+   ```
 
-  - Ensure Ollama is running (check system tray).
-  - Verify no firewall blocking `localhost:11434`.
-  - Test with: `curl http://localhost:11434/api/tags`.
+#### ❌ Ollama won't connect
 
-**Translation Timeouts:**
+**Symptom**: "Connection refused" or "Cannot connect to Ollama"
 
-- Increase `REQUEST_TIMEOUT` in `config.py` (default: 60 seconds)
-- Use smaller chunk sizes
-- Try a faster model
-- For web interface, adjust timeout in advanced settings
+**Solutions**:
 
-**Poor Translation Quality:**
+1. Check that Ollama is running (icon in system tray)
+2. Test the connection:
+   
+   ```bash
+   curl http://localhost:11434/api/tags
+   ```
+3. Restart Ollama from Start Menu
+4. Check your firewall (allow port 11434)
 
-  - Experiment with different models.
-  - Adjust chunk size for better context.
-  - Modify the translation prompt.
-  - Clean input text beforehand.
+#### ❌ Model not found
 
-**Model Not Found:**
+**Symptom**: "Model 'xxx' not found"
 
-```bash
-# List installed models
-ollama list
+**Solutions**:
 
-# Install missing model
-ollama pull your-model-name
-```
+1. List your installed models:
+   
+   ```bash
+   ollama list
+   ```
+2. Download the missing model:
+   
+   ```bash
+   ollama pull model-name
+   ```
+3. Use an available model from the list
+
+#### ❌ Frequent timeouts
+
+**Symptom**: Translation stops with "Request timeout"
+
+**Solutions**:
+
+1. Increase timeout in advanced options (web) or `.env`:
+   
+   ```bash
+   REQUEST_TIMEOUT=1800
+   ```
+2. Reduce chunk size:
+   
+   ```bash
+   MAIN_LINES_PER_CHUNK=15
+   ```
+3. Use a faster model (qwen2:7b instead of mistral-small:24b)
+
+#### ❌ Poor translation quality
+
+**Symptom**: Translation is incorrect, inconsistent, or weird
+
+**Solutions**:
+
+1. **Use a better model**:
+   
+   - Ollama: `mistral-small:24b` instead of `qwen2:7b`
+   - Switch to OpenAI `gpt-4o` or Gemini `gemini-1.5-pro`
+   
+   
+
+2. **For EPUB with small models**: Use Simple Mode
+   
+   ```bash
+   --simple-mode
+   ```
+
+#### ❌ EPUB issues
+
+**Symptom**: Translated EPUB file won't open or is broken
+
+**Solutions**:
+
+1. **Use Simple Mode** (most reliable solution):
+   
+   ```bash
+   python translate.py -i book.epub -o book_fr.epub --simple-mode
+   ```
+
+2. **Check your EPUB reader**: Test with Calibre (more permissive)
+
+3. **If using a small model** (qwen2:7b, llama3:8b): Simple Mode required
+
+4. **If placeholders remain** (⟦TAG0⟧): This is a bug in Standard Mode, switch to Simple Mode
+
+#### ❌ OpenAI/Gemini API errors
+
+**Symptom**: "Invalid API key" or "Quota exceeded"
+
+**Solutions**:
+
+1. **Check your API key**: Copy-paste correctly
+2. **Check your quota/credit**:
+   - OpenAI: [platform.openai.com/usage](https://platform.openai.com/usage)
+   - Gemini: [console.cloud.google.com](https://console.cloud.google.com)
+3. **Check endpoint** (OpenAI):
+   
+   ```
+   https://api.openai.com/v1/chat/completions
+   ```
+
+#### ❌ Memory errors
+
+**Symptom**: "Out of memory" or crash with large files
+
+**Solutions**:
+
+1. Reduce chunk size:
+   
+   ```bash
+   MAIN_LINES_PER_CHUNK=10
+   ```
+2. Reduce context window:
+   
+   ```bash
+   OLLAMA_NUM_CTX=4096
+   ```
+3. Use a smaller model
+4. Close other applications
+
+### Common Error Messages
+
+| Message                   | Meaning              | Solution                                     |
+| ------------------------- | -------------------- | -------------------------------------------- |
+| `Connection refused`      | Ollama not running   | Start Ollama                                 |
+| `Model not found`         | Model not downloaded | `ollama pull model-name`                     |
+| `Request timeout`         | Request too long     | Increase timeout or reduce chunk size        |
+| `Invalid API key`         | Incorrect API key    | Check your key                               |
+| `Context length exceeded` | Prompt too large     | Reduce chunk size or increase context window |
+| `Quota exceeded`          | API limit reached    | Wait or add credits                          |
+
+---
+
+## ❓ FAQ (Frequently Asked Questions)
+
+### General
+
+**Q: Is it really free?**
+A: With Ollama, yes! You only pay if you use OpenAI or Gemini.
+
+**Q: Are my texts sent to the internet?**
+A: With Ollama, no. With OpenAI/Gemini, yes (sent to respective servers).
+
+**Q: How long does it take?**
+A: Very variable depending on length, model, and your machine. A 300-page book takes between 30 minutes (cloud) and 3 hours (Ollama with small model).
+
+**Q: What's the translation quality?**
+A: Depends on the model. GPT-4o is excellent, mistral-small:24b is very good, small models (7B) are decent for simple text.
+
+### EPUB
+
+**Q: Simple or Standard Mode for my EPUB?**
+A:
+
+- **Simple Mode** if: small model (≤12B), strict reader, or you have problems
+- **Standard Mode** if: large model (>12B) and complex formatting is important
+
+**Q: Does Simple Mode lose all formatting?**
+A: Basic structure is preserved (paragraphs, chapters), but advanced formatting (complex tables, CSS) is simplified.
+
+**Q: Why does TBL recommend Simple Mode with my model?**
+A: Your model has ≤12 billion parameters. Small models struggle with the placeholder system in Standard Mode.
+
+### Performance
+
+**Q: How to speed up translation?**
+A:
+
+1. Use a cloud model (OpenAI/Gemini)
+2. Reduce chunk size (`-cs 15`)
+3. Use a smaller model (qwen2:7b)
+4. With Ollama: use a GPU
+
+**Q: How to improve quality?**
+A:
+
+1. Use a better model (gpt-4o, mistral-small:24b)
+2. Increase chunk size (`-cs 40`)
+3. Increase context window (`OLLAMA_NUM_CTX=16384`)
+
+**Q: Is my computer powerful enough?**
+A: For Ollama:
+
+- Minimum: 16 GB RAM, recent CPU (7B models)
+- Recommended: 32 GB RAM, NVIDIA GPU (24B models)
+- Alternative: Use OpenAI/Gemini (cloud)
+
+### Technical
+
+**Q: Can I translate multiple files simultaneously?**
+A: In the web interface, yes with batch mode. In CLI, no (launch multiple separate commands).
+
+**Q: Where are translated files stored?**
+A: In the `translated_files/` folder by default (configurable with `OUTPUT_DIR`).
+
+**Q: Can I customize translation prompts?**
+A: Yes, edit `prompts.py`, but it's technical.
+
+### Security & Privacy
+
+**Q: Are my files stored on your servers?**
+A: No, TBL runs on YOUR machine. Nothing is sent elsewhere (except if you use OpenAI/Gemini).
+
+**Q: Are uploaded files deleted?**
+A: Yes, source files are deleted after translation. Translated files remain until you delete them.
+
+**Q: Are there file size limits?**
+A: Yes, configurable. By default: reasonable limits to prevent abuse. Modifiable in code if needed.
+
+---
+
+## 🤝 Contribution & Support
 
 ### Getting Help
 
-1. Check the browser console for web interface issues
-2. Monitor the terminal output for detailed error messages  
-3. Test with small text samples first
-4. Verify all dependencies are installed correctly
-5. For EPUB issues, check XML parsing errors in the console
-6. Review `config.py` for adjustable timeout and retry settings
------
+1. **Check this FAQ** and the Troubleshooting section
+2. **Check logs**: Detailed errors are in the console/terminal
+3. **Test with a small file**: Isolate the problem
+4. **Check your configuration**: Model downloaded? Valid API key?
 
-## Architecture
+### Reporting a Bug
 
-The application follows a clean modular architecture:
+If you find a bug, open an issue on [GitHub](https://github.com/hydropix/TranslateBookWithLLM/issues) with:
 
-### Project Structure
-```
-src/
-├── core/                    # Core translation logic
-│   ├── text_processor.py    # Text chunking and context management
-│   ├── translator.py        # Translation orchestration and job tracking
-│   ├── llm_client.py        # Async API calls to LLM providers
-│   ├── llm_providers.py     # Provider abstraction (Ollama, Gemini)
-│   ├── epub_processor.py    # EPUB-specific processing
-│   └── srt_processor.py     # SRT subtitle processing
-├── api/                     # Flask web server
-│   ├── routes.py           # REST API endpoints
-│   ├── websocket.py        # WebSocket handlers for real-time updates
-│   └── handlers.py         # Translation job management
-├── web/                     # Web interface
-│   ├── static/             # CSS, JavaScript, images
-│   └── templates/          # HTML templates
-└── utils/                   # Utilities
-    ├── file_utils.py       # File processing utilities
-    ├── security.py         # Security features for file handling
-    ├── file_detector.py    # Centralized file type detection
-    └── unified_logger.py   # Unified logging system
-```
+- Description of the problem
+- Example file (if possible)
+- Error logs
+- Your configuration (model, OS, etc.)
 
-### Root Level Files
-- **`translate.py`**: CLI interface (lightweight wrapper around core modules)
-- **`translation_api.py`**: Web server entry point
-- **`prompts.py`**: Translation prompt generation and management
-- **`.env.example`**: Example environment variables file
+---
 
-### Configuration Files
-- **`src/config.py`**: Centralized configuration with environment variable support
+## 📄 License
 
-### Translation Pipeline
-1. **Text Processing**: Intelligent chunking preserving sentence boundaries
-2. **Context Management**: Maintains translation context between chunks
-3. **LLM Communication**: Async requests with retry logic and timeout handling
-4. **Format-Specific Processing**: 
-   - EPUB: XML namespace-aware processing preserving structure
-   - SRT: Subtitle timing and format preservation
-5. **Error Recovery**: Graceful degradation with original text preservation
+This project is open-source. See the LICENSE file for details.
 
-The web interface communicates via REST API and WebSocket for real-time progress, while the CLI version provides direct access for automation.
+---
 
-### Key Features Implementation
-
-#### LLM Provider Architecture
-- **Abstraction Layer**: `LLMProvider` base class for easy provider addition
-- **Multiple Providers**: Built-in support for Ollama (local) and Gemini (cloud)
-- **Factory Pattern**: Dynamic provider instantiation based on configuration
-- **Unified Interface**: Consistent API across different LLM providers
-
-#### Asynchronous Processing
-- Uses `httpx` for concurrent API requests
-- Implements retry logic with exponential backoff
-- Configurable timeout handling for long translations
-
-#### Job Management System
-- Unique translation IDs for tracking multiple jobs
-- In-memory job storage with status updates
-- WebSocket events for real-time progress streaming
-- Support for translation interruption
-
-#### Security Features
-- File type validation for uploads
-- Size limits for uploaded files
-- Secure temporary file handling
-- Sanitized file paths and names
-
-#### Context-Aware Translation
-- Preserves sentence boundaries across chunks
-- Maintains translation context for consistency
-- Handles line-break hyphens
+**Happy translating! 📚✨**
