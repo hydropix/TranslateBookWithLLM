@@ -671,12 +671,9 @@ async def translate_text_as_string(
     log_callback=None,
     stats_callback=None,
     check_interruption_callback=None,
-    custom_instructions: str = "",
     llm_provider: str = "ollama",
     gemini_api_key=None,
     openai_api_key=None,
-    enable_post_processing: bool = False,
-    post_processing_instructions: str = "",
     context_window: int = 2048,
     auto_adjust_context: bool = True,
     min_chunk_size: int = 5
@@ -698,12 +695,9 @@ async def translate_text_as_string(
         log_callback: Logging callback
         stats_callback: Statistics callback
         check_interruption_callback: Interruption check callback
-        custom_instructions: Additional translation instructions
         llm_provider: LLM provider (ollama/gemini/openai)
         gemini_api_key: Gemini API key
         openai_api_key: OpenAI API key
-        enable_post_processing: Enable post-processing
-        post_processing_instructions: Post-processing instructions
         context_window: Context window size
         auto_adjust_context: Auto-adjust context
         min_chunk_size: Minimum chunk size
@@ -753,12 +747,9 @@ async def translate_text_as_string(
         log_callback=log_callback,
         stats_callback=stats_callback,
         check_interruption_callback=check_interruption_callback,
-        custom_instructions=custom_instructions,
         llm_provider=llm_provider,
         gemini_api_key=gemini_api_key,
         openai_api_key=openai_api_key,
-        enable_post_processing=enable_post_processing,
-        post_processing_instructions=post_processing_instructions,
         context_window=context_window,
         auto_adjust_context=auto_adjust_context,
         min_chunk_size=min_chunk_size,

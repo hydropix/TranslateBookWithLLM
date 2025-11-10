@@ -47,7 +47,10 @@ async def translate_epub_file(
     simple_mode: bool = False,
     context_window: int = 2048,
     auto_adjust_context: bool = True,
-    min_chunk_size: int = 5
+    min_chunk_size: int = 5,
+    custom_instructions: str = "",
+    enable_post_processing: bool = False,
+    post_processing_instructions: str = ""
 ) -> None:
     """
     Translate an EPUB file using LLM
@@ -74,6 +77,9 @@ async def translate_epub_file(
         context_window: Context window size for LLM
         auto_adjust_context: Auto-adjust context based on model
         min_chunk_size: Minimum chunk size
+        custom_instructions: Custom translation instructions (deprecated, kept for compatibility)
+        enable_post_processing: Enable post-processing (deprecated, kept for compatibility)
+        post_processing_instructions: Post-processing instructions (deprecated, kept for compatibility)
     """
     if not os.path.exists(input_filepath):
         err_msg = f"ERROR: Input EPUB file '{input_filepath}' not found."
@@ -767,12 +773,9 @@ async def _translate_epub_simple_mode(
             log_callback=log_callback,
             stats_callback=stats_callback,
             check_interruption_callback=check_interruption_callback,
-            custom_instructions=custom_instructions,
             llm_provider=llm_provider,
             gemini_api_key=gemini_api_key,
             openai_api_key=openai_api_key,
-            enable_post_processing=enable_post_processing,
-            post_processing_instructions=post_processing_instructions,
             context_window=context_window,
             auto_adjust_context=auto_adjust_context,
             min_chunk_size=min_chunk_size

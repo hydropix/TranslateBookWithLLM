@@ -278,7 +278,8 @@ async def translate_file(input_filepath, output_filepath,
                         progress_callback=None, log_callback=None, stats_callback=None,
                         check_interruption_callback=None,
                         llm_provider="ollama", gemini_api_key=None, openai_api_key=None,
-                        context_window=2048, auto_adjust_context=True, min_chunk_size=5):
+                        context_window=2048, auto_adjust_context=True, min_chunk_size=5,
+                        simple_mode=False):
     """
     Translate a file (auto-detect format)
     
@@ -306,7 +307,8 @@ async def translate_file(input_filepath, output_filepath,
                                   check_interruption_callback=check_interruption_callback,
                                   llm_provider=llm_provider,
                                   gemini_api_key=gemini_api_key,
-                                  openai_api_key=openai_api_key)
+                                  openai_api_key=openai_api_key,
+                                  simple_mode=simple_mode)
     elif ext == '.srt':
         await translate_srt_file_with_callbacks(
             input_filepath, output_filepath,
