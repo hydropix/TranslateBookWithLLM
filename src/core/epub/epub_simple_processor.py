@@ -32,7 +32,7 @@ from lxml import etree
 from datetime import datetime
 import aiofiles
 
-from src.config import NAMESPACES, DEFAULT_MODEL, MAIN_LINES_PER_CHUNK, API_ENDPOINT, SENTENCE_TERMINATORS
+from src.config import NAMESPACES, DEFAULT_MODEL, MAIN_LINES_PER_CHUNK, API_ENDPOINT, SENTENCE_TERMINATORS, TRANSLATE_TAG_IN, TRANSLATE_TAG_OUT
 from ..text_processor import split_text_into_chunks_with_context
 from ..translator import translate_chunks
 
@@ -276,6 +276,39 @@ def _extract_text_recursive(element, text_parts: list):
         text_parts.append('')  # Empty string creates paragraph break
 
 
+def _clean_translation_tags(text: str) -> str:
+    """
+    Clean up residual translation tags from the text.
+
+    Removes <TRANSLATION> and </TRANSLATION> tags that may appear in the output.
+    These tags are used internally by the LLM provider to mark translated content,
+    but should not appear in the final EPUB.
+
+    Args:
+        text: Text potentially containing translation tags
+
+    Returns:
+        Cleaned text with all translation tags removed
+    """
+    # Remove opening tags (with optional spaces and angle brackets)
+    text = re.sub(r'<\s*TRANSLATION\s*>', '', text, flags=re.IGNORECASE)
+    text = re.sub(r'&lt;\s*TRANSLATION\s*&gt;', '', text, flags=re.IGNORECASE)
+
+    # Remove closing tags (with optional spaces and angle brackets)
+    text = re.sub(r'</\s*TRANSLATION\s*>', '', text, flags=re.IGNORECASE)
+    text = re.sub(r'&lt;/\s*TRANSLATION\s*&gt;', '', text, flags=re.IGNORECASE)
+
+    # Remove configured translation tags from config
+    text = text.replace(TRANSLATE_TAG_IN, '')
+    text = text.replace(TRANSLATE_TAG_OUT, '')
+
+    # Clean up any excessive whitespace that might result from tag removal
+    text = re.sub(r' {2,}', ' ', text)  # Multiple spaces to single space
+    text = re.sub(r'\n{3,}', '\n\n', text)  # Max 2 newlines in a row
+
+    return text.strip()
+
+
 async def create_simple_epub(translated_text: str, output_path: str, metadata: dict,
                             target_language: str, log_callback=None) -> None:
     """
@@ -308,20 +341,23 @@ async def create_simple_epub(translated_text: str, output_path: str, metadata: d
 
         # Create mimetype file (MUST be first and uncompressed)
         mimetype_path = os.path.join(temp_dir, 'mimetype')
-        async with aiofiles.open(mimetype_path, 'w', encoding='utf-8', newline='') as f:
+        async with aiofiles.open(mimetype_path, 'w', encoding='utf-8') as f:
             await f.write('application/epub+zip')
 
         # Create container.xml (points to content.opf at root)
         container_xml = _create_container_xml()
         container_path = os.path.join(meta_inf_dir, 'container.xml')
-        async with aiofiles.open(container_path, 'w', encoding='utf-8', newline='') as f:
+        async with aiofiles.open(container_path, 'w', encoding='utf-8') as f:
             await f.write(container_xml)
 
         # Create CSS file (clean, readable style)
         css_content = _create_simple_css()
         css_path = os.path.join(temp_dir, 'stylesheet.css')
-        async with aiofiles.open(css_path, 'w', encoding='utf-8', newline='') as f:
+        async with aiofiles.open(css_path, 'w', encoding='utf-8') as f:
             await f.write(css_content)
+
+        # Update metadata with target language BEFORE creating chapters
+        metadata['language'] = target_language.lower()[:2] if target_language else metadata.get('language', 'en')
 
         # Create chapter XHTML files
         chapter_files = []
@@ -329,26 +365,26 @@ async def create_simple_epub(translated_text: str, output_path: str, metadata: d
             filename = f'chapter_{i:03d}.xhtml'
             chapter_files.append(filename)
 
-            chapter_title = f'Chapter {i}'
-            xhtml_content = _create_chapter_xhtml(chapter_title, chapter_text, metadata.get('language', 'en'))
-            xhtml_path = os.path.join(temp_dir, filename)
-            # Write with proper UTF-8 encoding
-            async with aiofiles.open(xhtml_path, 'w', encoding='utf-8', newline='') as f:
-                await f.write(xhtml_content)
+            # Clean translation tags BEFORE creating XHTML
+            chapter_text_cleaned = _clean_translation_tags(chapter_text)
 
-        # Update metadata with target language
-        metadata['language'] = target_language.lower()[:2] if target_language else metadata.get('language', 'en')
+            chapter_title = f'Chapter {i}'
+            xhtml_content = _create_chapter_xhtml(chapter_title, chapter_text_cleaned, metadata['language'])
+            xhtml_path = os.path.join(temp_dir, filename)
+            # Write with proper UTF-8 encoding (no newline parameter for Windows compatibility)
+            async with aiofiles.open(xhtml_path, 'w', encoding='utf-8') as f:
+                await f.write(xhtml_content)
 
         # Create content.opf (package document) - EPUB 2.0 format
         opf_content = _create_content_opf(metadata, chapter_files)
         opf_path = os.path.join(temp_dir, 'content.opf')
-        async with aiofiles.open(opf_path, 'w', encoding='utf-8', newline='') as f:
+        async with aiofiles.open(opf_path, 'w', encoding='utf-8') as f:
             await f.write(opf_content)
 
         # Create toc.ncx (navigation for EPUB 2.0)
         ncx_content = _create_toc_ncx(metadata, len(chapters))
         ncx_path = os.path.join(temp_dir, 'toc.ncx')
-        async with aiofiles.open(ncx_path, 'w', encoding='utf-8', newline='') as f:
+        async with aiofiles.open(ncx_path, 'w', encoding='utf-8') as f:
             await f.write(ncx_content)
 
         # Create EPUB zip file with CORRECT ORDER (critical for strict readers!)
@@ -732,6 +768,9 @@ async def translate_text_as_string(
 
     # Join translated parts
     translated_text = "\n".join(translated_parts)
+
+    # Clean up any residual translation tags
+    translated_text = _clean_translation_tags(translated_text)
 
     if log_callback:
         log_callback("simple_mode_text_translation_complete",
