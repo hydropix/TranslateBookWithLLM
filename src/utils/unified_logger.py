@@ -289,11 +289,25 @@ class UnifiedLogger:
             try:
                 console_msg = self._format_console_message(level, message, log_type, data)
                 if console_msg:  # Only print if there's actual content
-                    print(console_msg)
+                    print(console_msg, flush=True)
+            except UnicodeEncodeError:
+                # Handle Unicode errors on Windows (cp1252 codec issues)
+                try:
+                    # Try to encode/decode safely, replacing problematic characters
+                    safe_message = message.encode('ascii', 'replace').decode('ascii')
+                    timestamp = datetime.now().strftime("%H:%M:%S")
+                    print(f"[{timestamp}] {safe_message}", flush=True)
+                except Exception:
+                    # Last resort: just print a generic message
+                    print(f"[LOG] Unicode encoding error - message suppressed", flush=True)
             except Exception as e:
                 # Fallback to simple message if formatting fails
-                timestamp = datetime.now().strftime("%H:%M:%S")
-                print(f"[{timestamp}] {message}")
+                try:
+                    timestamp = datetime.now().strftime("%H:%M:%S")
+                    safe_message = str(message).encode('ascii', 'replace').decode('ascii')
+                    print(f"[{timestamp}] {safe_message}", flush=True)
+                except Exception:
+                    print(f"[LOG] Error displaying message", flush=True)
         
         # Create structured log entry
         log_entry = {
