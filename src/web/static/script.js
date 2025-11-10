@@ -271,6 +271,7 @@ async function loadGeminiModels() {
             });
 
             addLog(`✅ ${data.count} Gemini model(s) loaded (excluding thinking models)`);
+            checkModelSizeAndShowRecommendation();
         } else {
             const errorMessage = data.error || 'No Gemini models available.';
             showMessage(`⚠️ ${errorMessage}`, 'error');
@@ -305,6 +306,7 @@ async function loadOpenAIModels() {
     });
 
     addLog(`✅ OpenAI models loaded (common models)`);
+    checkModelSizeAndShowRecommendation();
 }
 
 async function loadAvailableModels() {
@@ -362,6 +364,7 @@ async function loadAvailableModels() {
                 modelSelect.appendChild(option);
             });
             addLog(`✅ ${data.count} LLM model(s) loaded. Default: ${data.default}`);
+            checkModelSizeAndShowRecommendation();
         } else {
             const errorMessage = data.error || 'No LLM models available. Ensure Ollama is running and accessible.';
             showMessage(`⚠️ ${errorMessage}`, 'error');
@@ -785,9 +788,6 @@ async function processNextFileInQueue() {
         retry_delay: parseInt(document.getElementById('retryDelay').value),
         output_filename: fileToTranslate.outputFilename,
         file_type: fileToTranslate.fileType,
-        custom_instructions: document.getElementById('customInstructions').value.trim(),
-        enable_post_processing: document.getElementById('enablePostProcessing').checked,
-        post_processing_instructions: document.getElementById('postProcessingInstructions').value.trim(),
         simple_mode: document.getElementById('simpleMode').checked
     };
 
@@ -881,18 +881,32 @@ function clearActivityLog() {
 }
 
 
+// Function to check if model is small (<=12B parameters) and show recommendation
+function checkModelSizeAndShowRecommendation() {
+    const modelSelect = document.getElementById('model');
+    const modelName = modelSelect.value.toLowerCase();
+    const recommendationDiv = document.getElementById('smallModelRecommendation');
+
+    // Pattern to detect model size (e.g., "7b", "12b", "3b", etc.)
+    const sizeMatch = modelName.match(/(\d+(?:\.\d+)?)b/);
+
+    let isSmallModel = false;
+
+    if (sizeMatch) {
+        const sizeInB = parseFloat(sizeMatch[1]);
+        isSmallModel = sizeInB <= 12;
+    }
+
+    // Show recommendation if small model and not already in simple mode
+    if (isSmallModel && !document.getElementById('simpleMode').checked) {
+        recommendationDiv.style.display = 'block';
+    } else {
+        recommendationDiv.style.display = 'none';
+    }
+}
+
 // Initialize event listeners
 window.addEventListener('DOMContentLoaded', function() {
-    // Post-processing checkbox handler
-    document.getElementById('enablePostProcessing').addEventListener('change', (e) => {
-        const postProcessingOptions = document.getElementById('postProcessingOptions');
-        if (e.target.checked) {
-            postProcessingOptions.style.display = 'block';
-        } else {
-            postProcessingOptions.style.display = 'none';
-        }
-    });
-
     // Simple mode checkbox handler
     document.getElementById('simpleMode').addEventListener('change', (e) => {
         const simpleModeInfo = document.getElementById('simpleModeInfo');
@@ -901,11 +915,16 @@ window.addEventListener('DOMContentLoaded', function() {
         } else {
             simpleModeInfo.style.display = 'none';
         }
+        // Re-check model size when simple mode changes
+        checkModelSizeAndShowRecommendation();
     });
-    
+
+    // Model selection change handler
+    document.getElementById('model').addEventListener('change', checkModelSizeAndShowRecommendation);
+
     // Load default configuration including languages
     loadDefaultConfig();
-    
+
     // Load file list on page load
     refreshFileList();
 });

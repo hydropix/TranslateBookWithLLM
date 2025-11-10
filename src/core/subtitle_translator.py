@@ -8,7 +8,7 @@ from prompts import generate_subtitle_block_prompt
 from src.config import TRANSLATE_TAG_IN, TRANSLATE_TAG_OUT
 from .llm_client import create_llm_client
 from .post_processor import clean_translated_text
-from .translator import generate_translation_request, post_process_translation
+from .translator import generate_translation_request
 from .epub import TagPreserver
 
 
@@ -95,21 +95,6 @@ async def translate_subtitles(subtitles: List[Dict[str, str]], source_language: 
             )
             
             if translated_text is not None:
-                # Apply post-processing if enabled
-                if enable_post_processing:
-                    if log_callback:
-                        log_callback("post_processing_subtitle", f"Post-processing subtitle {idx+1}")
-                    
-                    improved_text = await post_process_translation(
-                        translated_text,
-                        target_language,
-                        model_name,
-                        llm_client=llm_client,
-                        log_callback=log_callback,
-                        custom_instructions=post_processing_instructions
-                    )
-                    translated_text = improved_text
-                
                 translations[idx] = translated_text
                 completed_count += 1
             else:
@@ -315,78 +300,7 @@ async def translate_subtitles_in_blocks(subtitle_blocks: List[List[Dict[str, str
                         break
             
             if translated_block_text:
-                # Apply post-processing on the entire block if enabled
-                if enable_post_processing:
-                    if log_callback:
-                        log_callback("post_processing_block", f"Post-processing block {block_idx+1} as a whole")
-                    
-                    # Create tag map for placeholder validation in post-processing
-                    tag_preserver = TagPreserver()
-                    # Create a fake tag map for [NUMBER] tags
-                    tag_map = {}
-                    for idx in block_indices:
-                        placeholder = f"[{idx}]"
-                        tag_map[placeholder] = placeholder  # Map to itself for validation
-                    
-                    # Post-process with retry mechanism for placeholder preservation
-                    max_pp_retries = 3
-                    pp_retry_count = 0
-                    improved_block_text = translated_block_text
-                    
-                    while pp_retry_count < max_pp_retries:
-                        if pp_retry_count > 0 and log_callback:
-                            log_callback("srt_post_process_retry", 
-                                       f"Post-processing retry {pp_retry_count} for block {block_idx+1}")
-                        
-                        # Post-process the entire block to maintain context
-                        pp_instructions = post_processing_instructions
-                        if pp_retry_count > 0:
-                            pp_instructions += f"\n\nCRITICAL: You MUST preserve ALL [NUMBER] tags EXACTLY as they appear. Do not modify tags like [0], [1], [2], etc."
-                        
-                        improved_block_text = await post_process_translation(
-                            translated_block_text,
-                            target_language,
-                            model_name,
-                            llm_client=llm_client,
-                            log_callback=log_callback,
-                            custom_instructions=pp_instructions
-                        )
-                        
-                        # Validate that all [NUMBER] tags are still present
-                        expected_tags = set(f"[{idx}]" for idx in block_indices)
-                        found_tags = set()
-                        import re
-                        for match in re.finditer(r'\[(\d+)\]', improved_block_text):
-                            found_tags.add(match.group(0))
-                        
-                        missing_tags = expected_tags - found_tags
-                        
-                        if missing_tags:
-                            if log_callback:
-                                log_callback("srt_post_process_validation_failed", 
-                                           f"Post-processing block {block_idx+1} missing tags: {missing_tags}")
-                            
-                            if pp_retry_count < max_pp_retries - 1:
-                                pp_retry_count += 1
-                                continue
-                            else:
-                                # Post-processing failed to preserve tags, use original translated text
-                                if log_callback:
-                                    log_callback("srt_post_process_fallback", 
-                                               f"Post-processing failed for block {block_idx+1}, using translation without post-processing")
-                                improved_block_text = translated_block_text
-                                break
-                        else:
-                            # All tags preserved, post-processing successful
-                            if pp_retry_count > 0 and log_callback:
-                                log_callback("srt_post_process_retry_successful", 
-                                           f"Post-processing successful after {pp_retry_count} retries")
-                            break
-                    
-                    # Use the improved block text for extraction
-                    translated_block_text = improved_block_text
-                
-                # Extract individual translations from block (post-processed or not)
+                # Extract individual translations from block
                 block_translations = srt_processor.extract_block_translations(
                     translated_block_text, block_indices
                 )

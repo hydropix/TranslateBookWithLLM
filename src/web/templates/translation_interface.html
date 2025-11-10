@@ -92,22 +92,6 @@
                     </div>
                 </div>
 
-                <div class="form-group" style="margin-bottom: 20px;">
-                    <label>Custom Instructions (Optional)</label>
-                    <textarea class="form-control" id="customInstructions" rows="3" placeholder="Enter additional instructions"></textarea>
-                </div>
-
-                <div class="form-group" style="margin-bottom: 30px;">
-                    <label style="display: flex; align-items: center; gap: 10px;">
-                        <input type="checkbox" id="enablePostProcessing" style="width: auto;">
-                        Enable Post-Processing (Improve translation quality)
-                    </label>
-                    <div id="postProcessingOptions" style="display: none; margin-top: 10px;">
-                        <label>Post-Processing Instructions (Optional)</label>
-                        <textarea class="form-control" id="postProcessingInstructions" rows="2" placeholder="Additional instructions for improving the translation quality"></textarea>
-                    </div>
-                </div>
-
                 <div class="form-group" style="margin-bottom: 30px;">
                     <label style="display: flex; align-items: center; gap: 10px;">
                         <input type="checkbox" id="simpleMode" style="width: auto;">
@@ -118,6 +102,11 @@
                             <strong>ℹ️ Simple Mode:</strong> Extracts pure text from EPUB, translates it without HTML tags, and rebuilds a clean EPUB.
                             <br><strong>✅ Benefits:</strong> No placeholder errors, works with weak models, maximum reliability.
                             <br><strong>⚠️ Trade-off:</strong> Loses inline formatting (italic, bold, etc.) but preserves all text content.
+                        </p>
+                    </div>
+                    <div id="smallModelRecommendation" style="display: none; margin-top: 10px; padding: 10px; background: #fef3c7; border-left: 3px solid #f59e0b; border-radius: 4px;">
+                        <p style="margin: 0; font-size: 14px; color: #92400e;">
+                            <strong>💡 Recommendation:</strong> Your selected model appears to be ≤12B parameters. For EPUB translation, we strongly recommend enabling <strong>Simple Mode</strong> to avoid tag management issues common with smaller models.
                         </p>
                     </div>
                 </div>

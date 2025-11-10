@@ -86,7 +86,7 @@ def generate_translation_prompt(
     target_language: str = "French",
     translate_tag_in: str = TRANSLATE_TAG_IN,
     translate_tag_out: str = TRANSLATE_TAG_OUT,
-    custom_instructions: str = ""
+    simple_mode: bool = False
 ) -> str:
     """
     Generate the translation prompt with all contextual elements.
@@ -100,7 +100,7 @@ def generate_translation_prompt(
         target_language: Target language name
         translate_tag_in: Opening tag for translation output
         translate_tag_out: Closing tag for translation output
-        custom_instructions: Additional custom translation instructions
+        simple_mode: If True, excludes placeholder preservation instructions (for pure text translation)
 
     Returns:
         str: The complete prompt formatted for translation
@@ -153,7 +153,7 @@ English: "She has been working on this project for three years"
 ✅ CORRECT (active voice): "L'analyse a permis d'obtenir les résultats"
 English: "The results were obtained after analysis"
 
-{PLACEHOLDER_PRESERVATION_SECTION}
+{'' if simple_mode else PLACEHOLDER_PRESERVATION_SECTION}
 
 {_get_output_format_section(
     translate_tag_in,
@@ -161,7 +161,7 @@ English: "The results were obtained after analysis"
     INPUT_TAG_IN,
     INPUT_TAG_OUT,
     additional_rules="\n6. Do NOT repeat the input text or tags\n7. Preserve all spacing, indentation, and line breaks exactly as in source",
-    example_format="Votre texte traduit ici avec tous les ⟦TAG0⟧ préservés exactement."
+    example_format="Votre texte traduit ici." if simple_mode else "Votre texte traduit ici avec tous les ⟦TAG0⟧ préservés exactement."
 )}
 """
 
@@ -174,16 +174,6 @@ English: "The results were obtained after analysis"
 For consistency and natural flow, here's what came immediately before:
 
 {previous_translation_context}
-
-"""
-
-    custom_instructions_block = ""
-    if custom_instructions and custom_instructions.strip():
-        custom_instructions_block = f"""
-
-# ADDITIONAL INSTRUCTIONS
-
-{custom_instructions.strip()}
 
 """
 
@@ -205,7 +195,6 @@ Provide your translation now:"""
 
     parts = [part.strip() for part in [
         role_and_instructions_block,
-        custom_instructions_block,
         previous_translation_block_text,
         text_to_translate_block
     ] if part]
@@ -219,8 +208,7 @@ def generate_subtitle_block_prompt(
     source_language: str = "English",
     target_language: str = "French",
     translate_tag_in: str = TRANSLATE_TAG_IN,
-    translate_tag_out: str = TRANSLATE_TAG_OUT,
-    custom_instructions: str = ""
+    translate_tag_out: str = TRANSLATE_TAG_OUT
 ) -> str:
     """
     Generate translation prompt for multiple subtitle blocks with index markers.
@@ -232,7 +220,6 @@ def generate_subtitle_block_prompt(
         target_language: Target language
         translate_tag_in: Opening tag for translation output
         translate_tag_out: Closing tag for translation output
-        custom_instructions: Additional translation instructions
 
     Returns:
         str: The complete prompt formatted for subtitle block translation
@@ -283,17 +270,6 @@ English: "I think it would be better if we left now"
 )}
 """
 
-    # Custom instructions
-    custom_instructions_block = ""
-    if custom_instructions and custom_instructions.strip():
-        custom_instructions_block = f"""
-
-# ADDITIONAL INSTRUCTIONS
-
-{custom_instructions.strip()}
-
-"""
-
     # Previous translation context
     previous_translation_block_text = ""
     if previous_translation_block and previous_translation_block.strip():
@@ -329,115 +305,8 @@ Provide your translation now:"""
 
     parts = [part.strip() for part in [
         role_and_instructions_block,
-        custom_instructions_block,
         previous_translation_block_text,
         text_to_translate_block
-    ] if part]
-
-    return "\n".join(parts).strip()
-
-
-def generate_post_processing_prompt(
-    translated_text: str,
-    target_language: str = "French",
-    translate_tag_in: str = TRANSLATE_TAG_IN,
-    translate_tag_out: str = TRANSLATE_TAG_OUT,
-    custom_instructions: str = ""
-) -> str:
-    """
-    Generate the post-processing prompt to improve translated text quality.
-
-    Args:
-        translated_text: The already translated text to improve
-        target_language: Target language for the text
-        translate_tag_in: Opening tag for marking the improved text
-        translate_tag_out: Closing tag for marking the improved text
-        custom_instructions: Additional improvement instructions
-
-    Returns:
-        str: The complete prompt formatted for post-processing
-    """
-
-    role_and_instructions_block = f"""You are a professional {target_language} editor and proofreader specializing in translation quality.
-
-# POST-PROCESSING PRINCIPLES
-
-**Quality Enhancement Goals:**
-- Review and refine the {target_language} text for maximum naturalness
-- Enhance fluidity while strictly preserving the original meaning
-- Correct grammatical errors, awkward phrasing, and unnatural constructions
-- Ensure consistent style, tone, and terminology throughout
-- Make the text read as if originally written by a native {target_language} author
-- Restructure sentences when needed for better flow (avoid word-by-word patterns)
-
-**What to Improve:**
-- Unnatural word order or sentence structure
-- Awkward passive voice (prefer active when appropriate)
-- Repetitive expressions or vocabulary
-- Overly formal or informal tone inconsistencies
-- Unclear pronoun references or ambiguity
-
-**What to Preserve:**
-- Original meaning and content (no additions or omissions)
-- Author's intended tone and style
-- All formatting, spacing, line breaks, and indentation
-- Technical terms, code, URLs, file paths
-- ALL placeholders: ⟦TAG0⟧, ⟦TAG1⟧, etc. (in exact positions)
-
-# REFINEMENT EXAMPLES (Improving French Translation)
-
-**Example 1 - Sentence Flow:**
-❌ BEFORE: "Il a été décidé par l'équipe de commencer le projet"
-✅ AFTER: "L'équipe a décidé de commencer le projet"
-
-**Example 2 - Natural Expression:**
-❌ BEFORE: "Elle est en train de faire la préparation du rapport"
-✅ AFTER: "Elle prépare le rapport"
-
-**Example 3 - Consistency:**
-❌ BEFORE: "Utilisez la fonction print(). Servez-vous de print() pour afficher."
-✅ AFTER: "Utilisez la fonction print() pour afficher."
-
-{_get_output_format_section(
-    translate_tag_in,
-    translate_tag_out,
-    INPUT_TAG_IN,
-    INPUT_TAG_OUT,
-    additional_rules="\n6. Keep ALL placeholders (⟦TAG0⟧, etc.) exactly as they appear",
-    example_format="Texte amélioré avec tous les ⟦TAG0⟧ préservés exactement."
-)}
-"""
-
-    custom_instructions_block = ""
-    if custom_instructions and custom_instructions.strip():
-        custom_instructions_block = f"""
-
-# ADDITIONAL INSTRUCTIONS
-
-{custom_instructions.strip()}
-
-"""
-
-    text_to_improve_block = f"""
-# TEXT TO REFINE
-
-{INPUT_TAG_IN}
-{translated_text}
-{INPUT_TAG_OUT}
-
-REMINDER: Output ONLY your improved version in this exact format:
-{translate_tag_in}
-improved text here
-{translate_tag_out}
-
-Start with {translate_tag_in} and end with {translate_tag_out}. Nothing before or after.
-
-Provide your refined version now:"""
-
-    parts = [part.strip() for part in [
-        role_and_instructions_block,
-        custom_instructions_block,
-        text_to_improve_block
     ] if part]
 
     return "\n".join(parts).strip()

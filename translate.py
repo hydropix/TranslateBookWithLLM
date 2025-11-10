@@ -22,10 +22,8 @@ if __name__ == "__main__":
     parser.add_argument("--provider", default=LLM_PROVIDER, choices=["ollama", "gemini", "openai"], help=f"LLM provider to use (default: {LLM_PROVIDER}).")
     parser.add_argument("--gemini_api_key", default=GEMINI_API_KEY, help="Google Gemini API key (required if using gemini provider).")
     parser.add_argument("--openai_api_key", default=OPENAI_API_KEY, help="OpenAI API key (required if using openai provider).")
-    parser.add_argument("--custom_instructions", default="", help="Additional custom instructions for translation.")
-    parser.add_argument("--post-process", action="store_true", help="Enable post-processing to improve translation quality.")
-    parser.add_argument("--post-process-instructions", default="", help="Additional instructions for post-processing.")
     parser.add_argument("--no-color", action="store_true", help="Disable colored output.")
+    parser.add_argument("--simple-mode", action="store_true", help="Use simple mode for EPUB (strips formatting, maximum compatibility).")
 
     args = parser.parse_args()
 
@@ -54,6 +52,27 @@ if __name__ == "__main__":
         parser.error("--gemini_api_key is required when using gemini provider")
     if args.provider == "openai" and not args.openai_api_key:
         parser.error("--openai_api_key is required when using openai provider")
+
+    # Check for small models (<=12B) and recommend simple mode for EPUB
+    if file_type == "EPUB" and not args.simple_mode:
+        import re
+        size_match = re.search(r'(\d+(?:\.\d+)?)b', args.model.lower())
+        if size_match:
+            size_in_b = float(size_match.group(1))
+            if size_in_b <= 12:
+                print("\n" + "="*70)
+                print("💡 RECOMMENDATION: Small model detected (≤12B parameters)")
+                print("="*70)
+                print(f"Your model '{args.model}' appears to be a small model ({size_in_b}B).")
+                print("For EPUB translation, we strongly recommend using --simple-mode")
+                print("to avoid tag management issues common with smaller models.")
+                print("\nSimple mode:")
+                print("  ✅ Strips all HTML/XML formatting")
+                print("  ✅ No placeholder/tag errors")
+                print("  ✅ Maximum reliability with small models")
+                print("  ⚠️  Loses inline formatting (bold, italic, etc.)")
+                print("\nTo use simple mode, add: --simple-mode")
+                print("="*70 + "\n")
     
     # PHASE 2: Validation of configuration at startup
     if args.provider == "ollama":
@@ -88,9 +107,7 @@ if __name__ == "__main__":
         'output_file': args.output,
         'chunk_size': args.chunksize,
         'api_endpoint': args.api_endpoint,
-        'llm_provider': args.provider,
-        'custom_instructions': args.custom_instructions,
-        'post_processing': args.post_process
+        'llm_provider': args.provider
     })
 
     # Create legacy callback for backward compatibility
@@ -109,12 +126,10 @@ if __name__ == "__main__":
             log_callback=log_callback,
             stats_callback=None,
             check_interruption_callback=None,
-            custom_instructions=args.custom_instructions,
             llm_provider=args.provider,
             gemini_api_key=args.gemini_api_key,
             openai_api_key=args.openai_api_key,
-            enable_post_processing=args.post_process,
-            post_processing_instructions=args.post_process_instructions
+            simple_mode=args.simple_mode
         ))
         
         # Log successful completion
