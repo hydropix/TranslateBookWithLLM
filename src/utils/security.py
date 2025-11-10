@@ -5,9 +5,12 @@ import os
 import re
 import secrets
 import mimetypes
+import logging
 from pathlib import Path
 from typing import Set, Optional, Dict, Any
 from dataclasses import dataclass
+
+logger = logging.getLogger(__name__)
 
 
 class SecurityError(Exception):
@@ -111,22 +114,21 @@ class SecureFileHandler:
                 # Step 5: Validate file content
                 content_validation = self._validate_file_content(temp_path, original_filename)
                 if not content_validation.is_valid:
-                    temp_path.unlink()  # Remove temp file
+                    self._cleanup_temp_file(temp_path)
                     return content_validation
-                
+
                 # Step 6: Move temp file to final location
                 temp_path.rename(secure_path)
-                
+
                 return FileValidationResult(
                     is_valid=True,
                     file_path=secure_path,
                     warnings=content_validation.warnings
                 )
-                
+
             except Exception as e:
                 # Clean up temp file on error
-                if temp_path.exists():
-                    temp_path.unlink()
+                self._cleanup_temp_file(temp_path)
                 raise e
                 
         except Exception as e:
@@ -411,7 +413,27 @@ class SecureFileHandler:
                 is_valid=False,
                 error_message=f"SRT file validation failed: {str(e)}"
             )
-    
+
+    def _cleanup_temp_file(self, temp_path: Path) -> None:
+        """
+        Safely cleanup temporary file with error handling
+
+        Args:
+            temp_path: Path to the temporary file to remove
+        """
+        if not temp_path.exists():
+            return
+
+        try:
+            temp_path.unlink()
+            logger.debug(f"Successfully cleaned up temporary file: {temp_path.name}")
+        except PermissionError:
+            logger.warning(f"Permission denied when trying to delete temporary file: {temp_path.name}")
+        except OSError as e:
+            logger.warning(f"OS error when deleting temporary file {temp_path.name}: {str(e)}")
+        except Exception as e:
+            logger.error(f"Unexpected error when cleaning up temporary file {temp_path.name}: {str(e)}")
+
     def cleanup_old_files(self, max_age_hours: int = 24):
         """Clean up old uploaded files"""
         import time

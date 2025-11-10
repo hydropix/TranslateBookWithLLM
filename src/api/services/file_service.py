@@ -60,28 +60,55 @@ class FileService:
 
     def list_all_files(self) -> List[Dict]:
         """
-        List all files in output directory and uploads subdirectory
+        List all files in output directory only
+        Excludes:
+        - Temporary files (.tmp files and tmpXXXXXX pattern files)
+        - Files in uploads/ subdirectory (source files used for translation)
 
         Returns:
             List of file information dictionaries
         """
         files_info = []
 
-        # Get files from main directory
+        # Get files from main directory only (translated output files)
+        # Do NOT include files from uploads/ subdirectory
         for file_path in self.output_dir.iterdir():
-            if file_path.is_file():
+            if file_path.is_file() and self._is_visible_file(file_path):
                 files_info.append(self._get_file_info(file_path, is_upload=False))
-
-        # Get files from uploads subdirectory
-        if self.uploads_dir.exists():
-            for file_path in self.uploads_dir.iterdir():
-                if file_path.is_file():
-                    files_info.append(self._get_file_info(file_path, is_upload=True))
 
         # Sort by modified time (newest first)
         files_info.sort(key=lambda x: x['modified_time'], reverse=True)
 
         return files_info
+
+    def _is_visible_file(self, file_path: Path) -> bool:
+        """
+        Check if a file should be visible in File Management
+        Excludes temporary files created during upload validation and text processing
+
+        Args:
+            file_path: Path to the file
+
+        Returns:
+            True if file should be visible, False otherwise
+        """
+        filename = file_path.name
+
+        # Exclude .tmp files (from upload validation)
+        if filename.endswith('.tmp'):
+            return False
+
+        # Exclude tmpXXXXXX pattern files (from text input processing)
+        # These are created by tempfile.NamedTemporaryFile()
+        if filename.startswith('tmp') and len(filename) > 3:
+            # Check if it follows the pattern tmpXXXXXX.txt or similar
+            # tmpXXXXXX creates filenames like tmp1a2b3c4d.txt
+            name_without_ext = filename.split('.')[0]
+            if name_without_ext.startswith('tmp') and len(name_without_ext) > 3:
+                # It's likely a temp file pattern
+                return False
+
+        return True
 
     def _get_file_info(self, file_path: Path, is_upload: bool = False) -> Dict:
         """
