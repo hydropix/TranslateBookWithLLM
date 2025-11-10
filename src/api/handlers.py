@@ -182,12 +182,9 @@ async def perform_actual_translation(translation_id, config, state_manager, outp
                 log_callback=_log_message_callback,
                 stats_callback=_update_translation_stats_callback,
                 check_interruption_callback=should_interrupt_current_task,
-                custom_instructions=config.get('custom_instructions', ''),
                 llm_provider=config.get('llm_provider', 'ollama'),
                 gemini_api_key=config.get('gemini_api_key', ''),
                 openai_api_key=config.get('openai_api_key', ''),
-                enable_post_processing=config.get('enable_post_processing', False),
-                post_processing_instructions=config.get('post_processing_instructions', ''),
                 simple_mode=config.get('simple_mode', False),
                 context_window=config.get('context_window', 2048),
                 auto_adjust_context=config.get('auto_adjust_context', True),
@@ -218,12 +215,9 @@ async def perform_actual_translation(translation_id, config, state_manager, outp
                 log_callback=_log_message_callback,
                 stats_callback=_update_translation_stats_callback,
                 check_interruption_callback=should_interrupt_current_task,
-                custom_instructions=config.get('custom_instructions', ''),
                 llm_provider=config.get('llm_provider', 'ollama'),
                 gemini_api_key=config.get('gemini_api_key', ''),
                 openai_api_key=config.get('openai_api_key', ''),
-                enable_post_processing=config.get('enable_post_processing', False),
-                post_processing_instructions=config.get('post_processing_instructions', ''),
                 context_window=config.get('context_window', 2048),
                 auto_adjust_context=config.get('auto_adjust_context', True),
                 min_chunk_size=config.get('min_chunk_size', 5)
@@ -253,12 +247,9 @@ async def perform_actual_translation(translation_id, config, state_manager, outp
                 log_callback=_log_message_callback,
                 stats_callback=_update_translation_stats_callback,
                 check_interruption_callback=should_interrupt_current_task,
-                custom_instructions=config.get('custom_instructions', ''),
                 llm_provider=config.get('llm_provider', 'ollama'),
                 gemini_api_key=config.get('gemini_api_key', ''),
-                openai_api_key=config.get('openai_api_key', ''),
-                enable_post_processing=config.get('enable_post_processing', False),
-                post_processing_instructions=config.get('post_processing_instructions', '')
+                openai_api_key=config.get('openai_api_key', '')
             )
             
             state_manager.set_translation_field(translation_id, 'result', "[SRT file translated - download to view]")

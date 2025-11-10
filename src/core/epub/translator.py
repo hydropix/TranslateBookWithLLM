@@ -25,7 +25,7 @@ from .constants import (
 from .job_collector import collect_translation_jobs
 from .tag_preservation import TagPreserver
 from .xml_helpers import rebuild_element_from_translated_content
-from ..translator import generate_translation_request, post_process_translation
+from ..translator import generate_translation_request
 from ..post_processor import clean_residual_tag_placeholders
 
 
@@ -41,12 +41,9 @@ async def translate_epub_file(
     log_callback: Optional[Callable] = None,
     stats_callback: Optional[Callable] = None,
     check_interruption_callback: Optional[Callable] = None,
-    custom_instructions: str = "",
     llm_provider: str = "ollama",
     gemini_api_key: Optional[str] = None,
     openai_api_key: Optional[str] = None,
-    enable_post_processing: bool = False,
-    post_processing_instructions: str = "",
     simple_mode: bool = False,
     context_window: int = 2048,
     auto_adjust_context: bool = True,
@@ -70,12 +67,9 @@ async def translate_epub_file(
         log_callback: Logging callback
         stats_callback: Statistics callback
         check_interruption_callback: Interruption check callback
-        custom_instructions: Additional translation instructions
         llm_provider: LLM provider (ollama/gemini/openai)
         gemini_api_key: Gemini API key
         openai_api_key: OpenAI API key
-        enable_post_processing: Enable post-processing
-        post_processing_instructions: Post-processing instructions
         simple_mode: Use simple mode (extract pure text, translate, rebuild)
         context_window: Context window size for LLM
         auto_adjust_context: Auto-adjust context based on model
@@ -438,14 +432,6 @@ async def _translate_epub_chunks_with_context(
                     llm_client, custom_instructions, log_callback
                 )
 
-            # Apply post-processing if enabled
-            if enable_post_processing:
-                translated_chunk = await _post_process_chunk(
-                    translated_chunk, source_placeholders, target_language,
-                    model_name, llm_client, post_processing_instructions,
-                    i, total_chunks, log_callback
-                )
-
             translated_parts.append(translated_chunk)
         else:
             # Translation failed
@@ -523,54 +509,6 @@ async def _validate_placeholders_and_retry(
                 return retry_text
 
     return translated_text
-
-
-async def _post_process_chunk(
-    translated_text: str,
-    source_placeholders: set,
-    target_language: str,
-    model_name: str,
-    llm_client: Any,
-    post_processing_instructions: str,
-    chunk_idx: int,
-    total_chunks: int,
-    log_callback: Optional[Callable]
-) -> str:
-    """
-    Apply post-processing to translated chunk
-
-    Args:
-        translated_text: Translated text
-        source_placeholders: Set of placeholders to preserve
-        target_language: Target language
-        model_name: Model name
-        llm_client: LLM client
-        post_processing_instructions: Post-processing instructions
-        chunk_idx: Current chunk index
-        total_chunks: Total chunk count
-        log_callback: Logging callback
-
-    Returns:
-        Post-processed translation
-    """
-    if log_callback:
-        log_callback("post_processing_epub_chunk",
-                   f"Post-processing EPUB chunk {chunk_idx+1}/{total_chunks}")
-
-    # Create temporary tag map for validation
-    temp_tag_map = {placeholder: f"<tag{i}>" for i, placeholder in enumerate(source_placeholders)}
-
-    improved_text = await post_process_translation(
-        translated_text,
-        target_language,
-        model_name,
-        llm_client=llm_client,
-        log_callback=log_callback,
-        custom_instructions=post_processing_instructions,
-        tag_map=temp_tag_map if temp_tag_map else None
-    )
-
-    return improved_text
 
 
 def _validate_and_restore_tags(

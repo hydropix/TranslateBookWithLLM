@@ -57,11 +57,8 @@ def create_translation_blueprint(state_manager, start_translation_job):
             'max_attempts': int(data.get('max_attempts', 2)),
             'retry_delay': int(data.get('retry_delay', 2)),
             'output_filename': data['output_filename'],
-            'custom_instructions': data.get('custom_instructions', ''),
             'llm_provider': data.get('llm_provider', 'ollama'),
             'gemini_api_key': data.get('gemini_api_key') or os.getenv('GEMINI_API_KEY', ''),
-            'enable_post_processing': data.get('enable_post_processing', False),
-            'post_processing_instructions': data.get('post_processing_instructions', ''),
             'simple_mode': data.get('simple_mode', False)
         }
 

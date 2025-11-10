@@ -22,9 +22,6 @@ if __name__ == "__main__":
     parser.add_argument("--provider", default=LLM_PROVIDER, choices=["ollama", "gemini", "openai"], help=f"LLM provider to use (default: {LLM_PROVIDER}).")
     parser.add_argument("--gemini_api_key", default=GEMINI_API_KEY, help="Google Gemini API key (required if using gemini provider).")
     parser.add_argument("--openai_api_key", default=OPENAI_API_KEY, help="OpenAI API key (required if using openai provider).")
-    parser.add_argument("--custom_instructions", default="", help="Additional custom instructions for translation.")
-    parser.add_argument("--post-process", action="store_true", help="Enable post-processing to improve translation quality.")
-    parser.add_argument("--post-process-instructions", default="", help="Additional instructions for post-processing.")
     parser.add_argument("--no-color", action="store_true", help="Disable colored output.")
 
     args = parser.parse_args()
@@ -88,9 +85,7 @@ if __name__ == "__main__":
         'output_file': args.output,
         'chunk_size': args.chunksize,
         'api_endpoint': args.api_endpoint,
-        'llm_provider': args.provider,
-        'custom_instructions': args.custom_instructions,
-        'post_processing': args.post_process
+        'llm_provider': args.provider
     })
 
     # Create legacy callback for backward compatibility
@@ -109,12 +104,9 @@ if __name__ == "__main__":
             log_callback=log_callback,
             stats_callback=None,
             check_interruption_callback=None,
-            custom_instructions=args.custom_instructions,
             llm_provider=args.provider,
             gemini_api_key=args.gemini_api_key,
-            openai_api_key=args.openai_api_key,
-            enable_post_processing=args.post_process,
-            post_processing_instructions=args.post_process_instructions
+            openai_api_key=args.openai_api_key
         ))
         
         # Log successful completion

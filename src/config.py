@@ -97,9 +97,6 @@ class TranslationConfig:
     
     # Translation parameters
     chunk_size: int = MAIN_LINES_PER_CHUNK
-    custom_instructions: str = ""
-    enable_post_processing: bool = False
-    post_processing_instructions: str = ""
     
     # LLM parameters
     timeout: int = REQUEST_TIMEOUT
@@ -126,14 +123,11 @@ class TranslationConfig:
             model=args.model,
             api_endpoint=args.api_endpoint,
             chunk_size=args.chunksize,
-            custom_instructions=args.custom_instructions,
             interface_type="cli",
             enable_colors=not args.no_color,
             llm_provider=getattr(args, 'provider', LLM_PROVIDER),
             gemini_api_key=getattr(args, 'gemini_api_key', GEMINI_API_KEY),
-            openai_api_key=getattr(args, 'openai_api_key', OPENAI_API_KEY),
-            enable_post_processing=getattr(args, 'post_process', False),
-            post_processing_instructions=getattr(args, 'post_process_instructions', '')
+            openai_api_key=getattr(args, 'openai_api_key', OPENAI_API_KEY)
         )
     
     @classmethod
@@ -145,7 +139,6 @@ class TranslationConfig:
             model=request_data.get('model', DEFAULT_MODEL),
             api_endpoint=request_data.get('llm_api_endpoint', API_ENDPOINT),
             chunk_size=request_data.get('chunk_size', MAIN_LINES_PER_CHUNK),
-            custom_instructions=request_data.get('custom_instructions', ''),
             timeout=request_data.get('timeout', REQUEST_TIMEOUT),
             max_attempts=request_data.get('max_attempts', MAX_TRANSLATION_ATTEMPTS),
             retry_delay=request_data.get('retry_delay', RETRY_DELAY_SECONDS),
@@ -157,9 +150,7 @@ class TranslationConfig:
             enable_interruption=True,
             llm_provider=request_data.get('llm_provider', LLM_PROVIDER),
             gemini_api_key=request_data.get('gemini_api_key', GEMINI_API_KEY),
-            openai_api_key=request_data.get('openai_api_key', OPENAI_API_KEY),
-            enable_post_processing=request_data.get('enable_post_processing', False),
-            post_processing_instructions=request_data.get('post_processing_instructions', '')
+            openai_api_key=request_data.get('openai_api_key', OPENAI_API_KEY)
         )
     
     def to_dict(self) -> dict:
@@ -170,14 +161,11 @@ class TranslationConfig:
             'model': self.model,
             'api_endpoint': self.api_endpoint,
             'chunk_size': self.chunk_size,
-            'custom_instructions': self.custom_instructions,
             'timeout': self.timeout,
             'max_attempts': self.max_attempts,
             'retry_delay': self.retry_delay,
             'context_window': self.context_window,
             'llm_provider': self.llm_provider,
             'gemini_api_key': self.gemini_api_key,
-            'openai_api_key': self.openai_api_key,
-            'enable_post_processing': self.enable_post_processing,
-            'post_processing_instructions': self.post_processing_instructions
+            'openai_api_key': self.openai_api_key
         }

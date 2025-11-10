@@ -785,9 +785,6 @@ async function processNextFileInQueue() {
         retry_delay: parseInt(document.getElementById('retryDelay').value),
         output_filename: fileToTranslate.outputFilename,
         file_type: fileToTranslate.fileType,
-        custom_instructions: document.getElementById('customInstructions').value.trim(),
-        enable_post_processing: document.getElementById('enablePostProcessing').checked,
-        post_processing_instructions: document.getElementById('postProcessingInstructions').value.trim(),
         simple_mode: document.getElementById('simpleMode').checked
     };
 
@@ -883,16 +880,6 @@ function clearActivityLog() {
 
 // Initialize event listeners
 window.addEventListener('DOMContentLoaded', function() {
-    // Post-processing checkbox handler
-    document.getElementById('enablePostProcessing').addEventListener('change', (e) => {
-        const postProcessingOptions = document.getElementById('postProcessingOptions');
-        if (e.target.checked) {
-            postProcessingOptions.style.display = 'block';
-        } else {
-            postProcessingOptions.style.display = 'none';
-        }
-    });
-
     // Simple mode checkbox handler
     document.getElementById('simpleMode').addEventListener('change', (e) => {
         const simpleModeInfo = document.getElementById('simpleModeInfo');
