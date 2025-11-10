@@ -27,22 +27,97 @@ TBL is an application that lets you translate large volumes of text using Langua
 
 ## 🚀 Quick Start
 
-### Easy Installation (Windows)
+### ⚡ Ultra-Simple Installation (Windows) - **RECOMMENDED**
+
+**Just 3 steps to get started!**
 
 **Step 1: Install Required Software**
 
-1. **Miniconda** - Manages Python easily
-   
-   - Download: [Miniconda Windows Installer](https://www.anaconda.com/docs/getting-started/miniconda/install#windows-installation)
-   - Install with default settings
+1. **Python 3.8+** - The programming language
+   - Download: [Python for Windows](https://www.python.org/downloads/)
+   - ⚠️ **IMPORTANT**: Check "Add Python to PATH" during installation!
 
 2. **Ollama** - Runs AI models locally (free!)
-   
    - Download: [Ollama for Windows](https://ollama.com/)
    - Install and it will start automatically
 
 3. **Git** - Downloads TBL
-   
+   - Download: [Git for Windows](https://git-scm.com/download/win)
+   - Install with default settings
+
+**Step 2: Download TBL**
+
+Open **Command Prompt** or **PowerShell** and run:
+
+```bash
+# Navigate to your preferred location
+cd %USERPROFILE%\Documents
+
+# Download TBL
+git clone https://github.com/hydropix/TranslateBookWithLLM.git
+cd TranslateBookWithLLM
+```
+
+**Step 3: Download an AI Model & Launch!**
+
+```bash
+# Download a recommended model (choose based on your GPU)
+ollama pull qwen3:30b
+
+# Launch TBL - Everything is automatic!
+start.bat
+```
+
+🎉 **That's it!** The web interface will open automatically at **http://localhost:5000**
+
+### What does `start.bat` do automatically?
+
+✅ Creates Python virtual environment (first time only)
+✅ Installs all dependencies
+✅ Checks for updates from Git
+✅ Updates dependencies if needed
+✅ Creates configuration files
+✅ Launches the web interface
+
+**Next time, just double-click `start.bat` and everything updates automatically!**
+
+---
+
+### 📊 Choosing the Right Model
+
+[Ollama Search](https://ollama.com/search)
+
+**Qwen3 Models by VRAM (GPU Memory):**
+
+```
+6-10 GB  → ollama pull qwen3:8b      (5.2 GB, basic translations)
+10-16 GB → ollama pull qwen3:14b     (9.3 GB, good translations)
+16-24 GB → ollama pull qwen3:30b     (19 GB, very good translations) ⭐ RECOMMENDED
+48+ GB   → ollama pull qwen3:235b    (142 GB, professional quality)
+```
+
+```bash
+# Check your installed models
+ollama list
+```
+
+---
+
+### 🐍 Advanced Installation (Anaconda/Miniconda)
+
+If you prefer using Anaconda or already have it installed:
+
+**Step 1: Install Required Software**
+
+1. **Miniconda** - Manages Python easily
+   - Download: [Miniconda Windows Installer](https://www.anaconda.com/docs/getting-started/miniconda/install#windows-installation)
+   - Install with default settings
+
+2. **Ollama** - Runs AI models locally (free!)
+   - Download: [Ollama for Windows](https://ollama.com/)
+   - Install and it will start automatically
+
+3. **Git** - Downloads TBL
    - Download: [Git for Windows](https://git-scm.com/download/win)
    - Install with default settings
 
@@ -58,9 +133,7 @@ conda create -n translate_book_env python=3.9
 conda activate translate_book_env
 
 # Download TBL
-cd C:\
-mkdir Projects
-cd Projects
+cd %USERPROFILE%\Documents
 git clone https://github.com/hydropix/TranslateBookWithLLM.git
 cd TranslateBookWithLLM
 
@@ -68,32 +141,13 @@ cd TranslateBookWithLLM
 pip install -r requirements.txt
 ```
 
-**Step 3: Download an AI Model**
-
-[Ollama Search](https://ollama.com/search)
-
-📊 Qwen3 Installation by VRAM (GPU)
-
-```
-6-10 GB  → ollama pull qwen3:8b      (5.2 GB, minimal quality translations)
-10-16 GB → ollama pull qwen3:14b     (9.3 GB, acceptable translations)
-16-24 GB → ollama pull qwen3:30b     (19 GB, very good translation)
-48+ GB   → ollama pull qwen3:235b    (142 GB, professional translation)ction)
-```
+**Step 3: Download an AI Model & Launch**
 
 ```bash
-# Recommended model for quality translation (24GB VRAM)
+# Download a recommended model
 ollama pull qwen3:30b
 
-# Check your installed models
-ollama list
-```
-
-**Step 4: Launch the Web Interface**
-
-```bash
-conda activate translate_book_env
-cd C:\Projects\TranslateBookWithLLM
+# Launch the web interface
 python translation_api.py
 ```
 
