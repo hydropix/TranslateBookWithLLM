@@ -1,10 +1,66 @@
-version: '3'
+version: '3.8'
 services:
   translatebook:
     build: .
+    container_name: translatebook-llm
     ports:
-      - "5000:5000"
+      - "${PORT:-5000}:${PORT:-5000}"
     volumes:
       - ./translated_files:/app/translated_files
+      - ./logs:/app/logs  # Optional: for persistent logs
     environment:
-      - PORT=5000
+      # Server Configuration
+      - PORT=${PORT:-5000}
+      - HOST=0.0.0.0  # Listen on all interfaces inside container
+      - OUTPUT_DIR=/app/translated_files
+
+      # LLM Provider Settings
+      - LLM_PROVIDER=${LLM_PROVIDER:-ollama}
+
+      # Ollama Configuration (if using local Ollama)
+      # Use host.docker.internal to access host machine from Docker on Windows/Mac
+      # On Linux, use --network host or the host's IP address
+      - API_ENDPOINT=${API_ENDPOINT:-http://host.docker.internal:11434/api/generate}
+      - DEFAULT_MODEL=${DEFAULT_MODEL:-mistral-small:24b}
+      - OLLAMA_NUM_CTX=${OLLAMA_NUM_CTX:-8192}
+
+      # Gemini Configuration (if using Gemini provider)
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
+      - GEMINI_MODEL=${GEMINI_MODEL:-gemini-2.0-flash}
+
+      # OpenAI Configuration (if using OpenAI provider)
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+
+      # Translation Settings
+      - DEFAULT_SOURCE_LANGUAGE=${DEFAULT_SOURCE_LANGUAGE:-English}
+      - DEFAULT_TARGET_LANGUAGE=${DEFAULT_TARGET_LANGUAGE:-French}
+      - MAIN_LINES_PER_CHUNK=${MAIN_LINES_PER_CHUNK:-25}
+      - MAIN_CHUNK_SIZE=${MAIN_CHUNK_SIZE:-1000}
+      - REQUEST_TIMEOUT=${REQUEST_TIMEOUT:-900}
+
+      # Context Management
+      - AUTO_ADJUST_CONTEXT=${AUTO_ADJUST_CONTEXT:-true}
+      - MIN_CHUNK_SIZE=${MIN_CHUNK_SIZE:-5}
+      - MAX_CHUNK_SIZE=${MAX_CHUNK_SIZE:-100}
+
+      # Advanced Settings
+      - MAX_TRANSLATION_ATTEMPTS=${MAX_TRANSLATION_ATTEMPTS:-3}
+      - RETRY_DELAY_SECONDS=${RETRY_DELAY_SECONDS:-5}
+
+      # SRT-specific
+      - SRT_LINES_PER_BLOCK=${SRT_LINES_PER_BLOCK:-5}
+      - SRT_MAX_CHARS_PER_BLOCK=${SRT_MAX_CHARS_PER_BLOCK:-500}
+
+    # Health check to ensure service is running
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:${PORT:-5000}/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+    restart: unless-stopped
+
+    # Uncomment below for Linux to access host Ollama without host.docker.internal
+    # extra_hosts:
+    #   - "host.docker.internal:host-gateway"
