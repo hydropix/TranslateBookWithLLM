@@ -86,7 +86,8 @@ def generate_translation_prompt(
     target_language: str = "French",
     translate_tag_in: str = TRANSLATE_TAG_IN,
     translate_tag_out: str = TRANSLATE_TAG_OUT,
-    custom_instructions: str = ""
+    custom_instructions: str = "",
+    simple_mode: bool = False
 ) -> str:
     """
     Generate the translation prompt with all contextual elements.
@@ -101,6 +102,7 @@ def generate_translation_prompt(
         translate_tag_in: Opening tag for translation output
         translate_tag_out: Closing tag for translation output
         custom_instructions: Additional custom translation instructions
+        simple_mode: If True, excludes placeholder preservation instructions (for pure text translation)
 
     Returns:
         str: The complete prompt formatted for translation
@@ -153,7 +155,7 @@ English: "She has been working on this project for three years"
 ✅ CORRECT (active voice): "L'analyse a permis d'obtenir les résultats"
 English: "The results were obtained after analysis"
 
-{PLACEHOLDER_PRESERVATION_SECTION}
+{'' if simple_mode else PLACEHOLDER_PRESERVATION_SECTION}
 
 {_get_output_format_section(
     translate_tag_in,
@@ -161,7 +163,7 @@ English: "The results were obtained after analysis"
     INPUT_TAG_IN,
     INPUT_TAG_OUT,
     additional_rules="\n6. Do NOT repeat the input text or tags\n7. Preserve all spacing, indentation, and line breaks exactly as in source",
-    example_format="Votre texte traduit ici avec tous les ⟦TAG0⟧ préservés exactement."
+    example_format="Votre texte traduit ici." if simple_mode else "Votre texte traduit ici avec tous les ⟦TAG0⟧ préservés exactement."
 )}
 """
 
@@ -342,7 +344,8 @@ def generate_post_processing_prompt(
     target_language: str = "French",
     translate_tag_in: str = TRANSLATE_TAG_IN,
     translate_tag_out: str = TRANSLATE_TAG_OUT,
-    custom_instructions: str = ""
+    custom_instructions: str = "",
+    simple_mode: bool = False
 ) -> str:
     """
     Generate the post-processing prompt to improve translated text quality.
@@ -353,6 +356,7 @@ def generate_post_processing_prompt(
         translate_tag_in: Opening tag for marking the improved text
         translate_tag_out: Closing tag for marking the improved text
         custom_instructions: Additional improvement instructions
+        simple_mode: If True, excludes placeholder preservation instructions (for pure text translation)
 
     Returns:
         str: The complete prompt formatted for post-processing
@@ -381,8 +385,7 @@ def generate_post_processing_prompt(
 - Original meaning and content (no additions or omissions)
 - Author's intended tone and style
 - All formatting, spacing, line breaks, and indentation
-- Technical terms, code, URLs, file paths
-- ALL placeholders: ⟦TAG0⟧, ⟦TAG1⟧, etc. (in exact positions)
+- Technical terms, code, URLs, file paths{'' if simple_mode else '\n- ALL placeholders: ⟦TAG0⟧, ⟦TAG1⟧, etc. (in exact positions)'}
 
 # REFINEMENT EXAMPLES (Improving French Translation)
 
@@ -403,8 +406,8 @@ def generate_post_processing_prompt(
     translate_tag_out,
     INPUT_TAG_IN,
     INPUT_TAG_OUT,
-    additional_rules="\n6. Keep ALL placeholders (⟦TAG0⟧, etc.) exactly as they appear",
-    example_format="Texte amélioré avec tous les ⟦TAG0⟧ préservés exactement."
+    additional_rules="" if simple_mode else "\n6. Keep ALL placeholders (⟦TAG0⟧, etc.) exactly as they appear",
+    example_format="Texte amélioré et naturel." if simple_mode else "Texte amélioré avec tous les ⟦TAG0⟧ préservés exactement."
 )}
 """
 

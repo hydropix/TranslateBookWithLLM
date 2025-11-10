@@ -742,6 +742,7 @@ async def translate_text_as_string(
                     f"Simple mode: Translating {total_chunks} chunks")
 
     # Translate chunks using the standard text translation workflow
+    # IMPORTANT: Pass simple_mode=True to use simplified prompts without placeholder instructions
     translated_parts = await translate_chunks(
         structured_chunks,
         source_language,
@@ -760,7 +761,8 @@ async def translate_text_as_string(
         post_processing_instructions=post_processing_instructions,
         context_window=context_window,
         auto_adjust_context=auto_adjust_context,
-        min_chunk_size=min_chunk_size
+        min_chunk_size=min_chunk_size,
+        simple_mode=True  # Simple mode uses pure text - no HTML/XML placeholders
     )
 
     if progress_callback:

@@ -25,10 +25,10 @@ from typing import List, Dict, Tuple, Optional
 
 async def generate_translation_request(main_content, context_before, context_after, previous_translation_context,
                                        source_language="English", target_language="French", model=DEFAULT_MODEL,
-                                       llm_client=None, log_callback=None, custom_instructions=""):
+                                       llm_client=None, log_callback=None, custom_instructions="", simple_mode=False):
     """
     Generate translation request to LLM API
-    
+
     Args:
         main_content (str): Text to translate
         context_before (str): Context before main content
@@ -40,7 +40,8 @@ async def generate_translation_request(main_content, context_before, context_aft
         api_endpoint_param (str): API endpoint to use
         log_callback (callable): Logging callback function
         custom_instructions (str): Additional translation instructions
-        
+        simple_mode (bool): If True, uses simplified prompts without placeholder instructions
+
     Returns:
         str: Translated text or None if failed
     """
@@ -51,13 +52,14 @@ async def generate_translation_request(main_content, context_before, context_aft
         return main_content
     
     structured_prompt = generate_translation_prompt(
-        main_content, 
-        context_before, 
-        context_after, 
+        main_content,
+        context_before,
+        context_after,
         previous_translation_context,
-        source_language, 
+        source_language,
         target_language,
-        custom_instructions=custom_instructions
+        custom_instructions=custom_instructions,
+        simple_mode=simple_mode
     )
     
     # Log the LLM request with structured data for web interface
@@ -118,10 +120,10 @@ async def generate_translation_request(main_content, context_before, context_aft
 
 async def post_process_translation(translated_text, target_language="French", model=DEFAULT_MODEL,
                                  llm_client=None, log_callback=None, custom_instructions="",
-                                 tag_map=None):
+                                 tag_map=None, simple_mode=False):
     """
     Post-process translated text to improve quality
-    
+
     Args:
         translated_text (str): Previously translated text to improve
         target_language (str): Target language
@@ -130,7 +132,8 @@ async def post_process_translation(translated_text, target_language="French", mo
         log_callback (callable): Logging callback function
         custom_instructions (str): Additional improvement instructions
         tag_map (dict): Optional tag mapping for placeholder validation
-        
+        simple_mode (bool): If True, uses simplified prompts without placeholder instructions
+
     Returns:
         str: Improved text or original if post-processing fails
     """
@@ -147,7 +150,8 @@ async def post_process_translation(translated_text, target_language="French", mo
     structured_prompt = generate_post_processing_prompt(
         translated_text,
         target_language,
-        custom_instructions=custom_instructions
+        custom_instructions=custom_instructions,
+        simple_mode=simple_mode
     )
     
     print("\n-------POST-PROCESSING SENT to LLM-------")
@@ -205,7 +209,8 @@ async def post_process_translation(translated_text, target_language="French", mo
                     retry_prompt = generate_post_processing_prompt(
                         translated_text,
                         target_language,
-                        custom_instructions=retry_instructions
+                        custom_instructions=retry_instructions,
+                        simple_mode=simple_mode
                     )
                     
                     retry_response = await client.make_request(retry_prompt, model)
@@ -245,7 +250,7 @@ async def translate_chunks(chunks, source_language, target_language, model_name,
                           stats_callback=None, check_interruption_callback=None, custom_instructions="",
                           llm_provider="ollama", gemini_api_key=None, openai_api_key=None,
                           enable_post_processing=False, post_processing_instructions="",
-                          context_window=2048, auto_adjust_context=True, min_chunk_size=5):
+                          context_window=2048, auto_adjust_context=True, min_chunk_size=5, simple_mode=False):
     """
     Translate a list of text chunks
 
@@ -262,6 +267,7 @@ async def translate_chunks(chunks, source_language, target_language, model_name,
         context_window (int): Context window size (num_ctx)
         auto_adjust_context (bool): Enable automatic context adjustment
         min_chunk_size (int): Minimum chunk size when auto-adjusting
+        simple_mode (bool): If True, uses simplified prompts without placeholder instructions
 
     Returns:
         list: List of translated chunks
@@ -386,7 +392,7 @@ async def translate_chunks(chunks, source_language, target_language, model_name,
                 main_content_to_translate, context_before_text, context_after_text,
                 last_successful_llm_context, source_language, target_language,
                 model_name, llm_client=llm_client, log_callback=log_callback,
-                custom_instructions=custom_instructions
+                custom_instructions=custom_instructions, simple_mode=simple_mode
             )
 
             if translated_chunk_text is not None:
@@ -401,7 +407,8 @@ async def translate_chunks(chunks, source_language, target_language, model_name,
                         model_name,
                         llm_client=llm_client,
                         log_callback=log_callback,
-                        custom_instructions=post_processing_instructions
+                        custom_instructions=post_processing_instructions,
+                        simple_mode=simple_mode
                     )
                     translated_chunk_text = improved_text
                 else:
