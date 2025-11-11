@@ -2,9 +2,53 @@
 Centralized configuration class
 """
 import os
+import sys
+from pathlib import Path
 from dataclasses import dataclass
 from typing import Optional
 from dotenv import load_dotenv
+
+# Check if .env file exists and provide helpful guidance
+_env_file = Path('.env')
+_env_example = Path('.env.example')
+_env_exists = _env_file.exists()
+
+if not _env_exists:
+    print("\n" + "="*70)
+    print("⚠️  WARNING: .env configuration file not found")
+    print("="*70)
+    print("\nThe application will run with default settings, but you may need to")
+    print("configure it for your specific setup.\n")
+
+    if _env_example.exists():
+        print("📋 QUICK SETUP:")
+        print(f"   1. Copy the template: copy .env.example .env")
+        print(f"   2. Edit .env to match your configuration")
+        print(f"   3. Restart the application\n")
+    else:
+        print("📋 MANUAL SETUP:")
+        print(f"   1. Create a .env file in: {Path.cwd()}")
+        print(f"   2. Add your configuration (see documentation)")
+        print(f"   3. Restart the application\n")
+
+    print("🔧 DEFAULT SETTINGS BEING USED:")
+    print(f"   • API Endpoint: http://localhost:11434/api/generate")
+    print(f"   • LLM Provider: ollama")
+    print(f"   • Model: mistral-small:24b")
+    print(f"   • Port: 5000")
+    print(f"\n💡 TIP: If using a remote server or different provider, you MUST")
+    print(f"   create a .env file with the correct settings.\n")
+    print("="*70)
+    print("Press Ctrl+C to stop and configure, or wait 5 seconds to continue...")
+    print("="*70 + "\n")
+
+    # Give user time to read and react
+    import time
+    try:
+        time.sleep(5)
+    except KeyboardInterrupt:
+        print("\n\n⏹️  Startup cancelled by user. Please configure .env and try again.\n")
+        sys.exit(0)
 
 # Load .env file if it exists
 load_dotenv()

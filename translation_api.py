@@ -46,13 +46,31 @@ state_manager = get_state_manager()
 
 def validate_configuration():
     """Validate required configuration before starting server"""
+    issues = []
+
     if not PORT or not isinstance(PORT, int):
-        raise ValueError("PORT must be a valid integer")
+        issues.append("PORT must be a valid integer")
     if not DEFAULT_MODEL:
-        raise ValueError("DEFAULT_MODEL must be configured")
+        issues.append("DEFAULT_MODEL must be configured")
     if not DEFAULT_OLLAMA_API_ENDPOINT:
-        raise ValueError("API_ENDPOINT must be configured")
-    logger.info("Configuration validated successfully")
+        issues.append("API_ENDPOINT must be configured")
+
+    if issues:
+        logger.error("\n" + "="*70)
+        logger.error("❌ CONFIGURATION ERROR")
+        logger.error("="*70)
+        for issue in issues:
+            logger.error(f"   • {issue}")
+        logger.error("\n💡 SOLUTION:")
+        logger.error("   1. Create a .env file from .env.example")
+        logger.error("   2. Configure the required settings")
+        logger.error("   3. Restart the application")
+        logger.error("\n   Quick setup:")
+        logger.error("   python -m src.utils.env_helper setup")
+        logger.error("="*70 + "\n")
+        raise ValueError("Configuration validation failed. See errors above.")
+
+    logger.info("✅ Configuration validated successfully")
 
 # Ensure output directory exists
 try:
