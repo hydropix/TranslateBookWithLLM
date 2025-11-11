@@ -310,6 +310,13 @@ async def perform_actual_translation(translation_id, config, state_manager, outp
             checkpoint_manager.mark_interrupted(translation_id)
             _log_message_callback("checkpoint_interrupted", "⏸️ Checkpoint marked as interrupted")
 
+            # Emit checkpoint_created event to trigger UI update
+            socketio.emit('checkpoint_created', {
+                'translation_id': translation_id,
+                'status': 'interrupted',
+                'message': 'Translation paused - checkpoint created'
+            }, namespace='/')
+
             # Also clean up uploaded file on interruption if translation produced output
             if 'file_path' in config and config['file_path'] and os.path.exists(output_filepath_on_server):
                 uploaded_file_path = config['file_path']

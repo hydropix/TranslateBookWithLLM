@@ -35,6 +35,13 @@ socket.on('file_list_changed', (data) => {
     refreshFileList();
 });
 
+socket.on('checkpoint_created', (data) => {
+    console.log('Checkpoint created:', data);
+    addLog(`⏸️ ${data.message || 'Checkpoint created'}`);
+    // Immediately show and refresh the resumable jobs UI
+    loadResumableJobs();
+});
+
 function updateFileStatusInList(fileName, newStatus, translationId = null) {
     const fileListItem = document.querySelector(`#fileListContainer li[data-filename="${fileName}"] .file-status`);
     if (fileListItem) {
@@ -62,13 +69,6 @@ function finishCurrentFileTranslationUI(statusMessage, messageType, resultData) 
     // Remove file from filesToProcess if translation completed or was interrupted
     if (resultData.status === 'completed' || resultData.status === 'interrupted') {
         removeFileFromProcessingList(currentFile.name);
-    }
-
-    // If translation completed or interrupted, reload resumable jobs list
-    if (resultData.status === 'interrupted') {
-        setTimeout(() => {
-            loadResumableJobs();
-        }, 1000);
     }
 
     currentProcessingJob = null;
