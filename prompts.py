@@ -296,11 +296,14 @@ For continuity and consistency, here's the previous subtitle block:
     # Format subtitle blocks with indices
     formatted_subtitles = [f"[{idx}]{text}" for idx, text in subtitle_blocks]
 
+    # Join subtitles outside f-string to avoid Python 3.11 backslash issues
+    formatted_subtitles_text = "\n".join(formatted_subtitles)
+
     text_to_translate_block = f"""
 # SUBTITLES TO TRANSLATE
 
 {INPUT_TAG_IN}
-{"\n".join(formatted_subtitles)}
+{formatted_subtitles_text}
 {INPUT_TAG_OUT}
 
 REMINDER: Output format must be:

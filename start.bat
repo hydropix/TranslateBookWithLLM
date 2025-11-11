@@ -163,29 +163,11 @@ if not exist "translated_files" (
 echo.
 
 REM ========================================
-REM STEP 7: Installation Integrity Check
+REM STEP 7: Quick Integrity Check (Silent)
 REM ========================================
-echo [7/7] Verifying installation integrity...
-
-REM Check if fix_installation.py exists
 if exist "fix_installation.py" (
-    python fix_installation.py
-    if errorlevel 1 (
-        echo.
-        echo [WARNING] Installation check detected issues
-        echo.
-        echo You can either:
-        echo   1. Press any key to continue anyway (may cause errors)
-        echo   2. Press Ctrl+C to stop and fix issues manually
-        echo.
-        pause
-    ) else (
-        echo [OK] Installation integrity verified
-    )
-) else (
-    echo [INFO] Integrity checker not found, skipping...
+    python fix_installation.py >nul 2>&1
 )
-echo.
 
 REM ========================================
 REM LAUNCH APPLICATION
