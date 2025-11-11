@@ -64,6 +64,13 @@ function finishCurrentFileTranslationUI(statusMessage, messageType, resultData) 
         removeFileFromProcessingList(currentFile.name);
     }
 
+    // If translation completed or interrupted, reload resumable jobs list
+    if (resultData.status === 'interrupted') {
+        setTimeout(() => {
+            loadResumableJobs();
+        }, 1000);
+    }
+
     currentProcessingJob = null;
     processNextFileInQueue();
 }
@@ -1240,3 +1247,225 @@ async function openLocalFile(filename) {
         showMessage(`Error opening file: ${error.message}`, 'error');
     }
 }
+
+// ========================================
+// Resumable Jobs Management
+// ========================================
+
+/**
+ * Load and display resumable jobs
+ */
+async function loadResumableJobs() {
+    const section = document.getElementById('resumableJobsSection');
+    const loading = document.getElementById('resumableJobsLoading');
+    const listContainer = document.getElementById('resumableJobsList');
+    const emptyMessage = document.getElementById('resumableJobsEmpty');
+
+    // Show loading
+    loading.style.display = 'block';
+    listContainer.style.display = 'none';
+    emptyMessage.style.display = 'none';
+
+    try {
+        const response = await fetch(`${API_BASE_URL}/api/resumable`);
+        const data = await response.json();
+        const jobs = data.resumable_jobs || [];
+
+        loading.style.display = 'none';
+
+        if (jobs.length === 0) {
+            // Hide section if no jobs
+            section.style.display = 'none';
+            emptyMessage.style.display = 'block';
+            return;
+        }
+
+        // Show section and populate jobs
+        section.style.display = 'block';
+        listContainer.style.display = 'block';
+
+        // Build jobs HTML
+        listContainer.innerHTML = jobs.map(job => {
+            const progress = job.progress || {};
+            const completedChunks = progress.completed_chunks || 0;
+            const totalChunks = progress.total_chunks || 0;
+            const progressPercent = job.progress_percentage || 0;
+            const fileType = (job.file_type || 'txt').toUpperCase();
+
+            const createdDate = job.created_at ? new Date(job.created_at).toLocaleString('fr-FR') : 'N/A';
+            const pausedDate = job.paused_at ? new Date(job.paused_at).toLocaleString('fr-FR') : job.updated_at ? new Date(job.updated_at).toLocaleString('fr-FR') : 'N/A';
+
+            return `
+                <div class="resumable-job-card" style="border: 1px solid #e5e7eb; padding: 20px; margin-bottom: 15px; border-radius: 8px; background: #f9fafb;">
+                    <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 15px;">
+                        <div style="flex: 1;">
+                            <div style="font-size: 16px; font-weight: 600; color: #1f2937; margin-bottom: 8px;">
+                                ${escapeHtml(job.input_filename || 'Unknown')}
+                            </div>
+                            <div style="font-size: 14px; color: #6b7280; margin-bottom: 5px;">
+                                → ${escapeHtml(job.output_filename || 'Unknown')}
+                            </div>
+                            <div style="display: flex; gap: 15px; font-size: 13px; color: #6b7280; margin-top: 10px;">
+                                <span><strong>Type:</strong> ${fileType}</span>
+                                <span><strong>ID:</strong> ${job.translation_id}</span>
+                            </div>
+                        </div>
+
+                        <div style="display: flex; gap: 10px;">
+                            <button class="btn btn-primary" onclick="resumeJob('${job.translation_id}')" title="Reprendre cette traduction">
+                                ▶️ Reprendre
+                            </button>
+                            <button class="btn btn-danger" onclick="deleteCheckpoint('${job.translation_id}')" title="Supprimer ce checkpoint">
+                                🗑️ Supprimer
+                            </button>
+                        </div>
+                    </div>
+
+                    <div style="margin-bottom: 10px;">
+                        <div style="display: flex; justify-content: space-between; font-size: 13px; color: #6b7280; margin-bottom: 5px;">
+                            <span>Progression: ${completedChunks} / ${totalChunks} chunks (${progressPercent}%)</span>
+                        </div>
+                        <div style="width: 100%; background: #e5e7eb; border-radius: 4px; height: 8px; overflow: hidden;">
+                            <div style="width: ${progressPercent}%; background: #3b82f6; height: 100%; transition: width 0.3s;"></div>
+                        </div>
+                    </div>
+
+                    <div style="display: flex; gap: 20px; font-size: 12px; color: #9ca3af;">
+                        <span>Créé: ${createdDate}</span>
+                        <span>En pause: ${pausedDate}</span>
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+        addLog(`📦 ${jobs.length} traduction(s) en pause trouvée(s)`);
+
+    } catch (error) {
+        loading.style.display = 'none';
+        emptyMessage.style.display = 'block';
+        emptyMessage.innerHTML = `<p style="color: #ef4444;">Erreur lors du chargement: ${escapeHtml(error.message)}</p>`;
+        console.error('Error loading resumable jobs:', error);
+    }
+}
+
+/**
+ * Resume a paused translation job
+ */
+async function resumeJob(translationId) {
+    if (!confirm('Voulez-vous reprendre cette traduction ?')) {
+        return;
+    }
+
+    try {
+        addLog(`⏯️ Reprise de la traduction ${translationId}...`);
+        showMessage('Reprise de la traduction...', 'info');
+
+        const response = await fetch(`${API_BASE_URL}/api/resume/${translationId}`, {
+            method: 'POST'
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+            showMessage(`✅ Traduction reprise avec succès ! Reprise au chunk ${data.resume_from_chunk}`, 'success');
+            addLog(`✅ Traduction ${translationId} reprise au chunk ${data.resume_from_chunk}`);
+
+            // Fetch job details to get filename and file type
+            const jobResponse = await fetch(`${API_BASE_URL}/api/translation/${translationId}`);
+            const jobData = await jobResponse.json();
+
+            // Set up currentProcessingJob to track this resumed translation
+            currentProcessingJob = {
+                translationId: translationId,
+                fileRef: {
+                    name: jobData.config?.output_filename || 'Resumed Translation',
+                    fileType: jobData.config?.file_type || 'txt'
+                }
+            };
+
+            // Mark as batch active to enable interruption
+            isBatchActive = true;
+
+            // Show progress section
+            const progressSection = document.getElementById('progressSection');
+            if (progressSection) {
+                progressSection.classList.remove('hidden');
+                progressSection.scrollIntoView({ behavior: 'smooth' });
+            }
+
+            // Update title with actual filename
+            const fileName = jobData.config?.output_filename || 'traduction reprise';
+            document.getElementById('currentFileProgressTitle').textContent = `📊 Reprise: ${fileName}`;
+
+            // Show stats grid
+            document.getElementById('statsGrid').style.display = '';
+
+            // Show interrupt button for resumed translation
+            document.getElementById('interruptBtn').classList.remove('hidden');
+            document.getElementById('interruptBtn').disabled = false;
+
+            // Initialize progress
+            updateProgress(jobData.progress || 0);
+
+            // Refresh resumable jobs list after a delay
+            setTimeout(() => {
+                loadResumableJobs();
+            }, 1000);
+        } else {
+            showMessage(`❌ Erreur: ${data.error}`, 'error');
+            addLog(`❌ Échec de la reprise: ${data.error}`);
+        }
+    } catch (error) {
+        showMessage(`❌ Erreur lors de la reprise: ${error.message}`, 'error');
+        addLog(`❌ Erreur réseau: ${error.message}`);
+        console.error('Error resuming job:', error);
+    }
+}
+
+/**
+ * Delete a checkpoint
+ */
+async function deleteCheckpoint(translationId) {
+    if (!confirm('Êtes-vous sûr de vouloir supprimer ce checkpoint ?\n\nCette action est irréversible et vous perdrez toute la progression.')) {
+        return;
+    }
+
+    try {
+        addLog(`🗑️ Suppression du checkpoint ${translationId}...`);
+
+        const response = await fetch(`${API_BASE_URL}/api/checkpoint/${translationId}`, {
+            method: 'DELETE'
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+            showMessage('✅ Checkpoint supprimé avec succès', 'success');
+            addLog(`✅ Checkpoint ${translationId} supprimé`);
+
+            // Refresh resumable jobs list
+            loadResumableJobs();
+        } else {
+            showMessage(`❌ Erreur: ${data.error}`, 'error');
+            addLog(`❌ Échec de la suppression: ${data.error}`);
+        }
+    } catch (error) {
+        showMessage(`❌ Erreur lors de la suppression: ${error.message}`, 'error');
+        addLog(`❌ Erreur réseau: ${error.message}`);
+        console.error('Error deleting checkpoint:', error);
+    }
+}
+
+/**
+ * Helper function to escape HTML
+ */
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+// Load resumable jobs on page load
+document.addEventListener('DOMContentLoaded', function() {
+    loadResumableJobs();
+});

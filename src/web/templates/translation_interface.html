@@ -189,6 +189,30 @@
             </div>
         </div>
 
+        <!-- Resumable Jobs Section -->
+        <div class="main-card" id="resumableJobsSection" style="margin-top: 30px; display: none;">
+            <div class="card-header">
+                <h2>⏸️ Traductions en pause</h2>
+                <button class="btn btn-secondary" onclick="loadResumableJobs()" title="Refresh list" style="margin-left: auto;">🔄 Refresh</button>
+            </div>
+
+            <div class="card-body">
+                <div id="resumableJobsContainer">
+                    <div id="resumableJobsLoading" style="text-align: center; padding: 20px;">
+                        <p>Chargement...</p>
+                    </div>
+
+                    <div id="resumableJobsList" style="display: none;">
+                        <!-- Jobs will be inserted here -->
+                    </div>
+
+                    <div id="resumableJobsEmpty" style="text-align: center; padding: 40px; display: none;">
+                        <p style="color: #6b7280;">Aucune traduction en pause</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- File Management Section -->
         <div class="main-card" style="margin-top: 30px;">
             <div class="card-header">

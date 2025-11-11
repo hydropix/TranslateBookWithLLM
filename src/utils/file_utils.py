@@ -63,7 +63,8 @@ async def translate_text_file_with_callbacks(input_filepath, output_filepath,
                                              check_interruption_callback=None,
                                              llm_provider="ollama", gemini_api_key=None, openai_api_key=None,
                                              context_window=2048, auto_adjust_context=True, min_chunk_size=5,
-                                             simple_mode=False):
+                                             simple_mode=False, checkpoint_manager=None, translation_id=None,
+                                             resume_from_index=0):
     """
     Translate a text file with callback support
 
@@ -156,7 +157,10 @@ async def translate_text_file_with_callbacks(input_filepath, output_filepath,
         context_window=context_window,
         auto_adjust_context=auto_adjust_context,
         min_chunk_size=min_chunk_size,
-        simple_mode=simple_mode
+        simple_mode=simple_mode,
+        checkpoint_manager=checkpoint_manager,
+        translation_id=translation_id,
+        resume_from_index=resume_from_index
     )
 
     if progress_callback: 

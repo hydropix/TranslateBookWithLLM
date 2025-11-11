@@ -132,7 +132,23 @@ async def perform_actual_translation(translation_id, config, state_manager, outp
             state_manager.set_translation_field(translation_id, 'stats', current_stats)
             emit_update(socketio, translation_id, {'stats': current_stats}, state_manager)
 
+    # Get checkpoint manager and handle resume
+    checkpoint_manager = state_manager.get_checkpoint_manager()
+    resume_from_index = config.get('resume_from_index', 0)
+    is_resume = config.get('is_resume', False)
+
     try:
+        # Create checkpoint for new jobs (not for resumed jobs)
+        if not is_resume:
+            file_type = config['file_type']
+            input_file_path = config.get('file_path')
+            checkpoint_manager.start_job(
+                translation_id,
+                file_type,
+                config,
+                input_file_path
+            )
+
         # PHASE 2: Validation and warnings at startup
         if config.get('llm_provider', 'ollama') == 'ollama':
             from src.core.context_optimizer import validate_configuration
@@ -230,7 +246,10 @@ async def perform_actual_translation(translation_id, config, state_manager, outp
                 openai_api_key=config.get('openai_api_key', ''),
                 context_window=config.get('context_window', 2048),
                 auto_adjust_context=config.get('auto_adjust_context', True),
-                min_chunk_size=config.get('min_chunk_size', 5)
+                min_chunk_size=config.get('min_chunk_size', 5),
+                checkpoint_manager=checkpoint_manager,
+                translation_id=translation_id,
+                resume_from_index=resume_from_index
             )
 
             if os.path.exists(output_filepath_on_server) and state_manager.get_translation_field(translation_id, 'status') not in ['error', 'interrupted_before_save']:
@@ -286,7 +305,11 @@ async def perform_actual_translation(translation_id, config, state_manager, outp
             _log_message_callback("summary_interrupted", f"🛑 Translation interrupted by user. Partial result saved. Time: {elapsed_time:.2f}s.")
             final_status_payload['status'] = 'interrupted'
             final_status_payload['progress'] = state_manager.get_translation_field(translation_id, 'progress') or 0
-            
+
+            # Mark checkpoint as interrupted in database
+            checkpoint_manager.mark_interrupted(translation_id)
+            _log_message_callback("checkpoint_interrupted", "⏸️ Checkpoint marked as interrupted")
+
             # Also clean up uploaded file on interruption if translation produced output
             if 'file_path' in config and config['file_path'] and os.path.exists(output_filepath_on_server):
                 uploaded_file_path = config['file_path']
@@ -336,6 +359,10 @@ async def perform_actual_translation(translation_id, config, state_manager, outp
             final_status_payload['status'] = 'completed'
             _update_translation_progress_callback(100)
             final_status_payload['progress'] = 100
+
+            # Cleanup completed job checkpoint (automatic immediate cleanup)
+            checkpoint_manager.cleanup_completed_job(translation_id)
+            _log_message_callback("checkpoint_cleanup", "🗑️ Checkpoint cleaned up automatically")
             
             # Clean up uploaded file if it exists and is in the uploads directory
             _log_message_callback("cleanup_start", f"🧹 Starting cleanup check...")
@@ -430,7 +457,7 @@ async def perform_actual_translation(translation_id, config, state_manager, outp
 def start_translation_job(translation_id, config, state_manager, output_dir, socketio):
     """
     Start a translation job in a separate thread
-    
+
     Args:
         translation_id (str): Translation job ID
         config (dict): Translation configuration
