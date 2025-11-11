@@ -122,7 +122,7 @@ def generate_translation_prompt(
 **Technical Content (DO NOT TRANSLATE):**
 - Code snippets and syntax: `function()`, `variable_name`, `class MyClass`
 - Command lines: `npm install`, `git commit -m "message"`
-- File paths: `/usr/bin/`, `C:\Users\Documents\`
+- File paths: `/usr/bin/`, `C:/Users/Documents/`
 - URLs: `https://example.com`, `www.site.org`
 - Programming identifiers, API names, and technical terms
 
