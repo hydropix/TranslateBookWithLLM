@@ -24,12 +24,12 @@ def check_python_version():
     print(f"Python version: {version_str}")
 
     if version.major < 3 or (version.major == 3 and version.minor < 8):
-        print("❌ ERROR: Python 3.8 or higher is required")
+        print("[ERROR] Python 3.8 or higher is required")
         return False
     else:
-        print("✅ Python version is compatible")
+        print("[OK] Python version is compatible")
         if version.minor < 11:
-            print("⚠️  Note: Python 3.11+ is recommended for better f-string handling")
+            print("[INFO] Note: Python 3.11+ is recommended for better f-string handling")
         return True
 
 
@@ -40,7 +40,7 @@ def fix_prompts_file():
     prompts_file = Path('prompts.py')
 
     if not prompts_file.exists():
-        print(f"❌ ERROR: prompts.py not found at {prompts_file.absolute()}")
+        print(f"[ERROR] ERROR: prompts.py not found at {prompts_file.absolute()}")
         return False
 
     try:
@@ -66,7 +66,7 @@ def fix_prompts_file():
         # Pattern: _get_output_format_section(...\n...) inside an f-string
         if 'additional_rules="\\n' in content and '{_get_output_format_section(' in content:
             # This is a complex fix - the function call needs to be moved outside the f-string
-            print("⚠️  Found function calls with backslashes inside f-strings")
+            print("[WARNING]  Found function calls with backslashes inside f-strings")
             print("   This requires manual intervention or git pull with latest fixes")
             fixes_applied.append("Detected f-string issue (needs manual fix or git pull)")
 
@@ -75,32 +75,33 @@ def fix_prompts_file():
         problematic_patterns = [
             (r'additional_rules="\\n', 'newline in additional_rules parameter'),
             (r'example_format=".*\\n.*"', 'newline in example_format parameter'),
+            (r'\{"\\n"\.join\(', 'backslash in .join() inside f-string'),
         ]
 
         for pattern, description in problematic_patterns:
             if re.search(pattern, content):
-                print(f"⚠️  Found: {description}")
+                print(f"[WARNING]  Found: {description}")
                 fixes_applied.append(f"Detected: {description}")
 
         # Write back if changes were made
         if content != original_content:
             prompts_file.write_text(content, encoding='utf-8')
-            print("✅ Applied fixes to prompts.py:")
+            print("[OK] Applied fixes to prompts.py:")
             for fix in fixes_applied:
                 print(f"   • {fix}")
             return True
         elif fixes_applied:
-            print("⚠️  Issues detected but not auto-fixed:")
+            print("[WARNING]  Issues detected but not auto-fixed:")
             for fix in fixes_applied:
                 print(f"   • {fix}")
             print("\n   SOLUTION: Run 'git pull' to get the latest fixes")
             return False
         else:
-            print("✅ No issues found in prompts.py")
+            print("[OK] No issues found in prompts.py")
             return True
 
     except Exception as e:
-        print(f"❌ ERROR: Failed to check prompts.py: {e}")
+        print(f"[ERROR] ERROR: Failed to check prompts.py: {e}")
         return False
 
 
@@ -131,9 +132,9 @@ def clear_python_cache():
             print(f"  Warning: Could not remove {pyc}: {e}")
 
     if cache_cleared:
-        print("✅ Cache cleared")
+        print("[OK] Cache cleared")
     else:
-        print("ℹ️  No cache files found")
+        print("[INFO]  No cache files found")
 
     return True
 
@@ -146,10 +147,10 @@ def check_env_file():
     env_example = Path('.env.example')
 
     if not env_file.exists():
-        print("⚠️  .env file not found")
+        print("[WARNING]  .env file not found")
 
         if env_example.exists():
-            print("\n📋 TO CREATE .env FILE:")
+            print("\n TO CREATE .env FILE:")
             print("   Option 1: Run setup wizard")
             print("             python setup_config.py")
             print("\n   Option 2: Copy template manually")
@@ -157,7 +158,7 @@ def check_env_file():
             print("             notepad .env")
         return False
     else:
-        print("✅ .env file exists")
+        print("[OK] .env file exists")
 
         # Check for required settings
         try:
@@ -172,11 +173,11 @@ def check_env_file():
             print(f"    • LLM_PROVIDER: {provider}")
 
             if api_endpoint == 'NOT_SET':
-                print("\n⚠️  API_ENDPOINT is not configured")
+                print("\n[WARNING]  API_ENDPOINT is not configured")
                 return False
 
         except Exception as e:
-            print(f"⚠️  Could not validate .env: {e}")
+            print(f"[WARNING]  Could not validate .env: {e}")
 
         return True
 
@@ -191,14 +192,14 @@ def test_import():
             del sys.modules['prompts']
 
         import prompts
-        print("✅ prompts.py imports successfully")
+        print("[OK] prompts.py imports successfully")
         return True
     except SyntaxError as e:
-        print(f"❌ SyntaxError in prompts.py:")
+        print(f"[ERROR] SyntaxError in prompts.py:")
         print(f"   {e}")
         return False
     except Exception as e:
-        print(f"❌ Import error:")
+        print(f"[ERROR] Import error:")
         print(f"   {e}")
         return False
 
@@ -226,7 +227,7 @@ def main():
     # Check .env
     if not check_env_file():
         all_ok = False
-        print("\n⚠️  Configuration needed but not critical for testing")
+        print("\n[WARNING]  Configuration needed but not critical for testing")
 
     # Test import
     if not test_import():
@@ -236,11 +237,11 @@ def main():
     print_header("Summary")
 
     if all_ok:
-        print("✅ All checks passed!")
+        print("[OK] All checks passed!")
         print("\nYou can now start the application:")
         print("  python translation_api.py")
     else:
-        print("⚠️  Some issues were found")
+        print("[WARNING]  Some issues were found")
         print("\nPlease review the errors above and:")
         print("  1. Fix any critical issues")
         print("  2. Run this script again to verify")
@@ -256,10 +257,10 @@ if __name__ == '__main__':
         exit_code = main()
         sys.exit(exit_code)
     except KeyboardInterrupt:
-        print("\n\n⏹️  Script cancelled by user\n")
+        print("\n\n  Script cancelled by user\n")
         sys.exit(1)
     except Exception as e:
-        print(f"\n❌ Unexpected error: {e}\n")
+        print(f"\n[ERROR] Unexpected error: {e}\n")
         import traceback
         traceback.print_exc()
         sys.exit(1)
