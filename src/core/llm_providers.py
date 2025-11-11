@@ -57,12 +57,39 @@ class LLMProvider(ABC):
 
         Returns the content between TRANSLATE_TAG_IN and TRANSLATE_TAG_OUT.
         Prefers responses where tags are at exact boundaries for better reliability.
+
+        NOTE: This method completely ignores content within <think></think> tags,
+        as these are used by certain LLMs for internal reasoning and should not
+        be searched for translation tags.
         """
         if not response:
             return None
 
         # Trim whitespace from response
         response = response.strip()
+        original_length = len(response)
+
+        # IMPORTANT: Remove all <think>...</think> blocks completely
+        # These contain LLM's internal reasoning and should be completely ignored
+        # Do NOT search for <Translate> tags inside these blocks!
+
+        # Case 1: Complete <think>...</think> blocks
+        response = re.sub(r'<think>.*?</think>', '', response, flags=re.DOTALL | re.IGNORECASE)
+
+        # Case 2: Orphan closing tag </think> (when Ollama truncates the opening tag)
+        # Remove everything from the beginning up to and including </think>
+        before_orphan_removal = response
+        response = re.sub(r'^.*?</think>\s*', '', response, flags=re.DOTALL | re.IGNORECASE)
+
+        if before_orphan_removal != response:
+            removed_length = len(before_orphan_removal) - len(response)
+            print(f"[DEBUG] Orphan </think> detected - removed {removed_length} characters from beginning")
+
+        response = response.strip()
+
+        if len(response) < original_length:
+            print(f"[DEBUG] Think blocks removed: {original_length} -> {len(response)} chars (-{original_length - len(response)})")
+            print(f"[DEBUG] Response after think removal (first 200 chars): {response[:200]}")
 
         # STRICT VALIDATION: Check if response starts and ends with correct tags
         starts_correctly = response.startswith(TRANSLATE_TAG_IN)
@@ -114,7 +141,6 @@ class OllamaProvider(LLMProvider):
             "model": self.model,
             "prompt": prompt,
             "stream": False,
-            "think": False,
             "options": {
                 "num_ctx": self.context_window,
                 "truncate": False

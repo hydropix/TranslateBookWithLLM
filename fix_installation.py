@@ -211,45 +211,46 @@ def main():
     print("="*70)
     print("\nThis tool will check and fix common installation issues.\n")
 
-    all_ok = True
+    has_critical_errors = False
+    has_warnings = False
 
-    # Check Python version
+    # Check Python version (CRITICAL)
     if not check_python_version():
-        all_ok = False
+        has_critical_errors = True
 
-    # Fix prompts.py
+    # Fix prompts.py (CRITICAL)
     if not fix_prompts_file():
-        all_ok = False
+        has_critical_errors = True
 
-    # Clear cache
+    # Clear cache (non-critical)
     clear_python_cache()
 
-    # Check .env
+    # Check .env (WARNING only - not critical for testing)
     if not check_env_file():
-        all_ok = False
-        print("\n[WARNING]  Configuration needed but not critical for testing")
+        has_warnings = True
+        print("\n[INFO] Configuration needed but not critical for testing")
 
-    # Test import
+    # Test import (CRITICAL)
     if not test_import():
-        all_ok = False
+        has_critical_errors = True
 
     # Final summary
     print_header("Summary")
 
-    if all_ok:
-        print("[OK] All checks passed!")
-        print("\nYou can now start the application:")
-        print("  python translation_api.py")
-    else:
-        print("[WARNING]  Some issues were found")
+    if has_critical_errors:
+        print("[ERROR] Critical issues were found!")
         print("\nPlease review the errors above and:")
         print("  1. Fix any critical issues")
         print("  2. Run this script again to verify")
         print("  3. If issues persist, check the documentation")
-
-    print("\n" + "="*70 + "\n")
-
-    return 0 if all_ok else 1
+        return 1
+    elif has_warnings:
+        print("[OK] All checks passed! (with minor warnings)")
+        print("\n[INFO] Note: You may want to configure .env later for production use")
+        return 0
+    else:
+        print("[OK] All checks passed!")
+        return 0
 
 
 if __name__ == '__main__':
