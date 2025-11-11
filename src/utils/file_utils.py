@@ -4,12 +4,55 @@ File utilities for translation operations
 import os
 import asyncio
 import aiofiles
+from pathlib import Path
 from src.core.text_processor import split_text_into_chunks_with_context
 from src.core.translator import translate_chunks
 from src.core.subtitle_translator import translate_subtitles, translate_subtitles_in_blocks
 from src.core.epub import translate_epub_file
 from src.core.srt_processor import SRTProcessor
 from src.config import DEFAULT_MODEL, MAIN_LINES_PER_CHUNK, API_ENDPOINT, SRT_LINES_PER_BLOCK, SRT_MAX_CHARS_PER_BLOCK
+
+
+def get_unique_output_path(output_path):
+    """
+    Generate a unique output path by adding a number suffix if the file already exists.
+
+    Args:
+        output_path (str): Desired output path
+
+    Returns:
+        str: Unique output path (original or with numeric suffix)
+
+    Examples:
+        book.epub -> book.epub (if doesn't exist)
+        book.epub -> book (1).epub (if book.epub exists)
+        book.epub -> book (2).epub (if book.epub and book (1).epub exist)
+    """
+    path = Path(output_path)
+
+    # If the file doesn't exist, return the original path
+    if not path.exists():
+        return output_path
+
+    # Extract components
+    parent = path.parent
+    stem = path.stem  # filename without extension
+    suffix = path.suffix  # .epub, .txt, .srt, etc.
+
+    # Try incrementing numbers until we find a free filename
+    counter = 1
+    while True:
+        new_stem = f"{stem} ({counter})"
+        new_path = parent / f"{new_stem}{suffix}"
+
+        if not new_path.exists():
+            return str(new_path)
+
+        counter += 1
+
+        # Safety check to avoid infinite loops (highly unlikely)
+        if counter > 9999:
+            raise RuntimeError(f"Could not find unique filename after 9999 attempts for: {output_path}")
 
 
 async def translate_text_file_with_callbacks(input_filepath, output_filepath,

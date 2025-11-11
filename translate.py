@@ -6,7 +6,7 @@ import argparse
 import asyncio
 
 from src.config import DEFAULT_MODEL, MAIN_LINES_PER_CHUNK, API_ENDPOINT, LLM_PROVIDER, GEMINI_API_KEY, OPENAI_API_KEY, DEFAULT_SOURCE_LANGUAGE, DEFAULT_TARGET_LANGUAGE
-from src.utils.file_utils import translate_file
+from src.utils.file_utils import translate_file, get_unique_output_path
 from src.utils.unified_logger import setup_cli_logger, LogType
 
 
@@ -35,6 +35,9 @@ if __name__ == "__main__":
         elif args.input.lower().endswith('.srt'):
             output_ext = '.srt'
         args.output = f"{base}_translated_{args.target_lang.lower()}{output_ext}"
+
+    # Ensure output path is unique (add number suffix if file exists)
+    args.output = get_unique_output_path(args.output)
 
     # Determine file type
     if args.input.lower().endswith('.epub'):

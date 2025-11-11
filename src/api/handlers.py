@@ -11,6 +11,7 @@ from pathlib import Path
 
 from src.core.epub import translate_epub_file
 from src.utils.unified_logger import setup_web_logger, LogType
+from src.utils.file_utils import get_unique_output_path
 from .websocket import emit_update
 
 
@@ -150,6 +151,17 @@ async def perform_actual_translation(translation_id, config, state_manager, outp
                 }, state_manager)
                 _log_message_callback("context_validation_warning", warning)
 
+        # Generate unique output filename to avoid overwriting
+        tentative_output_path = os.path.join(output_dir, config['output_filename'])
+        output_filepath_on_server = get_unique_output_path(tentative_output_path)
+
+        # Update config with the actual filename (may have been modified)
+        actual_output_filename = os.path.basename(output_filepath_on_server)
+        if actual_output_filename != config['output_filename']:
+            _log_message_callback("output_filename_modified",
+                f"ℹ️ Output filename modified to avoid overwriting: {config['output_filename']} → {actual_output_filename}")
+            config['output_filename'] = actual_output_filename
+
         # Log translation start with unified logger
         logger.info("Translation Started", LogType.TRANSLATION_START, {
             'source_lang': config['source_language'],
@@ -161,8 +173,6 @@ async def perform_actual_translation(translation_id, config, state_manager, outp
             'api_endpoint': config['llm_api_endpoint'],
             'chunk_size': config.get('chunk_size', 'default')
         })
-
-        output_filepath_on_server = os.path.join(output_dir, config['output_filename'])
         
         input_path_for_translate_module = config.get('file_path')
         if config['file_type'] == 'epub':
