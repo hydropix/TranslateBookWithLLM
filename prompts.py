@@ -107,6 +107,18 @@ def generate_translation_prompt(
     """
     source_lang = source_language.upper()
 
+    # Build the output format section outside the f-string to avoid backslash issues in Python 3.11
+    additional_rules_text = "\n6. Do NOT repeat the input text or tags\n7. Preserve all spacing, indentation, and line breaks exactly as in source"
+    example_format_text = "Votre texte traduit ici." if simple_mode else "Votre texte traduit ici avec tous les ⟦TAG0⟧ préservés exactement."
+    output_format_section = _get_output_format_section(
+        translate_tag_in,
+        translate_tag_out,
+        INPUT_TAG_IN,
+        INPUT_TAG_OUT,
+        additional_rules=additional_rules_text,
+        example_format=example_format_text
+    )
+
     # PROMPT - can be edited for custom usages
     role_and_instructions_block = f"""You are a professional {target_language} translator and writer.
 
@@ -155,14 +167,7 @@ English: "The results were obtained after analysis"
 
 {'' if simple_mode else PLACEHOLDER_PRESERVATION_SECTION}
 
-{_get_output_format_section(
-    translate_tag_in,
-    translate_tag_out,
-    INPUT_TAG_IN,
-    INPUT_TAG_OUT,
-    additional_rules="\n6. Do NOT repeat the input text or tags\n7. Preserve all spacing, indentation, and line breaks exactly as in source",
-    example_format="Votre texte traduit ici." if simple_mode else "Votre texte traduit ici avec tous les ⟦TAG0⟧ préservés exactement."
-)}
+{output_format_section}
 """
 
     previous_translation_block_text = ""
@@ -226,6 +231,18 @@ def generate_subtitle_block_prompt(
     """
     source_lang = source_language.upper()
 
+    # Build the output format section outside the f-string to avoid backslash issues in Python 3.11
+    subtitle_additional_rules = "\n6. Each subtitle has an index marker: [index]text - PRESERVE these markers exactly\n7. Maintain line breaks between indexed subtitles"
+    subtitle_example_format = "[1]Première ligne traduite\n[2]Deuxième ligne traduite"
+    subtitle_output_format_section = _get_output_format_section(
+        translate_tag_in,
+        translate_tag_out,
+        INPUT_TAG_IN,
+        INPUT_TAG_OUT,
+        additional_rules=subtitle_additional_rules,
+        example_format=subtitle_example_format
+    )
+
     # Enhanced instructions for subtitle translation
     role_and_instructions_block = f"""You are a professional {target_language} subtitle translator and dialogue adaptation specialist.
 
@@ -260,14 +277,7 @@ English: "That's so cool, dude"
 ✅ CORRECT: "On devrait partir maintenant"
 English: "I think it would be better if we left now"
 
-{_get_output_format_section(
-    translate_tag_in,
-    translate_tag_out,
-    INPUT_TAG_IN,
-    INPUT_TAG_OUT,
-    additional_rules="\n6. Each subtitle has an index marker: [index]text - PRESERVE these markers exactly\n7. Maintain line breaks between indexed subtitles",
-    example_format="[1]Première ligne traduite\n[2]Deuxième ligne traduite"
-)}
+{subtitle_output_format_section}
 """
 
     # Previous translation context

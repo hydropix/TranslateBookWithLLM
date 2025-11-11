@@ -15,7 +15,7 @@ echo.
 REM ========================================
 REM STEP 1: Check Python Installation
 REM ========================================
-echo [1/6] Checking Python installation...
+echo [1/7] Checking Python installation...
 python --version >nul 2>&1
 if errorlevel 1 (
     echo [ERROR] Python is not installed or not in PATH
@@ -32,7 +32,7 @@ echo.
 REM ========================================
 REM STEP 2: Virtual Environment Setup
 REM ========================================
-echo [2/6] Checking virtual environment...
+echo [2/7] Checking virtual environment...
 if not exist "venv" (
     echo [INFO] First-time setup detected - creating virtual environment...
     python -m venv venv
@@ -52,7 +52,7 @@ echo.
 REM ========================================
 REM STEP 3: Activate Virtual Environment
 REM ========================================
-echo [3/6] Activating virtual environment...
+echo [3/7] Activating virtual environment...
 call venv\Scripts\activate.bat
 if errorlevel 1 (
     echo [ERROR] Failed to activate virtual environment
@@ -65,7 +65,7 @@ echo.
 REM ========================================
 REM STEP 4: Check for Updates
 REM ========================================
-echo [4/6] Checking for updates...
+echo [4/7] Checking for updates...
 
 REM Check if git is available and update
 git --version >nul 2>&1
@@ -112,7 +112,7 @@ echo.
 REM ========================================
 REM STEP 5: Install/Update Dependencies
 REM ========================================
-echo [5/6] Managing dependencies...
+echo [5/7] Managing dependencies...
 if "!NEEDS_UPDATE!"=="1" (
     echo [INFO] Upgrading pip...
     python -m pip install --upgrade pip --quiet
@@ -137,7 +137,7 @@ echo.
 REM ========================================
 REM STEP 6: Environment Setup
 REM ========================================
-echo [6/6] Checking environment configuration...
+echo [6/7] Checking environment configuration...
 
 REM Create .env if missing
 if not exist ".env" (
@@ -159,6 +159,31 @@ REM Create output directory
 if not exist "translated_files" (
     mkdir translated_files
     echo [INFO] Created output directory: translated_files
+)
+echo.
+
+REM ========================================
+REM STEP 7: Installation Integrity Check
+REM ========================================
+echo [7/7] Verifying installation integrity...
+
+REM Check if fix_installation.py exists
+if exist "fix_installation.py" (
+    python fix_installation.py
+    if errorlevel 1 (
+        echo.
+        echo [WARNING] Installation check detected issues
+        echo.
+        echo You can either:
+        echo   1. Press any key to continue anyway (may cause errors)
+        echo   2. Press Ctrl+C to stop and fix issues manually
+        echo.
+        pause
+    ) else (
+        echo [OK] Installation integrity verified
+    )
+) else (
+    echo [INFO] Integrity checker not found, skipping...
 )
 echo.
 
