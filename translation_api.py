@@ -16,6 +16,9 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# Reduce verbosity of werkzeug (Flask HTTP server logs)
+logging.getLogger('werkzeug').setLevel(logging.WARNING)
+
 # Fix Windows console encoding for emojis
 if sys.platform == 'win32':
     import codecs

@@ -90,6 +90,9 @@ if not errorlevel 1 (
 )
 
 REM Check if requirements changed or first install
+REM Initialize NEEDS_UPDATE to 0 by default
+set NEEDS_UPDATE=0
+
 if !FIRST_INSTALL!==1 (
     set NEEDS_UPDATE=1
     echo [INFO] First installation - will install all dependencies
@@ -113,14 +116,17 @@ REM ========================================
 REM STEP 5: Install/Update Dependencies
 REM ========================================
 echo [5/7] Managing dependencies...
+echo [DEBUG] NEEDS_UPDATE=%NEEDS_UPDATE%
+
 if "!NEEDS_UPDATE!"=="1" (
     echo [INFO] Upgrading pip...
     python -m pip install --upgrade pip --quiet
 
-    echo [INFO] Installing/updating dependencies...
+    echo [INFO] Installing/updating dependencies from requirements.txt...
     pip install -r requirements.txt --upgrade
     if errorlevel 1 (
         echo [ERROR] Failed to install dependencies
+        echo [ERROR] Please check your internet connection and try again
         pause
         exit /b 1
     )
@@ -130,7 +136,8 @@ if "!NEEDS_UPDATE!"=="1" (
 
     echo [OK] Dependencies updated successfully
 ) else (
-    echo [OK] Dependencies are up to date
+    echo [OK] Dependencies are up to date (NEEDS_UPDATE=0)
+    echo [INFO] If you suspect missing packages, delete venv\.requirements_hash and rerun
 )
 echo.
 
