@@ -19,10 +19,11 @@ async def translate_text_file_with_callbacks(input_filepath, output_filepath,
                                              progress_callback=None, log_callback=None, stats_callback=None,
                                              check_interruption_callback=None,
                                              llm_provider="ollama", gemini_api_key=None, openai_api_key=None,
-                                             context_window=2048, auto_adjust_context=True, min_chunk_size=5):
+                                             context_window=2048, auto_adjust_context=True, min_chunk_size=5,
+                                             simple_mode=False):
     """
     Translate a text file with callback support
-    
+
     Args:
         input_filepath (str): Path to input file
         output_filepath (str): Path to output file
@@ -35,6 +36,7 @@ async def translate_text_file_with_callbacks(input_filepath, output_filepath,
         log_callback (callable): Logging callback
         stats_callback (callable): Statistics callback
         check_interruption_callback (callable): Interruption check callback
+        simple_mode (bool): If True, uses simplified prompts without placeholder instructions
     """
     if not os.path.exists(input_filepath):
         err_msg = f"ERROR: Input file '{input_filepath}' not found."
@@ -110,7 +112,8 @@ async def translate_text_file_with_callbacks(input_filepath, output_filepath,
         openai_api_key=openai_api_key,
         context_window=context_window,
         auto_adjust_context=auto_adjust_context,
-        min_chunk_size=min_chunk_size
+        min_chunk_size=min_chunk_size,
+        simple_mode=simple_mode
     )
 
     if progress_callback: 
@@ -322,6 +325,7 @@ async def translate_file(input_filepath, output_filepath,
             openai_api_key=openai_api_key
         )
     else:
+        # For .txt files, always use simple mode (no placeholder preservation needed)
         await translate_text_file_with_callbacks(
             input_filepath, output_filepath,
             source_language, target_language,
@@ -334,5 +338,6 @@ async def translate_file(input_filepath, output_filepath,
             openai_api_key=openai_api_key,
             context_window=context_window,
             auto_adjust_context=auto_adjust_context,
-            min_chunk_size=min_chunk_size
+            min_chunk_size=min_chunk_size,
+            simple_mode=True
         )
