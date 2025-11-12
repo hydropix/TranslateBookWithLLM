@@ -1248,6 +1248,13 @@ async function refreshFileList() {
         // Clear existing table rows
         tableBody.innerHTML = '';
         selectedFiles.clear();
+
+        // Reset "Select All" checkbox
+        const selectAllCheckbox = document.getElementById('selectAllFiles');
+        if (selectAllCheckbox) {
+            selectAllCheckbox.checked = false;
+        }
+
         updateFileSelectionButtons();
         
         if (data.files.length === 0) {
@@ -1345,7 +1352,15 @@ function updateFileSelectionButtons() {
     const hasSelection = selectedFiles.size > 0;
     document.getElementById('batchDownloadBtn').disabled = !hasSelection;
     document.getElementById('batchDeleteBtn').disabled = !hasSelection;
-    
+
+    // Update "Select All" checkbox state based on actual selection
+    const checkboxes = document.querySelectorAll('.file-checkbox');
+    const selectAllCheckbox = document.getElementById('selectAllFiles');
+    if (selectAllCheckbox && checkboxes.length > 0) {
+        const allChecked = Array.from(checkboxes).every(cb => cb.checked);
+        selectAllCheckbox.checked = allChecked;
+    }
+
     // Update button text with count
     if (hasSelection) {
         document.getElementById('batchDownloadBtn').innerHTML = `📥 Download Selected (${selectedFiles.size})`;
