@@ -15,7 +15,7 @@ class CheckpointManager:
     and file storage for uploaded files.
     """
 
-    def __init__(self, db_path: str = "translated_files/jobs.db"):
+    def __init__(self, db_path: str = "data/jobs.db"):
         """
         Initialize checkpoint manager.
 
@@ -23,7 +23,7 @@ class CheckpointManager:
             db_path: Path to SQLite database
         """
         self.db = Database(db_path)
-        self.uploads_dir = Path("translated_files/uploads")
+        self.uploads_dir = Path("data/uploads")
         self.uploads_dir.mkdir(parents=True, exist_ok=True)
 
     def start_job(

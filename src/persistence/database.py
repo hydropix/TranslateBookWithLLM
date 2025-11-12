@@ -17,7 +17,7 @@ class Database:
     Thread-safe for concurrent access.
     """
 
-    def __init__(self, db_path: str = "translated_files/jobs.db"):
+    def __init__(self, db_path: str = "data/jobs.db"):
         """
         Initialize database connection.
 

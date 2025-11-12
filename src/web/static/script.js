@@ -1,5 +1,4 @@
 let filesToProcess = [];
-let translationQueue = [];
 let currentProcessingJob = null;
 let isBatchActive = false;
 
@@ -172,7 +171,18 @@ function finishCurrentFileTranslationUI(statusMessage, messageType, resultData) 
     }
 
     currentProcessingJob = null;
-    processNextFileInQueue();
+
+    // Only continue to next file if translation completed successfully (NOT if interrupted)
+    if (resultData.status === 'completed') {
+        processNextFileInQueue();
+    } else if (resultData.status === 'interrupted') {
+        // User stopped the translation - stop the entire batch
+        addLog('🛑 Batch processing stopped by user.');
+        resetUIToIdle();
+    } else {
+        // Error case - continue to next file
+        processNextFileInQueue();
+    }
 }
 
 function handleTranslationUpdate(data) {
@@ -715,7 +725,6 @@ async function resetFiles() {
 
     // Clear client-side arrays and state
     filesToProcess = [];
-    translationQueue = [];
     currentProcessingJob = null;
     isBatchActive = false;
 
@@ -857,7 +866,9 @@ async function startBatchTranslation() {
     if (!ollamaApiEndpoint) return earlyValidationFail('Ollama API Endpoint cannot be empty for the batch.');
 
     isBatchActive = true;
-    translationQueue = [...filesToProcess];
+
+    // Count how many files are queued for processing
+    const queuedFilesCount = filesToProcess.filter(f => f.status === 'Queued').length;
 
     document.getElementById('translateBtn').disabled = true;
     document.getElementById('translateBtn').innerHTML = '⏳ Batch in Progress...';
@@ -867,8 +878,8 @@ async function startBatchTranslation() {
     // Don't clear the log when starting a new batch
     // document.getElementById('logContainer').innerHTML = '';
 
-    addLog(`🚀 Batch translation started for ${translationQueue.length} file(s).`);
-    showMessage(`Batch of ${translationQueue.length} file(s) initiated.`, 'info');
+    addLog(`🚀 Batch translation started for ${queuedFilesCount} file(s).`);
+    showMessage(`Batch of ${queuedFilesCount} file(s) initiated.`, 'info');
 
     processNextFileInQueue();
 }
@@ -876,7 +887,11 @@ async function startBatchTranslation() {
 async function processNextFileInQueue() {
     if (currentProcessingJob) return;
 
-    if (translationQueue.length === 0) {
+    // Find next file with 'Queued' status in filesToProcess (instead of using translationQueue)
+    const fileToTranslate = filesToProcess.find(f => f.status === 'Queued');
+
+    if (!fileToTranslate) {
+        // No more queued files - batch completed
         isBatchActive = false;
         document.getElementById('translateBtn').disabled = filesToProcess.length === 0;
         document.getElementById('translateBtn').innerHTML = '▶️ Start Translation Batch';
@@ -886,8 +901,6 @@ async function processNextFileInQueue() {
         document.getElementById('currentFileProgressTitle').textContent = `📊 Batch Completed`;
         return;
     }
-
-    const fileToTranslate = translationQueue.shift();
 
     updateProgress(0);
     ['totalChunks', 'completedChunks', 'failedChunks'].forEach(id => document.getElementById(id).textContent = '0');
@@ -1028,7 +1041,6 @@ function resetUIToIdle() {
     // Reset state variables
     isBatchActive = false;
     currentProcessingJob = null;
-    translationQueue = [];
 
     // Reset UI elements
     document.getElementById('interruptBtn').classList.add('hidden');
@@ -1060,9 +1072,6 @@ async function interruptCurrentTranslation() {
 
     document.getElementById('interruptBtn').disabled = true;
     document.getElementById('interruptBtn').innerHTML = '⏳ Interrupting...';
-
-    // Clear the queue BEFORE making the request
-    translationQueue = [];
 
     try {
         const response = await fetch(`${API_BASE_URL}/api/translation/${tidToInterrupt}/interrupt`, { method: 'POST' });
@@ -1096,9 +1105,6 @@ async function interruptCurrentTranslation() {
         // Re-enable interrupt button for retry
         document.getElementById('interruptBtn').disabled = false;
         document.getElementById('interruptBtn').innerHTML = '⏹️ Interrupt Current & Stop Batch';
-
-        // Restore the queue in case user wants to retry
-        translationQueue = [fileToInterrupt, ...filesToProcess.filter(f => f !== fileToInterrupt && f.status !== 'Completed')];
     }
 }
 
