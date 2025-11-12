@@ -3,6 +3,12 @@ let translationQueue = [];
 let currentProcessingJob = null;
 let isBatchActive = false;
 
+// Global state for active translations tracking
+let activeTranslationsState = {
+    hasActive: false,
+    activeJobs: []
+};
+
 const API_BASE_URL = window.location.origin;
 const socket = io();
 
@@ -41,6 +47,98 @@ socket.on('checkpoint_created', (data) => {
     // Immediately show and refresh the resumable jobs UI
     loadResumableJobs();
 });
+
+/**
+ * Check and update active translations state
+ * This function is called whenever translation state might have changed
+ */
+async function updateActiveTranslationsState() {
+    try {
+        const response = await fetch(`${API_BASE_URL}/api/translations`);
+        const data = await response.json();
+        const activeJobs = (data.translations || []).filter(
+            t => t.status === 'running' || t.status === 'queued'
+        );
+
+        const wasActive = activeTranslationsState.hasActive;
+        activeTranslationsState.hasActive = activeJobs.length > 0;
+        activeTranslationsState.activeJobs = activeJobs;
+
+        // If state changed, update UI
+        if (wasActive !== activeTranslationsState.hasActive) {
+            console.log('Active translation state changed:', activeTranslationsState.hasActive);
+            updateResumeButtonsState();
+        }
+
+        return activeTranslationsState;
+    } catch (error) {
+        console.error('Error updating active translations state:', error);
+        return activeTranslationsState;
+    }
+}
+
+/**
+ * Update the state of all resume buttons based on active translations
+ */
+function updateResumeButtonsState() {
+    const resumeButtons = document.querySelectorAll('button[onclick^="resumeJob"]');
+    const hasActive = activeTranslationsState.hasActive;
+
+    resumeButtons.forEach(button => {
+        if (hasActive) {
+            button.disabled = true;
+            button.style.opacity = '0.5';
+            button.style.cursor = 'not-allowed';
+            button.title = '⚠️ Impossible: une traduction est déjà en cours';
+        } else {
+            button.disabled = false;
+            button.style.opacity = '1';
+            button.style.cursor = 'pointer';
+            button.title = 'Reprendre cette traduction';
+        }
+    });
+
+    // Update warning banner
+    updateResumableJobsWarningBanner();
+}
+
+/**
+ * Update or create the warning banner in resumable jobs section
+ */
+function updateResumableJobsWarningBanner() {
+    const listContainer = document.getElementById('resumableJobsList');
+    if (!listContainer) return;
+
+    const existingBanner = listContainer.querySelector('.active-translation-warning');
+    const hasActive = activeTranslationsState.hasActive;
+
+    if (hasActive) {
+        const activeNames = activeTranslationsState.activeJobs.map(t => t.output_filename || 'Unknown').join(', ');
+        const bannerHtml = `
+            <div class="active-translation-warning" style="background: #fef3c7; border: 1px solid #f59e0b; padding: 12px; margin-bottom: 15px; border-radius: 6px;">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <span style="font-size: 20px;">⚠️</span>
+                    <div style="flex: 1;">
+                        <strong style="color: #92400e;">Traduction active en cours</strong>
+                        <p style="margin: 5px 0 0 0; font-size: 13px; color: #78350f;">
+                            Les reprises sont désactivées. Traduction(s) active(s): ${escapeHtml(activeNames)}
+                        </p>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        if (existingBanner) {
+            existingBanner.outerHTML = bannerHtml;
+        } else {
+            // Insert at the beginning of the container
+            listContainer.insertAdjacentHTML('afterbegin', bannerHtml);
+        }
+    } else if (existingBanner) {
+        // Remove banner if no active translations
+        existingBanner.remove();
+    }
+}
 
 function updateFileStatusInList(fileName, newStatus, translationId = null) {
     const fileListItem = document.querySelector(`#fileListContainer li[data-filename="${fileName}"] .file-status`);
@@ -105,10 +203,16 @@ function handleTranslationUpdate(data) {
 
     if (data.status === 'completed') {
         finishCurrentFileTranslationUI(`✅ ${currentFile.name}: Translation completed!`, 'success', data);
+        // Update active translations state when translation completes
+        updateActiveTranslationsState();
     } else if (data.status === 'interrupted') {
         finishCurrentFileTranslationUI(`ℹ️ ${currentFile.name}: Translation interrupted.`, 'info', data);
+        // Update active translations state when translation is interrupted
+        updateActiveTranslationsState();
     } else if (data.status === 'error') {
         finishCurrentFileTranslationUI(`❌ ${currentFile.name}: Error - ${data.error || 'Unknown error.'}`, 'error', data);
+        // Update active translations state when translation errors
+        updateActiveTranslationsState();
     } else if (data.status === 'running') {
          document.getElementById('progressSection').classList.remove('hidden');
          document.getElementById('currentFileProgressTitle').textContent = `📊 Translating: ${currentFile.name}`;
@@ -839,6 +943,9 @@ async function processNextFileInQueue() {
         fileToTranslate.translationId = data.translation_id;
         updateFileStatusInList(fileToTranslate.name, 'Submitted', data.translation_id);
 
+        // Update active translations state when a new translation starts
+        updateActiveTranslationsState();
+
     } catch (error) {
         addLog(`❌ Error initiating translation for ${fileToTranslate.name}: ${error.message}`);
         showMessage(`Error starting ${fileToTranslate.name}: ${error.message}`, 'error');
@@ -1271,6 +1378,10 @@ async function loadResumableJobs() {
         const data = await response.json();
         const jobs = data.resumable_jobs || [];
 
+        // Update active translations state first
+        await updateActiveTranslationsState();
+        const hasActiveTranslation = activeTranslationsState.hasActive;
+
         loading.style.display = 'none';
 
         if (jobs.length === 0) {
@@ -1284,8 +1395,27 @@ async function loadResumableJobs() {
         section.style.display = 'block';
         listContainer.style.display = 'block';
 
+        // Add warning banner if active translation
+        let warningBanner = '';
+        if (hasActiveTranslation) {
+            const activeNames = activeTranslationsState.activeJobs.map(t => t.output_filename || 'Unknown').join(', ');
+            warningBanner = `
+                <div class="active-translation-warning" style="background: #fef3c7; border: 1px solid #f59e0b; padding: 12px; margin-bottom: 15px; border-radius: 6px;">
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <span style="font-size: 20px;">⚠️</span>
+                        <div style="flex: 1;">
+                            <strong style="color: #92400e;">Traduction active en cours</strong>
+                            <p style="margin: 5px 0 0 0; font-size: 13px; color: #78350f;">
+                                Les reprises sont désactivées. Traduction(s) active(s): ${escapeHtml(activeNames)}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
         // Build jobs HTML
-        listContainer.innerHTML = jobs.map(job => {
+        listContainer.innerHTML = warningBanner + jobs.map(job => {
             const progress = job.progress || {};
             const completedChunks = progress.completed_chunks || 0;
             const totalChunks = progress.total_chunks || 0;
@@ -1312,7 +1442,9 @@ async function loadResumableJobs() {
                         </div>
 
                         <div style="display: flex; gap: 10px;">
-                            <button class="btn btn-primary" onclick="resumeJob('${job.translation_id}')" title="Reprendre cette traduction">
+                            <button class="btn btn-primary" onclick="resumeJob('${job.translation_id}')"
+                                    title="${hasActiveTranslation ? '⚠️ Impossible: une traduction est déjà en cours' : 'Reprendre cette traduction'}"
+                                    ${hasActiveTranslation ? 'disabled style="opacity: 0.5; cursor: not-allowed;"' : ''}>
                                 ▶️ Reprendre
                             </button>
                             <button class="btn btn-danger" onclick="deleteCheckpoint('${job.translation_id}')" title="Supprimer ce checkpoint">
@@ -1352,6 +1484,13 @@ async function loadResumableJobs() {
  * Resume a paused translation job
  */
 async function resumeJob(translationId) {
+    // Check if there's an active translation using our state
+    if (activeTranslationsState.hasActive) {
+        const activeNames = activeTranslationsState.activeJobs.map(t => t.output_filename || 'Unknown').join(', ');
+        showMessage(`⚠️ Impossible de reprendre: une traduction est déjà en cours (${activeNames}). Veuillez attendre la fin ou l'interrompre.`, 'error');
+        return;
+    }
+
     if (!confirm('Voulez-vous reprendre cette traduction ?')) {
         return;
     }
@@ -1407,13 +1546,25 @@ async function resumeJob(translationId) {
             // Initialize progress
             updateProgress(jobData.progress || 0);
 
+            // Update active translations state immediately
+            updateActiveTranslationsState();
+
             // Refresh resumable jobs list after a delay
             setTimeout(() => {
                 loadResumableJobs();
             }, 1000);
         } else {
-            showMessage(`❌ Erreur: ${data.error}`, 'error');
-            addLog(`❌ Échec de la reprise: ${data.error}`);
+            // Enhanced error message for active translation conflicts
+            if (response.status === 409 && data.active_translations) {
+                const activeList = data.active_translations
+                    .map(t => `• ${t.output_filename} (${t.status})`)
+                    .join('\n');
+                showMessage(`⚠️ Impossible de reprendre: une traduction est déjà en cours\n\n${activeList}\n\nVeuillez attendre la fin ou interrompre la traduction active.`, 'error');
+                addLog(`⚠️ ${data.message}`);
+            } else {
+                showMessage(`❌ Erreur: ${data.error}`, 'error');
+                addLog(`❌ Échec de la reprise: ${data.error}`);
+            }
         }
     } catch (error) {
         showMessage(`❌ Erreur lors de la reprise: ${error.message}`, 'error');
@@ -1467,5 +1618,8 @@ function escapeHtml(text) {
 
 // Load resumable jobs on page load
 document.addEventListener('DOMContentLoaded', function() {
-    loadResumableJobs();
+    // Initialize active translations state on page load
+    updateActiveTranslationsState().then(() => {
+        loadResumableJobs();
+    });
 });

@@ -152,6 +152,26 @@ def create_translation_blueprint(state_manager, start_translation_job):
     @bp.route('/api/resume/<translation_id>', methods=['POST'])
     def resume_translation_job_endpoint(translation_id):
         """Resume a paused or interrupted translation job"""
+        # Check if there are any active translations
+        all_translations = state_manager.get_all_translations()
+        active_translations = []
+        for tid, tdata in all_translations.items():
+            status = tdata.get('status')
+            if status in ['running', 'queued']:
+                active_translations.append({
+                    'id': tid,
+                    'status': status,
+                    'output_filename': tdata.get('config', {}).get('output_filename', 'unknown')
+                })
+
+        if active_translations:
+            active_info = ', '.join([f"{t['output_filename']} ({t['status']})" for t in active_translations])
+            return jsonify({
+                "error": "Cannot resume: active translation in progress",
+                "message": f"Please wait for active translation(s) to complete or interrupt them before resuming. Active: {active_info}",
+                "active_translations": active_translations
+            }), 409  # 409 Conflict status code
+
         # Check if checkpoint exists
         checkpoint_data = state_manager.checkpoint_manager.load_checkpoint(translation_id)
         if not checkpoint_data:
