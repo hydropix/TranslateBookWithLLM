@@ -20,7 +20,9 @@ socket.on('disconnect', () => {
     console.log('WebSocket disconnected.');
     addLog('❌ WebSocket connection lost.');
     if (isBatchActive && currentProcessingJob) {
-        showMessage('Connection lost. Batch paused. Reconnect to resume or reset.', 'error');
+        showMessage('Connection lost. Translation may continue on server. Refresh page to check status.', 'warning');
+        // Don't reset UI immediately - translation might still be running on server
+        // User can manually refresh to check actual state
     }
 });
 
@@ -174,7 +176,18 @@ function finishCurrentFileTranslationUI(statusMessage, messageType, resultData) 
 }
 
 function handleTranslationUpdate(data) {
-    if (!currentProcessingJob || data.translation_id !== currentProcessingJob.translationId) return;
+    if (!currentProcessingJob || data.translation_id !== currentProcessingJob.translationId) {
+        // Received update for a job that's not current - possible state inconsistency
+        if (data.translation_id && !currentProcessingJob) {
+            console.warn('Received translation update but no current job. Possible state desync.');
+            // Check if we should reset UI
+            if (data.status === 'completed' || data.status === 'error' || data.status === 'interrupted') {
+                console.log('Translation finished, ensuring UI is in idle state');
+                resetUIToIdle();
+            }
+        }
+        return;
+    }
 
     const currentFile = currentProcessingJob.fileRef;
 
@@ -271,6 +284,53 @@ window.addEventListener('pagehide', (e) => {
         }
     }
 });
+
+/**
+ * Periodic state consistency check
+ * Runs every 10 seconds to detect and fix UI state inconsistencies
+ */
+async function checkStateConsistency() {
+    // Only check if we think there's an active batch
+    if (!isBatchActive || !currentProcessingJob) {
+        return;
+    }
+
+    const tidToCheck = currentProcessingJob.translationId;
+
+    try {
+        const response = await fetch(`${API_BASE_URL}/api/translation/${tidToCheck}`);
+        if (!response.ok) {
+            // Job doesn't exist anymore on server
+            console.warn(`Job ${tidToCheck} not found on server. Resetting UI.`);
+            addLog(`⚠️ Translation job no longer exists on server. Resetting UI.`);
+            resetUIToIdle();
+            return;
+        }
+
+        const data = await response.json();
+        const serverStatus = data.status;
+
+        // Check if server says the job is done but UI still shows it as active
+        if (serverStatus === 'completed' || serverStatus === 'error' || serverStatus === 'interrupted') {
+            console.warn(`Server reports job ${tidToCheck} is ${serverStatus}, but UI still shows active. Syncing state.`);
+            addLog(`🔄 Detected state desync: job ${serverStatus} on server but UI still active. Syncing...`);
+
+            // Trigger the appropriate UI update
+            handleTranslationUpdate({
+                translation_id: tidToCheck,
+                status: serverStatus,
+                result: data.result_preview || `[${serverStatus}]`,
+                error: data.error
+            });
+        }
+    } catch (error) {
+        console.error('Error checking state consistency:', error);
+        // Don't reset on network errors - could just be temporary
+    }
+}
+
+// Start periodic state consistency checks (every 10 seconds)
+setInterval(checkStateConsistency, 10000);
 
 window.addEventListener('load', async () => {
     // Set up event listener for provider change
@@ -955,6 +1015,40 @@ async function processNextFileInQueue() {
     }
 }
 
+/**
+ * Reset UI state to idle (no active translation)
+ * This function should be called when:
+ * - An interruption fails (translation already finished)
+ * - User manually cancels
+ * - Any inconsistent state is detected
+ */
+function resetUIToIdle() {
+    console.log('Resetting UI to idle state...');
+
+    // Reset state variables
+    isBatchActive = false;
+    currentProcessingJob = null;
+    translationQueue = [];
+
+    // Reset UI elements
+    document.getElementById('interruptBtn').classList.add('hidden');
+    document.getElementById('interruptBtn').disabled = false;
+    document.getElementById('interruptBtn').innerHTML = '⏹️ Interrupt Current & Stop Batch';
+
+    document.getElementById('translateBtn').disabled = filesToProcess.length === 0;
+    document.getElementById('translateBtn').innerHTML = '▶️ Start Translation Batch';
+
+    // Hide progress section if no files to process
+    if (filesToProcess.length === 0) {
+        document.getElementById('progressSection').classList.add('hidden');
+    }
+
+    // Update active translations state
+    updateActiveTranslationsState();
+
+    addLog('🔄 UI reset to idle state');
+}
+
 async function interruptCurrentTranslation() {
     if (!isBatchActive || !currentProcessingJob) {
         showMessage('No active translation to interrupt.', 'info');
@@ -966,20 +1060,45 @@ async function interruptCurrentTranslation() {
 
     document.getElementById('interruptBtn').disabled = true;
     document.getElementById('interruptBtn').innerHTML = '⏳ Interrupting...';
-    addLog(`🛑 User requested interruption for ${fileToInterrupt.name} (ID: ${tidToInterrupt}). This will stop the batch.`);
+
+    // Clear the queue BEFORE making the request
     translationQueue = [];
 
     try {
         const response = await fetch(`${API_BASE_URL}/api/translation/${tidToInterrupt}/interrupt`, { method: 'POST' });
+
         if (!response.ok) {
             const errData = await response.json();
-            throw new Error(errData.message || `Failed to send interrupt signal for ${fileToInterrupt.name}.`);
+            const errorMsg = errData.message || `Failed to send interrupt signal for ${fileToInterrupt.name}.`;
+
+            // Check if the error indicates the translation is no longer running
+            if (response.status === 400 && errorMsg.includes('not in an interruptible state')) {
+                addLog(`ℹ️ Translation for ${fileToInterrupt.name} has already finished or stopped.`);
+                showMessage(`Translation already completed or stopped.`, 'info');
+
+                // Reset UI to clean state since there's nothing to interrupt
+                resetUIToIdle();
+                return;
+            }
+
+            throw new Error(errorMsg);
         }
+
+        // Success - log only after confirmation
+        addLog(`🛑 User requested interruption for ${fileToInterrupt.name} (ID: ${tidToInterrupt}). This will stop the batch.`);
         showMessage(`ℹ️ Interruption for ${fileToInterrupt.name} requested. Batch will stop after this file.`, 'info');
+
     } catch (error) {
+        // Network error or other unexpected error
+        addLog(`❌ Error sending interruption: ${error.message}`);
         showMessage(`❌ Error sending interruption for ${fileToInterrupt.name}: ${error.message}`, 'error');
-         document.getElementById('interruptBtn').disabled = false;
-         document.getElementById('interruptBtn').innerHTML = '⏹️ Interrupt Current & Stop Batch';
+
+        // Re-enable interrupt button for retry
+        document.getElementById('interruptBtn').disabled = false;
+        document.getElementById('interruptBtn').innerHTML = '⏹️ Interrupt Current & Stop Batch';
+
+        // Restore the queue in case user wants to retry
+        translationQueue = [fileToInterrupt, ...filesToProcess.filter(f => f !== fileToInterrupt && f.status !== 'Completed')];
     }
 }
 

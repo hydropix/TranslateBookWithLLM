@@ -3,6 +3,7 @@ Translation job management routes
 """
 import os
 import time
+import copy
 from flask import Blueprint, request, jsonify
 
 from src.config import (
@@ -184,12 +185,34 @@ def create_translation_blueprint(state_manager, start_translation_job):
 
         # Get job config and add resume parameters
         job = checkpoint_data['job']
-        config = job['config']
+        config = copy.deepcopy(job['config'])  # Create a deep copy to avoid mutating the stored config
 
         # Get preserved input file path if exists
-        preserved_path = state_manager.checkpoint_manager.get_preserved_input_path(translation_id)
+        # Always use preserved_input_path from config (stored during job creation)
+        # This ensures consistent file path across multiple resume cycles
+        preserved_path = config.get('preserved_input_path')
         if preserved_path:
-            config['file_path'] = preserved_path
+            # Verify that the preserved file actually exists
+            from pathlib import Path
+            if Path(preserved_path).exists():
+                config['file_path'] = preserved_path
+            else:
+                return jsonify({
+                    "error": "Preserved input file not found",
+                    "message": f"The preserved input file for this job no longer exists: {preserved_path}",
+                    "suggestion": "This job cannot be resumed. Please delete this checkpoint and start a new translation."
+                }), 404
+        else:
+            # Fallback: try to get it from checkpoint manager
+            preserved_path_fallback = state_manager.checkpoint_manager.get_preserved_input_path(translation_id)
+            if preserved_path_fallback:
+                config['file_path'] = preserved_path_fallback
+            else:
+                return jsonify({
+                    "error": "No preserved input file",
+                    "message": "This job has no preserved input file and cannot be resumed.",
+                    "suggestion": "Please delete this checkpoint and start a new translation."
+                }), 404
 
         # Add resume parameters to config
         config['resume_from_index'] = checkpoint_data['resume_from_index']

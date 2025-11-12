@@ -317,48 +317,34 @@ async def perform_actual_translation(translation_id, config, state_manager, outp
                 'message': 'Translation paused - checkpoint created'
             }, namespace='/')
 
-            # Also clean up uploaded file on interruption if translation produced output
-            if 'file_path' in config and config['file_path'] and os.path.exists(output_filepath_on_server):
-                uploaded_file_path = config['file_path']
-                # Convert to Path object for reliable path operations
-                upload_path = Path(uploaded_file_path)
-                
-                # Check if file exists
-                if upload_path.exists():
-                    # Check if it's in the uploads directory (to avoid deleting user's original files)
-                    # Use Path operations to handle cross-platform path separators
-                    try:
-                        # Get the absolute path and check if 'uploads' is in the path parts
-                        resolved_path = upload_path.resolve()
-                        path_parts = resolved_path.parts
-                        
-                        # Log path parts for debugging
-                        _log_message_callback("cleanup_path_parts", f"📋 Path parts: {path_parts}")
-                        _log_message_callback("cleanup_parent_name", f"📋 Parent directory name: {resolved_path.parent.name}")
-                        
-                        # Check both: if 'uploads' is in path parts OR if parent directory is 'uploads'
-                        is_in_uploads = 'uploads' in path_parts or resolved_path.parent.name == 'uploads'
-                        
-                        # Additional safety check: ensure the file is within the translated_files/uploads directory
-                        uploads_dir = Path(output_dir) / 'uploads'
-                        _log_message_callback("cleanup_uploads_dir", f"📋 Expected uploads directory: {uploads_dir}")
-                        
+            # DON'T clean up uploaded file on interruption - keep it for resume capability
+            # The file will be preserved in the job-specific directory by checkpoint_manager
+            # Only clean up if the preserved file exists (meaning backup was successful)
+            preserved_path = config.get('preserved_input_path')
+            if preserved_path and Path(preserved_path).exists():
+                # Preserved file exists, we can safely delete the original upload
+                if 'file_path' in config and config['file_path']:
+                    uploaded_file_path = config['file_path']
+                    upload_path = Path(uploaded_file_path)
+
+                    if upload_path.exists() and upload_path != Path(preserved_path):
                         try:
-                            # Check if the file is within the uploads directory
-                            resolved_path.relative_to(uploads_dir.resolve())
-                            is_in_uploads = True
-                            _log_message_callback("cleanup_check", f"🔍 File is confirmed to be in uploads directory")
-                        except ValueError:
-                            # File is not in the uploads directory
-                            _log_message_callback("cleanup_check", f"🔍 File is NOT in uploads directory (relative_to check failed)")
-                        
-                        if is_in_uploads:
-                            upload_path.unlink()  # More reliable than os.remove
-                            _log_message_callback("cleanup_uploaded_file", f"🗑️ Cleaned up uploaded source file: {upload_path.name}")
-                        else:
-                            _log_message_callback("cleanup_skipped", f"ℹ️ Skipped cleanup - file not in uploads directory: {upload_path.name}")
-                    except Exception as e:
-                        _log_message_callback("cleanup_error", f"⚠️ Could not delete uploaded file {upload_path.name}: {str(e)}")
+                            # Only delete if it's in the uploads directory root (not in a job subdirectory)
+                            uploads_dir = Path(output_dir) / 'uploads'
+                            resolved_path = upload_path.resolve()
+
+                            # Check if file is directly in uploads/ (not in a job subdirectory)
+                            if resolved_path.parent.resolve() == uploads_dir.resolve():
+                                upload_path.unlink()
+                                _log_message_callback("cleanup_uploaded_file", f"🗑️ Cleaned up uploaded source file (preserved copy exists): {upload_path.name}")
+                            else:
+                                _log_message_callback("cleanup_skipped", f"ℹ️ Skipped cleanup - file is not in uploads root directory")
+                        except Exception as e:
+                            _log_message_callback("cleanup_error", f"⚠️ Could not delete uploaded file {upload_path.name}: {str(e)}")
+                else:
+                    _log_message_callback("cleanup_info", "ℹ️ Original upload file not found or already cleaned up")
+            else:
+                _log_message_callback("cleanup_skipped_no_preserve", "ℹ️ Skipped cleanup - preserved file not found, keeping original for resume")
 
         elif state_manager.get_translation_field(translation_id, 'status') != 'error':
             state_manager.set_translation_field(translation_id, 'status', 'completed')
@@ -372,47 +358,27 @@ async def perform_actual_translation(translation_id, config, state_manager, outp
             _log_message_callback("checkpoint_cleanup", "🗑️ Checkpoint cleaned up automatically")
             
             # Clean up uploaded file if it exists and is in the uploads directory
+            # On completion, we can safely delete the original upload file
             _log_message_callback("cleanup_start", f"🧹 Starting cleanup check...")
             if 'file_path' in config and config['file_path']:
                 _log_message_callback("cleanup_filepath", f"📁 File path in config: {config['file_path']}")
                 uploaded_file_path = config['file_path']
                 # Convert to Path object for reliable path operations
                 upload_path = Path(uploaded_file_path)
-                
+
                 # Check if file exists
                 if upload_path.exists():
-                    # Check if it's in the uploads directory (to avoid deleting user's original files)
-                    # Use Path operations to handle cross-platform path separators
                     try:
-                        # Get the absolute path and check if 'uploads' is in the path parts
-                        resolved_path = upload_path.resolve()
-                        path_parts = resolved_path.parts
-                        
-                        # Log path parts for debugging
-                        _log_message_callback("cleanup_path_parts", f"📋 Path parts: {path_parts}")
-                        _log_message_callback("cleanup_parent_name", f"📋 Parent directory name: {resolved_path.parent.name}")
-                        
-                        # Check both: if 'uploads' is in path parts OR if parent directory is 'uploads'
-                        is_in_uploads = 'uploads' in path_parts or resolved_path.parent.name == 'uploads'
-                        
-                        # Additional safety check: ensure the file is within the translated_files/uploads directory
+                        # Only delete if it's in the uploads directory root (not in a job subdirectory)
                         uploads_dir = Path(output_dir) / 'uploads'
-                        _log_message_callback("cleanup_uploads_dir", f"📋 Expected uploads directory: {uploads_dir}")
-                        
-                        try:
-                            # Check if the file is within the uploads directory
-                            resolved_path.relative_to(uploads_dir.resolve())
-                            is_in_uploads = True
-                            _log_message_callback("cleanup_check", f"🔍 File is confirmed to be in uploads directory")
-                        except ValueError:
-                            # File is not in the uploads directory
-                            _log_message_callback("cleanup_check", f"🔍 File is NOT in uploads directory (relative_to check failed)")
-                        
-                        if is_in_uploads:
-                            upload_path.unlink()  # More reliable than os.remove
+                        resolved_path = upload_path.resolve()
+
+                        # Check if file is directly in uploads/ (not in a job subdirectory)
+                        if resolved_path.parent.resolve() == uploads_dir.resolve():
+                            upload_path.unlink()
                             _log_message_callback("cleanup_uploaded_file", f"🗑️ Cleaned up uploaded source file: {upload_path.name}")
                         else:
-                            _log_message_callback("cleanup_skipped", f"ℹ️ Skipped cleanup - file not in uploads directory: {upload_path.name}")
+                            _log_message_callback("cleanup_skipped", f"ℹ️ Skipped cleanup - file is not in uploads root directory")
                     except Exception as e:
                         _log_message_callback("cleanup_error", f"⚠️ Could not delete uploaded file {upload_path.name}: {str(e)}")
             else:

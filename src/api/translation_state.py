@@ -3,6 +3,7 @@ Thread-safe translation state management
 """
 import threading
 import time
+import copy
 from datetime import datetime
 from typing import Dict, Any, Optional
 from src.persistence.checkpoint_manager import CheckpointManager
@@ -165,13 +166,14 @@ class TranslationStateManager:
         job = checkpoint_data['job']
         with self._lock:
             # Restore job into in-memory state
+            # Use deepcopy for config to prevent mutation of stored config
             self._translations[translation_id] = {
                 'status': 'paused',  # Will be set to 'running' when resumed
                 'progress': 0,
-                'stats': job['progress'],
+                'stats': copy.deepcopy(job['progress']),
                 'logs': [f"[{datetime.now().strftime('%H:%M:%S')}] Job restored from checkpoint."],
                 'result': None,
-                'config': job['config'],
+                'config': copy.deepcopy(job['config']),
                 'interrupted': False,
                 'output_filepath': job['config'].get('output_filepath'),
                 'resume_from_index': checkpoint_data['resume_from_index']
