@@ -90,12 +90,12 @@ function updateResumeButtonsState() {
             button.disabled = true;
             button.style.opacity = '0.5';
             button.style.cursor = 'not-allowed';
-            button.title = '⚠️ Impossible: une traduction est déjà en cours';
+            button.title = '⚠️ Cannot resume: a translation is already in progress';
         } else {
             button.disabled = false;
             button.style.opacity = '1';
             button.style.cursor = 'pointer';
-            button.title = 'Reprendre cette traduction';
+            button.title = 'Resume this translation';
         }
     });
 
@@ -120,9 +120,9 @@ function updateResumableJobsWarningBanner() {
                 <div style="display: flex; align-items: center; gap: 10px;">
                     <span style="font-size: 20px;">⚠️</span>
                     <div style="flex: 1;">
-                        <strong style="color: #92400e;">Traduction active en cours</strong>
+                        <strong style="color: #92400e;">Active translation in progress</strong>
                         <p style="margin: 5px 0 0 0; font-size: 13px; color: #78350f;">
-                            Les reprises sont désactivées. Traduction(s) active(s): ${escapeHtml(activeNames)}
+                            Resume disabled. Active translation(s): ${escapeHtml(activeNames)}
                         </p>
                     </div>
                 </div>
@@ -259,7 +259,7 @@ function handleTranslationUpdate(data) {
 window.addEventListener('beforeunload', (e) => {
     if (isBatchActive && currentProcessingJob) {
         // Modern browsers require both preventDefault and returnValue
-        const confirmationMessage = 'Une traduction est en cours. Êtes-vous sûr de vouloir quitter cette page ?';
+        const confirmationMessage = 'A translation is in progress. Are you sure you want to leave this page?';
 
         e.preventDefault();
         e.returnValue = confirmationMessage;
@@ -1544,9 +1544,9 @@ async function loadResumableJobs() {
                     <div style="display: flex; align-items: center; gap: 10px;">
                         <span style="font-size: 20px;">⚠️</span>
                         <div style="flex: 1;">
-                            <strong style="color: #92400e;">Traduction active en cours</strong>
+                            <strong style="color: #92400e;">Active translation in progress</strong>
                             <p style="margin: 5px 0 0 0; font-size: 13px; color: #78350f;">
-                                Les reprises sont désactivées. Traduction(s) active(s): ${escapeHtml(activeNames)}
+                                Resume disabled. Active translation(s): ${escapeHtml(activeNames)}
                             </p>
                         </div>
                     </div>
@@ -1565,37 +1565,49 @@ async function loadResumableJobs() {
             const createdDate = job.created_at ? new Date(job.created_at).toLocaleString('fr-FR') : 'N/A';
             const pausedDate = job.paused_at ? new Date(job.paused_at).toLocaleString('fr-FR') : job.updated_at ? new Date(job.updated_at).toLocaleString('fr-FR') : 'N/A';
 
+            // Extract original filename (remove 16-char hash prefix + underscore)
+            const inputFilename = job.input_filename || 'Unknown';
+            const outputFilename = job.output_filename || 'Unknown';
+
+            // Extract hash and original name from input filename
+            const inputMatch = inputFilename.match(/^([a-f0-9]{16})_(.+)$/);
+            const inputHash = inputMatch ? inputMatch[1] : null;
+            const inputOriginalName = inputMatch ? inputMatch[2] : inputFilename;
+
+            // Format the display name (capitalize first letter, remove extension for display)
+            const displayName = inputOriginalName.replace(/\.[^.]+$/, '');
+            const displayNameFormatted = displayName.charAt(0).toUpperCase() + displayName.slice(1);
+
             return `
                 <div class="resumable-job-card" style="border: 1px solid #e5e7eb; padding: 20px; margin-bottom: 15px; border-radius: 8px; background: #f9fafb;">
                     <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 15px;">
                         <div style="flex: 1;">
-                            <div style="font-size: 16px; font-weight: 600; color: #1f2937; margin-bottom: 8px;">
-                                ${escapeHtml(job.input_filename || 'Unknown')}
+                            <div style="font-size: 18px; font-weight: 600; color: #1f2937; margin-bottom: 8px;">
+                                ${escapeHtml(displayNameFormatted)}
                             </div>
                             <div style="font-size: 14px; color: #6b7280; margin-bottom: 5px;">
-                                → ${escapeHtml(job.output_filename || 'Unknown')}
+                                → ${escapeHtml(outputFilename)}
                             </div>
-                            <div style="display: flex; gap: 15px; font-size: 13px; color: #6b7280; margin-top: 10px;">
-                                <span><strong>Type:</strong> ${fileType}</span>
-                                <span><strong>ID:</strong> ${job.translation_id}</span>
+                            <div style="font-size: 12px; color: #9ca3af; margin-top: 8px;">
+                                Type: ${fileType} ${inputHash ? `• ID: ${inputHash}` : `• ID: ${job.translation_id.replace('trans_', '')}`}
                             </div>
                         </div>
 
                         <div style="display: flex; gap: 10px;">
                             <button class="btn btn-primary" onclick="resumeJob('${job.translation_id}')"
-                                    title="${hasActiveTranslation ? '⚠️ Impossible: une traduction est déjà en cours' : 'Reprendre cette traduction'}"
+                                    title="${hasActiveTranslation ? '⚠️ Cannot resume: a translation is already in progress' : 'Resume this translation'}"
                                     ${hasActiveTranslation ? 'disabled style="opacity: 0.5; cursor: not-allowed;"' : ''}>
-                                ▶️ Reprendre
+                                ▶️ Resume
                             </button>
-                            <button class="btn btn-danger" onclick="deleteCheckpoint('${job.translation_id}')" title="Supprimer ce checkpoint">
-                                🗑️ Supprimer
+                            <button class="btn btn-danger" onclick="deleteCheckpoint('${job.translation_id}')" title="Delete this checkpoint">
+                                🗑️ Delete
                             </button>
                         </div>
                     </div>
 
                     <div style="margin-bottom: 10px;">
                         <div style="display: flex; justify-content: space-between; font-size: 13px; color: #6b7280; margin-bottom: 5px;">
-                            <span>Progression: ${completedChunks} / ${totalChunks} chunks (${progressPercent}%)</span>
+                            <span>Progress: ${completedChunks} / ${totalChunks} chunks (${progressPercent}%)</span>
                         </div>
                         <div style="width: 100%; background: #e5e7eb; border-radius: 4px; height: 8px; overflow: hidden;">
                             <div style="width: ${progressPercent}%; background: #3b82f6; height: 100%; transition: width 0.3s;"></div>
@@ -1603,19 +1615,19 @@ async function loadResumableJobs() {
                     </div>
 
                     <div style="display: flex; gap: 20px; font-size: 12px; color: #9ca3af;">
-                        <span>Créé: ${createdDate}</span>
-                        <span>En pause: ${pausedDate}</span>
+                        <span>Created: ${createdDate}</span>
+                        <span>Paused: ${pausedDate}</span>
                     </div>
                 </div>
             `;
         }).join('');
 
-        addLog(`📦 ${jobs.length} traduction(s) en pause trouvée(s)`);
+        addLog(`📦 ${jobs.length} paused translation(s) found`);
 
     } catch (error) {
         loading.style.display = 'none';
         emptyMessage.style.display = 'block';
-        emptyMessage.innerHTML = `<p style="color: #ef4444;">Erreur lors du chargement: ${escapeHtml(error.message)}</p>`;
+        emptyMessage.innerHTML = `<p style="color: #ef4444;">Error loading: ${escapeHtml(error.message)}</p>`;
         console.error('Error loading resumable jobs:', error);
     }
 }
@@ -1627,17 +1639,17 @@ async function resumeJob(translationId) {
     // Check if there's an active translation using our state
     if (activeTranslationsState.hasActive) {
         const activeNames = activeTranslationsState.activeJobs.map(t => t.output_filename || 'Unknown').join(', ');
-        showMessage(`⚠️ Impossible de reprendre: une traduction est déjà en cours (${activeNames}). Veuillez attendre la fin ou l'interrompre.`, 'error');
+        showMessage(`⚠️ Cannot resume: a translation is already in progress (${activeNames}). Please wait for it to finish or interrupt it.`, 'error');
         return;
     }
 
-    if (!confirm('Voulez-vous reprendre cette traduction ?')) {
+    if (!confirm('Do you want to resume this translation?')) {
         return;
     }
 
     try {
-        addLog(`⏯️ Reprise de la traduction ${translationId}...`);
-        showMessage('Reprise de la traduction...', 'info');
+        addLog(`⏯️ Resuming translation ${translationId}...`);
+        showMessage('Resuming translation...', 'info');
 
         const response = await fetch(`${API_BASE_URL}/api/resume/${translationId}`, {
             method: 'POST'
@@ -1646,8 +1658,8 @@ async function resumeJob(translationId) {
         const data = await response.json();
 
         if (response.ok) {
-            showMessage(`✅ Traduction reprise avec succès ! Reprise au chunk ${data.resume_from_chunk}`, 'success');
-            addLog(`✅ Traduction ${translationId} reprise au chunk ${data.resume_from_chunk}`);
+            showMessage(`✅ Translation resumed successfully! Resuming from chunk ${data.resume_from_chunk}`, 'success');
+            addLog(`✅ Translation ${translationId} resumed from chunk ${data.resume_from_chunk}`);
 
             // Fetch job details to get filename and file type
             const jobResponse = await fetch(`${API_BASE_URL}/api/translation/${translationId}`);
@@ -1673,8 +1685,8 @@ async function resumeJob(translationId) {
             }
 
             // Update title with actual filename
-            const fileName = jobData.config?.output_filename || 'traduction reprise';
-            document.getElementById('currentFileProgressTitle').textContent = `📊 Reprise: ${fileName}`;
+            const fileName = jobData.config?.output_filename || 'resumed translation';
+            document.getElementById('currentFileProgressTitle').textContent = `📊 Resuming: ${fileName}`;
 
             // Show stats grid
             document.getElementById('statsGrid').style.display = '';
@@ -1699,16 +1711,16 @@ async function resumeJob(translationId) {
                 const activeList = data.active_translations
                     .map(t => `• ${t.output_filename} (${t.status})`)
                     .join('\n');
-                showMessage(`⚠️ Impossible de reprendre: une traduction est déjà en cours\n\n${activeList}\n\nVeuillez attendre la fin ou interrompre la traduction active.`, 'error');
+                showMessage(`⚠️ Cannot resume: a translation is already in progress\n\n${activeList}\n\nPlease wait for it to finish or interrupt the active translation.`, 'error');
                 addLog(`⚠️ ${data.message}`);
             } else {
-                showMessage(`❌ Erreur: ${data.error}`, 'error');
-                addLog(`❌ Échec de la reprise: ${data.error}`);
+                showMessage(`❌ Error: ${data.error}`, 'error');
+                addLog(`❌ Resume failed: ${data.error}`);
             }
         }
     } catch (error) {
-        showMessage(`❌ Erreur lors de la reprise: ${error.message}`, 'error');
-        addLog(`❌ Erreur réseau: ${error.message}`);
+        showMessage(`❌ Error resuming: ${error.message}`, 'error');
+        addLog(`❌ Network error: ${error.message}`);
         console.error('Error resuming job:', error);
     }
 }
@@ -1717,12 +1729,12 @@ async function resumeJob(translationId) {
  * Delete a checkpoint
  */
 async function deleteCheckpoint(translationId) {
-    if (!confirm('Êtes-vous sûr de vouloir supprimer ce checkpoint ?\n\nCette action est irréversible et vous perdrez toute la progression.')) {
+    if (!confirm('Are you sure you want to delete this checkpoint?\n\nThis action is irreversible and you will lose all progress.')) {
         return;
     }
 
     try {
-        addLog(`🗑️ Suppression du checkpoint ${translationId}...`);
+        addLog(`🗑️ Deleting checkpoint ${translationId}...`);
 
         const response = await fetch(`${API_BASE_URL}/api/checkpoint/${translationId}`, {
             method: 'DELETE'
@@ -1731,18 +1743,18 @@ async function deleteCheckpoint(translationId) {
         const data = await response.json();
 
         if (response.ok) {
-            showMessage('✅ Checkpoint supprimé avec succès', 'success');
-            addLog(`✅ Checkpoint ${translationId} supprimé`);
+            showMessage('✅ Checkpoint deleted successfully', 'success');
+            addLog(`✅ Checkpoint ${translationId} deleted`);
 
             // Refresh resumable jobs list
             loadResumableJobs();
         } else {
-            showMessage(`❌ Erreur: ${data.error}`, 'error');
-            addLog(`❌ Échec de la suppression: ${data.error}`);
+            showMessage(`❌ Error: ${data.error}`, 'error');
+            addLog(`❌ Delete failed: ${data.error}`);
         }
     } catch (error) {
-        showMessage(`❌ Erreur lors de la suppression: ${error.message}`, 'error');
-        addLog(`❌ Erreur réseau: ${error.message}`);
+        showMessage(`❌ Error deleting checkpoint: ${error.message}`, 'error');
+        addLog(`❌ Network error: ${error.message}`);
         console.error('Error deleting checkpoint:', error);
     }
 }

@@ -199,10 +199,19 @@ class CheckpointManager:
             else:
                 job['progress_percentage'] = 0
 
-            # Get input file name from config
+            # Get input and output file names from config
             config = job['config']
-            job['input_filename'] = Path(config.get('input_filepath', 'unknown')).name
-            job['output_filename'] = Path(config.get('output_filepath', 'unknown')).name
+
+            # Extract input filename (use file_path, then preserved_input_path as fallback)
+            input_path = config.get('file_path') or config.get('preserved_input_path', 'unknown')
+            if input_path != 'unknown':
+                job['input_filename'] = Path(input_path).name
+            else:
+                job['input_filename'] = 'unknown'
+
+            # Extract output filename
+            output_filename = config.get('output_filename', 'unknown')
+            job['output_filename'] = output_filename if output_filename != 'unknown' else 'unknown'
 
         return jobs
 

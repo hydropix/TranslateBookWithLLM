@@ -1,5 +1,5 @@
 """
-Script de test pour le systeme de checkpoint/reprise
+Test script for the checkpoint/resume system
 """
 import sys
 import os
@@ -8,7 +8,7 @@ import io
 # Force UTF-8 encoding for Windows console
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
 
-# Ajouter le repertoire parent au path
+# Add parent directory to path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from src.persistence.database import Database
@@ -16,15 +16,15 @@ from src.persistence.checkpoint_manager import CheckpointManager
 
 
 def test_database_creation():
-    """Test de création de la base de données"""
+    """Test database creation"""
     print("=" * 60)
-    print("Test 1: Création de la base de données")
+    print("Test 1: Database creation")
     print("=" * 60)
 
     db = Database("translated_files/test_jobs.db")
-    print("✅ Base de données créée avec succès")
+    print("✅ Database created successfully")
 
-    # Test création job
+    # Test job creation
     success = db.create_job(
         translation_id="test_trans_001",
         file_type="txt",
@@ -37,19 +37,19 @@ def test_database_creation():
     )
 
     if success:
-        print("✅ Job créé avec succès")
+        print("✅ Job created successfully")
     else:
-        print("❌ Échec de création du job")
+        print("❌ Job creation failed")
         return False
 
-    # Test récupération job
+    # Test job retrieval
     job = db.get_job("test_trans_001")
     if job:
-        print(f"✅ Job récupéré: {job['translation_id']}")
+        print(f"✅ Job retrieved: {job['translation_id']}")
         print(f"   Type: {job['file_type']}")
         print(f"   Status: {job['status']}")
     else:
-        print("❌ Job non trouvé")
+        print("❌ Job not found")
         return False
 
     db.close()
@@ -57,20 +57,20 @@ def test_database_creation():
 
 
 def test_checkpoint_saving():
-    """Test de sauvegarde de checkpoints"""
+    """Test checkpoint saving"""
     print("\n" + "=" * 60)
-    print("Test 2: Sauvegarde de checkpoints")
+    print("Test 2: Checkpoint saving")
     print("=" * 60)
 
     manager = CheckpointManager("translated_files/test_jobs.db")
 
-    # Simuler la sauvegarde de chunks
+    # Simulate chunk saving
     for i in range(5):
         success = manager.save_checkpoint(
             translation_id="test_trans_001",
             chunk_index=i,
             original_text=f"Original text chunk {i}",
-            translated_text=f"Texte traduit chunk {i}",
+            translated_text=f"Translated text chunk {i}",
             chunk_data={
                 "context_before": "",
                 "main_content": f"Content {i}",
@@ -85,104 +85,104 @@ def test_checkpoint_saving():
         )
 
         if success:
-            print(f"✅ Checkpoint {i} sauvegardé")
+            print(f"✅ Checkpoint {i} saved")
         else:
-            print(f"❌ Échec checkpoint {i}")
+            print(f"❌ Checkpoint {i} failed")
             return False
 
     return True
 
 
 def test_checkpoint_loading():
-    """Test de chargement de checkpoints"""
+    """Test checkpoint loading"""
     print("\n" + "=" * 60)
-    print("Test 3: Chargement de checkpoints")
+    print("Test 3: Checkpoint loading")
     print("=" * 60)
 
     manager = CheckpointManager("translated_files/test_jobs.db")
 
-    # Charger checkpoint
+    # Load checkpoint
     checkpoint = manager.load_checkpoint("test_trans_001")
 
     if checkpoint:
-        print("✅ Checkpoint chargé avec succès")
+        print("✅ Checkpoint loaded successfully")
         print(f"   Resume from: chunk {checkpoint['resume_from_index']}")
-        print(f"   Chunks sauvegardés: {len(checkpoint['chunks'])}")
+        print(f"   Saved chunks: {len(checkpoint['chunks'])}")
 
-        # Vérifier les chunks
+        # Verify chunks
         for chunk in checkpoint['chunks']:
             print(f"   - Chunk {chunk['chunk_index']}: {chunk['status']}")
     else:
-        print("❌ Échec du chargement")
+        print("❌ Loading failed")
         return False
 
     return True
 
 
 def test_resumable_jobs():
-    """Test de la liste des jobs resumables"""
+    """Test resumable jobs list"""
     print("\n" + "=" * 60)
-    print("Test 4: Liste des jobs resumables")
+    print("Test 4: Resumable jobs list")
     print("=" * 60)
 
     manager = CheckpointManager("translated_files/test_jobs.db")
 
-    # Marquer comme pausé
+    # Mark as paused
     manager.mark_paused("test_trans_001")
 
-    # Récupérer jobs resumables
+    # Get resumable jobs
     jobs = manager.get_resumable_jobs()
 
     if jobs:
-        print(f"✅ {len(jobs)} job(s) resumable(s) trouvé(s)")
+        print(f"✅ {len(jobs)} resumable job(s) found")
         for job in jobs:
             print(f"   - {job['translation_id']}: {job['file_type'].upper()}")
-            print(f"     Progression: {job['progress_percentage']}%")
+            print(f"     Progress: {job['progress_percentage']}%")
     else:
-        print("❌ Aucun job resumable trouvé")
+        print("❌ No resumable jobs found")
         return False
 
     return True
 
 
 def test_cleanup():
-    """Test de nettoyage"""
+    """Test cleanup"""
     print("\n" + "=" * 60)
-    print("Test 5: Nettoyage")
+    print("Test 5: Cleanup")
     print("=" * 60)
 
     manager = CheckpointManager("translated_files/test_jobs.db")
 
-    # Supprimer checkpoint
+    # Delete checkpoint
     success = manager.delete_checkpoint("test_trans_001")
 
     if success:
-        print("✅ Checkpoint supprimé")
+        print("✅ Checkpoint deleted")
     else:
-        print("❌ Échec de la suppression")
+        print("❌ Deletion failed")
         return False
 
-    # Vérifier suppression
+    # Verify deletion
     jobs = manager.get_resumable_jobs()
     if len(jobs) == 0:
-        print("✅ Aucun job resumable (nettoyage confirmé)")
+        print("✅ No resumable jobs (cleanup confirmed)")
     else:
-        print("❌ Des jobs existent encore")
+        print("❌ Jobs still exist")
         return False
 
-    # Supprimer la base de test
+    # Delete test database
     try:
         os.remove("translated_files/test_jobs.db")
-        print("✅ Base de données de test supprimée")
+        print("✅ Test database deleted")
     except Exception as e:
-        print(f"⚠️  Impossible de supprimer la DB de test: {e}")
+        print(f"⚠️  Could not delete test DB: {e}")
 
     return True
 
 
 def main():
-    """Exécuter tous les tests"""
-    print("\n" + "TEST DU SYSTEME DE CHECKPOINT/REPRISE" + "\n")
+    """Run all tests"""
+    print("\n" + "CHECKPOINT/RESUME SYSTEM TEST" + "\n")
 
     tests = [
         test_database_creation,
@@ -199,14 +199,14 @@ def main():
             result = test()
             results.append(result)
         except Exception as e:
-            print(f"\n❌ ERREUR: {e}")
+            print(f"\n❌ ERROR: {e}")
             import traceback
             traceback.print_exc()
             results.append(False)
 
-    # Résumé
+    # Summary
     print("\n" + "=" * 60)
-    print("RÉSUMÉ DES TESTS")
+    print("TEST SUMMARY")
     print("=" * 60)
 
     total = len(results)
@@ -214,14 +214,14 @@ def main():
     failed = total - passed
 
     print(f"Total: {total}")
-    print(f"Reussis: {passed}")
-    print(f"Echoues: {failed}")
+    print(f"Passed: {passed}")
+    print(f"Failed: {failed}")
 
     if failed == 0:
-        print("\nTOUS LES TESTS SONT PASSES !")
+        print("\nALL TESTS PASSED!")
         return 0
     else:
-        print(f"\n{failed} TEST(S) ECHOUE(S)")
+        print(f"\n{failed} TEST(S) FAILED")
         return 1
 
 
