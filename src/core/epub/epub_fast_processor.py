@@ -686,7 +686,10 @@ async def translate_text_as_string(
     openai_api_key=None,
     context_window: int = 2048,
     auto_adjust_context: bool = True,
-    min_chunk_size: int = 5
+    min_chunk_size: int = 5,
+    checkpoint_manager=None,
+    translation_id: str = None,
+    resume_from_index: int = 0
 ) -> str:
     """
     Translate a text string using the standard text translation workflow.
@@ -711,6 +714,9 @@ async def translate_text_as_string(
         context_window: Context window size
         auto_adjust_context: Auto-adjust context
         min_chunk_size: Minimum chunk size
+        checkpoint_manager: Checkpoint manager for resume functionality
+        translation_id: ID of the translation job
+        resume_from_index: Index to resume from
 
     Returns:
         Translated text string
@@ -763,7 +769,10 @@ async def translate_text_as_string(
         context_window=context_window,
         auto_adjust_context=auto_adjust_context,
         min_chunk_size=min_chunk_size,
-        fast_mode=True  # Fast mode uses pure text - no HTML/XML placeholders
+        fast_mode=True,  # Fast mode uses pure text - no HTML/XML placeholders
+        checkpoint_manager=checkpoint_manager,
+        translation_id=translation_id,
+        resume_from_index=resume_from_index
     )
 
     if progress_callback:

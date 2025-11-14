@@ -214,7 +214,10 @@ async def perform_actual_translation(translation_id, config, state_manager, outp
                 fast_mode=config.get('fast_mode', False),
                 context_window=config.get('context_window', 2048),
                 auto_adjust_context=config.get('auto_adjust_context', True),
-                min_chunk_size=config.get('min_chunk_size', 5)
+                min_chunk_size=config.get('min_chunk_size', 5),
+                checkpoint_manager=checkpoint_manager,
+                translation_id=translation_id,
+                resume_from_index=resume_from_index
             )
             state_manager.set_translation_field(translation_id, 'result', "[EPUB file translated - download to view]")
             
