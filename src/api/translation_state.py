@@ -3,16 +3,19 @@ Thread-safe translation state management
 """
 import threading
 import time
+import copy
 from datetime import datetime
 from typing import Dict, Any, Optional
+from src.persistence.checkpoint_manager import CheckpointManager
 
 
 class TranslationStateManager:
     """Thread-safe manager for translation state"""
-    
-    def __init__(self):
+
+    def __init__(self, checkpoint_manager: Optional[CheckpointManager] = None):
         self._translations: Dict[str, Dict[str, Any]] = {}
         self._lock = threading.RLock()  # Use RLock to allow nested locking
+        self.checkpoint_manager = checkpoint_manager or CheckpointManager()
     
     def create_translation(self, translation_id: str, config: Dict[str, Any]) -> None:
         """Create a new translation entry"""
@@ -141,6 +144,76 @@ class TranslationStateManager:
                 return False
             self._translations[translation_id]['interrupted'] = interrupted
             return True
+
+    def get_resumable_jobs(self):
+        """Get all jobs that can be resumed from database"""
+        return self.checkpoint_manager.get_resumable_jobs()
+
+    def restore_job_from_checkpoint(self, translation_id: str) -> bool:
+        """
+        Restore a job from checkpoint into in-memory state.
+
+        Args:
+            translation_id: Job identifier
+
+        Returns:
+            True if restored successfully
+        """
+        checkpoint_data = self.checkpoint_manager.load_checkpoint(translation_id)
+        if not checkpoint_data:
+            return False
+
+        job = checkpoint_data['job']
+        with self._lock:
+            # Restore job into in-memory state
+            # Use deepcopy for config to prevent mutation of stored config
+            self._translations[translation_id] = {
+                'status': 'paused',  # Will be set to 'running' when resumed
+                'progress': 0,
+                'stats': copy.deepcopy(job['progress']),
+                'logs': [f"[{datetime.now().strftime('%H:%M:%S')}] Job restored from checkpoint."],
+                'result': None,
+                'config': copy.deepcopy(job['config']),
+                'interrupted': False,
+                'output_filepath': job['config'].get('output_filepath'),
+                'resume_from_index': checkpoint_data['resume_from_index']
+            }
+
+        return True
+
+    def delete_checkpoint(self, translation_id: str) -> bool:
+        """
+        Delete a checkpoint for a job.
+
+        Args:
+            translation_id: Job identifier
+
+        Returns:
+            True if deleted successfully
+        """
+        # Remove from in-memory state if exists
+        with self._lock:
+            if translation_id in self._translations:
+                del self._translations[translation_id]
+
+        # Delete from database
+        return self.checkpoint_manager.delete_checkpoint(translation_id)
+
+    def cleanup_completed_job(self, translation_id: str) -> bool:
+        """
+        Clean up a completed job (automatic cleanup).
+
+        Args:
+            translation_id: Job identifier
+
+        Returns:
+            True if cleaned up successfully
+        """
+        return self.checkpoint_manager.cleanup_completed_job(translation_id)
+
+    def get_checkpoint_manager(self) -> CheckpointManager:
+        """Get the checkpoint manager instance"""
+        return self.checkpoint_manager
 
 
 # Global instance

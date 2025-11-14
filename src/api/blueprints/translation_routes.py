@@ -3,6 +3,7 @@ Translation job management routes
 """
 import os
 import time
+import copy
 from flask import Blueprint, request, jsonify
 
 from src.config import (
@@ -142,5 +143,104 @@ def create_translation_blueprint(state_manager, start_translation_job):
         """List all translation jobs"""
         summary_list = state_manager.get_translation_summaries()
         return jsonify({"translations": summary_list})
+
+    @bp.route('/api/resumable', methods=['GET'])
+    def list_resumable_jobs():
+        """List all jobs that can be resumed"""
+        resumable_jobs = state_manager.get_resumable_jobs()
+        return jsonify({"resumable_jobs": resumable_jobs})
+
+    @bp.route('/api/resume/<translation_id>', methods=['POST'])
+    def resume_translation_job_endpoint(translation_id):
+        """Resume a paused or interrupted translation job"""
+        # Check if there are any active translations
+        all_translations = state_manager.get_all_translations()
+        active_translations = []
+        for tid, tdata in all_translations.items():
+            status = tdata.get('status')
+            if status in ['running', 'queued']:
+                active_translations.append({
+                    'id': tid,
+                    'status': status,
+                    'output_filename': tdata.get('config', {}).get('output_filename', 'unknown')
+                })
+
+        if active_translations:
+            active_info = ', '.join([f"{t['output_filename']} ({t['status']})" for t in active_translations])
+            return jsonify({
+                "error": "Cannot resume: active translation in progress",
+                "message": f"Please wait for active translation(s) to complete or interrupt them before resuming. Active: {active_info}",
+                "active_translations": active_translations
+            }), 409  # 409 Conflict status code
+
+        # Check if checkpoint exists
+        checkpoint_data = state_manager.checkpoint_manager.load_checkpoint(translation_id)
+        if not checkpoint_data:
+            return jsonify({"error": "No checkpoint found for this translation"}), 404
+
+        # Restore job into state manager
+        restored = state_manager.restore_job_from_checkpoint(translation_id)
+        if not restored:
+            return jsonify({"error": "Failed to restore job from checkpoint"}), 500
+
+        # Get job config and add resume parameters
+        job = checkpoint_data['job']
+        config = copy.deepcopy(job['config'])  # Create a deep copy to avoid mutating the stored config
+
+        # Get preserved input file path if exists
+        # Always use preserved_input_path from config (stored during job creation)
+        # This ensures consistent file path across multiple resume cycles
+        preserved_path = config.get('preserved_input_path')
+        if preserved_path:
+            # Verify that the preserved file actually exists
+            from pathlib import Path
+            if Path(preserved_path).exists():
+                config['file_path'] = preserved_path
+            else:
+                return jsonify({
+                    "error": "Preserved input file not found",
+                    "message": f"The preserved input file for this job no longer exists: {preserved_path}",
+                    "suggestion": "This job cannot be resumed. Please delete this checkpoint and start a new translation."
+                }), 404
+        else:
+            # Fallback: try to get it from checkpoint manager
+            preserved_path_fallback = state_manager.checkpoint_manager.get_preserved_input_path(translation_id)
+            if preserved_path_fallback:
+                config['file_path'] = preserved_path_fallback
+            else:
+                return jsonify({
+                    "error": "No preserved input file",
+                    "message": "This job has no preserved input file and cannot be resumed.",
+                    "suggestion": "Please delete this checkpoint and start a new translation."
+                }), 404
+
+        # Add resume parameters to config
+        config['resume_from_index'] = checkpoint_data['resume_from_index']
+        config['is_resume'] = True
+
+        # Mark as running in database
+        state_manager.checkpoint_manager.mark_running(translation_id)
+
+        # Start the translation job (the wrapper will inject dependencies)
+        start_translation_job(translation_id, config)
+
+        return jsonify({
+            "translation_id": translation_id,
+            "message": "Translation resumed successfully",
+            "resume_from_chunk": checkpoint_data['resume_from_index']
+        }), 200
+
+    @bp.route('/api/checkpoint/<translation_id>', methods=['DELETE'])
+    def delete_checkpoint_endpoint(translation_id):
+        """Delete a checkpoint (manual cleanup by user)"""
+        success = state_manager.delete_checkpoint(translation_id)
+
+        if success:
+            return jsonify({
+                "message": "Checkpoint deleted successfully",
+                "translation_id": translation_id
+            }), 200
+        else:
+            return jsonify({"error": "Failed to delete checkpoint or checkpoint not found"}), 404
 
     return bp

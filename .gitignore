@@ -3,6 +3,7 @@ __pycache__/
 .idea/
 /DoNotCommit/
 /translated_files/
+/data/
 .claude/
 CLAUDE.md
 .env

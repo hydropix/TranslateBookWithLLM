@@ -11,6 +11,7 @@ from pathlib import Path
 
 from src.core.epub import translate_epub_file
 from src.utils.unified_logger import setup_web_logger, LogType
+from src.utils.file_utils import get_unique_output_path
 from .websocket import emit_update
 
 
@@ -131,7 +132,23 @@ async def perform_actual_translation(translation_id, config, state_manager, outp
             state_manager.set_translation_field(translation_id, 'stats', current_stats)
             emit_update(socketio, translation_id, {'stats': current_stats}, state_manager)
 
+    # Get checkpoint manager and handle resume
+    checkpoint_manager = state_manager.get_checkpoint_manager()
+    resume_from_index = config.get('resume_from_index', 0)
+    is_resume = config.get('is_resume', False)
+
     try:
+        # Create checkpoint for new jobs (not for resumed jobs)
+        if not is_resume:
+            file_type = config['file_type']
+            input_file_path = config.get('file_path')
+            checkpoint_manager.start_job(
+                translation_id,
+                file_type,
+                config,
+                input_file_path
+            )
+
         # PHASE 2: Validation and warnings at startup
         if config.get('llm_provider', 'ollama') == 'ollama':
             from src.core.context_optimizer import validate_configuration
@@ -150,6 +167,17 @@ async def perform_actual_translation(translation_id, config, state_manager, outp
                 }, state_manager)
                 _log_message_callback("context_validation_warning", warning)
 
+        # Generate unique output filename to avoid overwriting
+        tentative_output_path = os.path.join(output_dir, config['output_filename'])
+        output_filepath_on_server = get_unique_output_path(tentative_output_path)
+
+        # Update config with the actual filename (may have been modified)
+        actual_output_filename = os.path.basename(output_filepath_on_server)
+        if actual_output_filename != config['output_filename']:
+            _log_message_callback("output_filename_modified",
+                f"ℹ️ Output filename modified to avoid overwriting: {config['output_filename']} → {actual_output_filename}")
+            config['output_filename'] = actual_output_filename
+
         # Log translation start with unified logger
         logger.info("Translation Started", LogType.TRANSLATION_START, {
             'source_lang': config['source_language'],
@@ -161,8 +189,6 @@ async def perform_actual_translation(translation_id, config, state_manager, outp
             'api_endpoint': config['llm_api_endpoint'],
             'chunk_size': config.get('chunk_size', 'default')
         })
-
-        output_filepath_on_server = os.path.join(output_dir, config['output_filename'])
         
         input_path_for_translate_module = config.get('file_path')
         if config['file_type'] == 'epub':
@@ -220,7 +246,10 @@ async def perform_actual_translation(translation_id, config, state_manager, outp
                 openai_api_key=config.get('openai_api_key', ''),
                 context_window=config.get('context_window', 2048),
                 auto_adjust_context=config.get('auto_adjust_context', True),
-                min_chunk_size=config.get('min_chunk_size', 5)
+                min_chunk_size=config.get('min_chunk_size', 5),
+                checkpoint_manager=checkpoint_manager,
+                translation_id=translation_id,
+                resume_from_index=resume_from_index
             )
 
             if os.path.exists(output_filepath_on_server) and state_manager.get_translation_field(translation_id, 'status') not in ['error', 'interrupted_before_save']:
@@ -249,7 +278,10 @@ async def perform_actual_translation(translation_id, config, state_manager, outp
                 check_interruption_callback=should_interrupt_current_task,
                 llm_provider=config.get('llm_provider', 'ollama'),
                 gemini_api_key=config.get('gemini_api_key', ''),
-                openai_api_key=config.get('openai_api_key', '')
+                openai_api_key=config.get('openai_api_key', ''),
+                checkpoint_manager=checkpoint_manager,
+                translation_id=translation_id,
+                resume_from_block_index=resume_from_index
             )
             
             state_manager.set_translation_field(translation_id, 'result', "[SRT file translated - download to view]")
@@ -276,49 +308,46 @@ async def perform_actual_translation(translation_id, config, state_manager, outp
             _log_message_callback("summary_interrupted", f"🛑 Translation interrupted by user. Partial result saved. Time: {elapsed_time:.2f}s.")
             final_status_payload['status'] = 'interrupted'
             final_status_payload['progress'] = state_manager.get_translation_field(translation_id, 'progress') or 0
-            
-            # Also clean up uploaded file on interruption if translation produced output
-            if 'file_path' in config and config['file_path'] and os.path.exists(output_filepath_on_server):
-                uploaded_file_path = config['file_path']
-                # Convert to Path object for reliable path operations
-                upload_path = Path(uploaded_file_path)
-                
-                # Check if file exists
-                if upload_path.exists():
-                    # Check if it's in the uploads directory (to avoid deleting user's original files)
-                    # Use Path operations to handle cross-platform path separators
-                    try:
-                        # Get the absolute path and check if 'uploads' is in the path parts
-                        resolved_path = upload_path.resolve()
-                        path_parts = resolved_path.parts
-                        
-                        # Log path parts for debugging
-                        _log_message_callback("cleanup_path_parts", f"📋 Path parts: {path_parts}")
-                        _log_message_callback("cleanup_parent_name", f"📋 Parent directory name: {resolved_path.parent.name}")
-                        
-                        # Check both: if 'uploads' is in path parts OR if parent directory is 'uploads'
-                        is_in_uploads = 'uploads' in path_parts or resolved_path.parent.name == 'uploads'
-                        
-                        # Additional safety check: ensure the file is within the translated_files/uploads directory
-                        uploads_dir = Path(output_dir) / 'uploads'
-                        _log_message_callback("cleanup_uploads_dir", f"📋 Expected uploads directory: {uploads_dir}")
-                        
+
+            # Mark checkpoint as interrupted in database
+            checkpoint_manager.mark_interrupted(translation_id)
+            _log_message_callback("checkpoint_interrupted", "⏸️ Checkpoint marked as interrupted")
+
+            # Emit checkpoint_created event to trigger UI update
+            socketio.emit('checkpoint_created', {
+                'translation_id': translation_id,
+                'status': 'interrupted',
+                'message': 'Translation paused - checkpoint created'
+            }, namespace='/')
+
+            # DON'T clean up uploaded file on interruption - keep it for resume capability
+            # The file will be preserved in the job-specific directory by checkpoint_manager
+            # Only clean up if the preserved file exists (meaning backup was successful)
+            preserved_path = config.get('preserved_input_path')
+            if preserved_path and Path(preserved_path).exists():
+                # Preserved file exists, we can safely delete the original upload
+                if 'file_path' in config and config['file_path']:
+                    uploaded_file_path = config['file_path']
+                    upload_path = Path(uploaded_file_path)
+
+                    if upload_path.exists() and upload_path != Path(preserved_path):
                         try:
-                            # Check if the file is within the uploads directory
-                            resolved_path.relative_to(uploads_dir.resolve())
-                            is_in_uploads = True
-                            _log_message_callback("cleanup_check", f"🔍 File is confirmed to be in uploads directory")
-                        except ValueError:
-                            # File is not in the uploads directory
-                            _log_message_callback("cleanup_check", f"🔍 File is NOT in uploads directory (relative_to check failed)")
-                        
-                        if is_in_uploads:
-                            upload_path.unlink()  # More reliable than os.remove
-                            _log_message_callback("cleanup_uploaded_file", f"🗑️ Cleaned up uploaded source file: {upload_path.name}")
-                        else:
-                            _log_message_callback("cleanup_skipped", f"ℹ️ Skipped cleanup - file not in uploads directory: {upload_path.name}")
-                    except Exception as e:
-                        _log_message_callback("cleanup_error", f"⚠️ Could not delete uploaded file {upload_path.name}: {str(e)}")
+                            # Only delete if it's in the uploads directory root (not in a job subdirectory)
+                            uploads_dir = Path(output_dir) / 'uploads'
+                            resolved_path = upload_path.resolve()
+
+                            # Check if file is directly in uploads/ (not in a job subdirectory)
+                            if resolved_path.parent.resolve() == uploads_dir.resolve():
+                                upload_path.unlink()
+                                _log_message_callback("cleanup_uploaded_file", f"🗑️ Cleaned up uploaded source file (preserved copy exists): {upload_path.name}")
+                            else:
+                                _log_message_callback("cleanup_skipped", f"ℹ️ Skipped cleanup - file is not in uploads root directory")
+                        except Exception as e:
+                            _log_message_callback("cleanup_error", f"⚠️ Could not delete uploaded file {upload_path.name}: {str(e)}")
+                else:
+                    _log_message_callback("cleanup_info", "ℹ️ Original upload file not found or already cleaned up")
+            else:
+                _log_message_callback("cleanup_skipped_no_preserve", "ℹ️ Skipped cleanup - preserved file not found, keeping original for resume")
 
         elif state_manager.get_translation_field(translation_id, 'status') != 'error':
             state_manager.set_translation_field(translation_id, 'status', 'completed')
@@ -326,49 +355,33 @@ async def perform_actual_translation(translation_id, config, state_manager, outp
             final_status_payload['status'] = 'completed'
             _update_translation_progress_callback(100)
             final_status_payload['progress'] = 100
+
+            # Cleanup completed job checkpoint (automatic immediate cleanup)
+            checkpoint_manager.cleanup_completed_job(translation_id)
+            _log_message_callback("checkpoint_cleanup", "🗑️ Checkpoint cleaned up automatically")
             
             # Clean up uploaded file if it exists and is in the uploads directory
+            # On completion, we can safely delete the original upload file
             _log_message_callback("cleanup_start", f"🧹 Starting cleanup check...")
             if 'file_path' in config and config['file_path']:
                 _log_message_callback("cleanup_filepath", f"📁 File path in config: {config['file_path']}")
                 uploaded_file_path = config['file_path']
                 # Convert to Path object for reliable path operations
                 upload_path = Path(uploaded_file_path)
-                
+
                 # Check if file exists
                 if upload_path.exists():
-                    # Check if it's in the uploads directory (to avoid deleting user's original files)
-                    # Use Path operations to handle cross-platform path separators
                     try:
-                        # Get the absolute path and check if 'uploads' is in the path parts
-                        resolved_path = upload_path.resolve()
-                        path_parts = resolved_path.parts
-                        
-                        # Log path parts for debugging
-                        _log_message_callback("cleanup_path_parts", f"📋 Path parts: {path_parts}")
-                        _log_message_callback("cleanup_parent_name", f"📋 Parent directory name: {resolved_path.parent.name}")
-                        
-                        # Check both: if 'uploads' is in path parts OR if parent directory is 'uploads'
-                        is_in_uploads = 'uploads' in path_parts or resolved_path.parent.name == 'uploads'
-                        
-                        # Additional safety check: ensure the file is within the translated_files/uploads directory
+                        # Only delete if it's in the uploads directory root (not in a job subdirectory)
                         uploads_dir = Path(output_dir) / 'uploads'
-                        _log_message_callback("cleanup_uploads_dir", f"📋 Expected uploads directory: {uploads_dir}")
-                        
-                        try:
-                            # Check if the file is within the uploads directory
-                            resolved_path.relative_to(uploads_dir.resolve())
-                            is_in_uploads = True
-                            _log_message_callback("cleanup_check", f"🔍 File is confirmed to be in uploads directory")
-                        except ValueError:
-                            # File is not in the uploads directory
-                            _log_message_callback("cleanup_check", f"🔍 File is NOT in uploads directory (relative_to check failed)")
-                        
-                        if is_in_uploads:
-                            upload_path.unlink()  # More reliable than os.remove
+                        resolved_path = upload_path.resolve()
+
+                        # Check if file is directly in uploads/ (not in a job subdirectory)
+                        if resolved_path.parent.resolve() == uploads_dir.resolve():
+                            upload_path.unlink()
                             _log_message_callback("cleanup_uploaded_file", f"🗑️ Cleaned up uploaded source file: {upload_path.name}")
                         else:
-                            _log_message_callback("cleanup_skipped", f"ℹ️ Skipped cleanup - file not in uploads directory: {upload_path.name}")
+                            _log_message_callback("cleanup_skipped", f"ℹ️ Skipped cleanup - file is not in uploads root directory")
                     except Exception as e:
                         _log_message_callback("cleanup_error", f"⚠️ Could not delete uploaded file {upload_path.name}: {str(e)}")
             else:
@@ -420,7 +433,7 @@ async def perform_actual_translation(translation_id, config, state_manager, outp
 def start_translation_job(translation_id, config, state_manager, output_dir, socketio):
     """
     Start a translation job in a separate thread
-    
+
     Args:
         translation_id (str): Translation job ID
         config (dict): Translation configuration

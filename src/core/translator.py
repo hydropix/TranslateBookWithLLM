@@ -120,7 +120,8 @@ async def translate_chunks(chunks, source_language, target_language, model_name,
                           api_endpoint, progress_callback=None, log_callback=None,
                           stats_callback=None, check_interruption_callback=None,
                           llm_provider="ollama", gemini_api_key=None, openai_api_key=None,
-                          context_window=2048, auto_adjust_context=True, min_chunk_size=5, simple_mode=False):
+                          context_window=2048, auto_adjust_context=True, min_chunk_size=5, simple_mode=False,
+                          checkpoint_manager=None, translation_id=None, resume_from_index=0):
     """
     Translate a list of text chunks
 
@@ -138,6 +139,9 @@ async def translate_chunks(chunks, source_language, target_language, model_name,
         auto_adjust_context (bool): Enable automatic context adjustment
         min_chunk_size (int): Minimum chunk size when auto-adjusting
         simple_mode (bool): If True, uses simplified prompts without placeholder instructions
+        checkpoint_manager: CheckpointManager instance for saving progress
+        translation_id: Job ID for checkpoint saving
+        resume_from_index: Index to resume from (for resumed jobs)
 
     Returns:
         list: List of translated chunks
@@ -153,6 +157,31 @@ async def translate_chunks(chunks, source_language, target_language, model_name,
     if chunks and 'main_content' in chunks[0]:
         # Estimate chunk size from first chunk's line count
         chunk_size = len(chunks[0]['main_content'].split('\n'))
+
+    # Handle resume: load previously translated chunks
+    if checkpoint_manager and translation_id and resume_from_index > 0:
+        checkpoint_data = checkpoint_manager.load_checkpoint(translation_id)
+        if checkpoint_data:
+            # Restore completed chunks
+            saved_chunks = checkpoint_data['chunks']
+            for chunk in saved_chunks:
+                if chunk['status'] == 'completed' and chunk['translated_text']:
+                    full_translation_parts.append(chunk['translated_text'])
+                    completed_chunks_count += 1
+                else:
+                    # Failed chunk - use original
+                    full_translation_parts.append(chunk['original_text'])
+                    failed_chunks_count += 1
+
+            # Restore translation context for continuity
+            if checkpoint_data.get('translation_context'):
+                context = checkpoint_data['translation_context']
+                last_successful_llm_context = context.get('last_llm_context', '')
+
+            if log_callback:
+                log_callback("checkpoint_resumed",
+                    f"Resumed from checkpoint: {completed_chunks_count} chunks already completed, "
+                    f"resuming from chunk {resume_from_index + 1}/{total_chunks}")
 
     if log_callback:
         log_callback("txt_translation_loop_start", "Starting segment translation...")
@@ -176,11 +205,18 @@ async def translate_chunks(chunks, source_language, target_language, model_name,
         iterator = tqdm(chunks, desc=f"Translating {source_language} to {target_language}", unit="seg") if not log_callback else chunks
 
         for i, chunk_data in enumerate(iterator):
+            # Skip already processed chunks when resuming
+            if i < resume_from_index:
+                continue
+
             if check_interruption_callback and check_interruption_callback():
-                if log_callback: 
+                if log_callback:
                     log_callback("txt_translation_interrupted", f"Translation process for segment {i+1}/{total_chunks} interrupted by user signal.")
-                else: 
+                else:
                     tqdm.write(f"\nTranslation interrupted by user at segment {i+1}/{total_chunks}.")
+                # Mark as paused when interrupted
+                if checkpoint_manager and translation_id:
+                    checkpoint_manager.mark_paused(translation_id)
                 break
 
             if progress_callback and total_chunks > 0:
@@ -201,6 +237,18 @@ async def translate_chunks(chunks, source_language, target_language, model_name,
                 completed_chunks_count += 1
                 if stats_callback and total_chunks > 0:
                     stats_callback({'completed_chunks': completed_chunks_count, 'failed_chunks': failed_chunks_count})
+                # Save checkpoint for empty chunks too
+                if checkpoint_manager and translation_id:
+                    checkpoint_manager.save_checkpoint(
+                        translation_id=translation_id,
+                        chunk_index=i,
+                        original_text=main_content_to_translate,
+                        translated_text=main_content_to_translate,
+                        chunk_data=chunk_data,
+                        total_chunks=total_chunks,
+                        completed_chunks=completed_chunks_count,
+                        failed_chunks=failed_chunks_count
+                    )
                 continue
 
             # PHASE 2: Estimate and adjust context before sending request
@@ -288,6 +336,23 @@ async def translate_chunks(chunks, source_language, target_language, model_name,
 
             if stats_callback and total_chunks > 0:
                 stats_callback({'completed_chunks': completed_chunks_count, 'failed_chunks': failed_chunks_count})
+
+            # Save checkpoint after each chunk
+            if checkpoint_manager and translation_id:
+                translation_context = {
+                    'last_llm_context': last_successful_llm_context
+                }
+                checkpoint_manager.save_checkpoint(
+                    translation_id=translation_id,
+                    chunk_index=i,
+                    original_text=main_content_to_translate,
+                    translated_text=translated_chunk_text if translated_chunk_text is not None else None,
+                    chunk_data=chunk_data,
+                    translation_context=translation_context,
+                    total_chunks=total_chunks,
+                    completed_chunks=completed_chunks_count,
+                    failed_chunks=failed_chunks_count
+                )
     
     finally:
         # Clean up LLM client resources if created

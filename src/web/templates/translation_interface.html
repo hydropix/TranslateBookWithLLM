@@ -59,7 +59,7 @@
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
                         <div class="form-group">
                             <label>Source Language</label>
-                            <select class="form-control" id="sourceLang" onchange="checkCustomSourceLanguage(this)">
+                            <select class="form-control" id="sourceLang">
                                 <option value="English">English</option>
                                 <option value="Chinese">Chinese</option>
                                 <option value="Spanish">Spanish</option>
@@ -73,7 +73,7 @@
 
                         <div class="form-group">
                             <label>Target Language</label>
-                            <select class="form-control" id="targetLang" onchange="checkCustomTargetLanguage(this)">
+                            <select class="form-control" id="targetLang">
                                 <option value="French">French</option>
                                 <option value="English">English</option>
                                 <option value="Chinese">Chinese</option>
@@ -173,11 +173,6 @@
                         <div class="stat-card"><h3 id="failedChunks">0</h3><p>Failed</p></div>
                         <div class="stat-card"><h3 id="elapsedTime">0s</h3><p>Time Elapsed</p></div>
                     </div>
-                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
-                        <h4 style="margin: 0;">💻 Activity Log</h4>
-                        <button class="btn btn-secondary" onclick="clearActivityLog()" style="font-size: 12px; padding: 5px 10px;">🗑️ Clear Log</button>
-                    </div>
-                    <div class="log-container" id="logContainer"></div>
                     <div style="margin-top: 20px;">
                         <h4 style="margin: 0 0 10px 0;">📝 Last Translation Preview</h4>
                         <div class="log-container" id="lastTranslationPreview" style="min-height: 300px; max-height: 400px;">
@@ -186,6 +181,39 @@
                     </div>
                 </div>
 
+                <!-- Activity Log - Always visible -->
+                <div style="margin-top: 30px;">
+                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
+                        <h4 style="margin: 0;">💻 Activity Log</h4>
+                        <button class="btn btn-secondary" onclick="clearActivityLog()" style="font-size: 12px; padding: 5px 10px;">🗑️ Clear Log</button>
+                    </div>
+                    <div class="log-container" id="logContainer"></div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- Resumable Jobs Section -->
+        <div class="main-card" id="resumableJobsSection" style="margin-top: 30px; display: none;">
+            <div class="card-header">
+                <h2>⏸️ Paused Translations</h2>
+                <button class="btn btn-secondary" onclick="loadResumableJobs()" title="Refresh list" style="margin-left: auto;">🔄 Refresh</button>
+            </div>
+
+            <div class="card-body">
+                <div id="resumableJobsContainer">
+                    <div id="resumableJobsLoading" style="text-align: center; padding: 20px;">
+                        <p>Loading...</p>
+                    </div>
+
+                    <div id="resumableJobsList" style="display: none;">
+                        <!-- Jobs will be inserted here -->
+                    </div>
+
+                    <div id="resumableJobsEmpty" style="text-align: center; padding: 40px; display: none;">
+                        <p style="color: #6b7280;">No paused translations</p>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -199,14 +227,14 @@
             <div class="card-body">
                 <div id="fileManagementSection">
                     <div class="file-actions" style="margin-bottom: 20px; display: flex; gap: 10px;">
-                        <button class="btn btn-primary" onclick="downloadSelectedFiles()" disabled id="batchDownloadBtn">
+                        <button class="btn btn-primary" disabled id="batchDownloadBtn">
                             📥 Download Selected (Zip)
                         </button>
-                        <button class="btn btn-danger" onclick="deleteSelectedFiles()" disabled id="batchDeleteBtn">
+                        <button class="btn btn-danger" disabled id="batchDeleteBtn">
                             🗑️ Delete Selected
                         </button>
                         <label style="margin-left: auto; display: flex; align-items: center; gap: 5px;">
-                            <input type="checkbox" id="selectAllFiles" onchange="toggleSelectAll()">
+                            <input type="checkbox" id="selectAllFiles">
                             Select All
                         </label>
                     </div>
@@ -249,6 +277,6 @@
     </div>
 
     <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
-    <script src="/static/script.js?v=20251108-2320"></script>
+    <script type="module" src="/static/js/index.js?v=20251113-001"></script>
 </body>
 </html>

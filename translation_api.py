@@ -95,6 +95,31 @@ def start_job_wrapper(translation_id, config):
 configure_routes(app, state_manager, OUTPUT_DIR, start_job_wrapper)
 configure_websocket_handlers(socketio, state_manager)
 
+# Restore incomplete jobs from database on startup
+def restore_incomplete_jobs():
+    """Restore incomplete translation jobs from checkpoints on server startup"""
+    try:
+        resumable_jobs = state_manager.get_resumable_jobs()
+        if resumable_jobs:
+            logger.info(f"📦 Found {len(resumable_jobs)} incomplete translation job(s) from previous session:")
+            for job in resumable_jobs:
+                translation_id = job['translation_id']
+                progress = job.get('progress', {})
+                completed = progress.get('completed_chunks', 0)
+                total = progress.get('total_chunks', 0)
+
+                # Restore job into in-memory state
+                state_manager.restore_job_from_checkpoint(translation_id)
+
+                logger.info(f"   - {translation_id}: {job['file_type'].upper()} ({completed}/{total} chunks completed)")
+            logger.info("   Use the web interface to resume or delete these jobs")
+        else:
+            logger.info("📦 No incomplete jobs to restore")
+    except Exception as e:
+        logger.error(f"Error restoring incomplete jobs: {e}")
+
+restore_incomplete_jobs()
+
 if __name__ == '__main__':
     # Validate configuration before starting
     validate_configuration()

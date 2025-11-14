@@ -4,12 +4,55 @@ File utilities for translation operations
 import os
 import asyncio
 import aiofiles
+from pathlib import Path
 from src.core.text_processor import split_text_into_chunks_with_context
 from src.core.translator import translate_chunks
 from src.core.subtitle_translator import translate_subtitles, translate_subtitles_in_blocks
 from src.core.epub import translate_epub_file
 from src.core.srt_processor import SRTProcessor
 from src.config import DEFAULT_MODEL, MAIN_LINES_PER_CHUNK, API_ENDPOINT, SRT_LINES_PER_BLOCK, SRT_MAX_CHARS_PER_BLOCK
+
+
+def get_unique_output_path(output_path):
+    """
+    Generate a unique output path by adding a number suffix if the file already exists.
+
+    Args:
+        output_path (str): Desired output path
+
+    Returns:
+        str: Unique output path (original or with numeric suffix)
+
+    Examples:
+        book.epub -> book.epub (if doesn't exist)
+        book.epub -> book (1).epub (if book.epub exists)
+        book.epub -> book (2).epub (if book.epub and book (1).epub exist)
+    """
+    path = Path(output_path)
+
+    # If the file doesn't exist, return the original path
+    if not path.exists():
+        return output_path
+
+    # Extract components
+    parent = path.parent
+    stem = path.stem  # filename without extension
+    suffix = path.suffix  # .epub, .txt, .srt, etc.
+
+    # Try incrementing numbers until we find a free filename
+    counter = 1
+    while True:
+        new_stem = f"{stem} ({counter})"
+        new_path = parent / f"{new_stem}{suffix}"
+
+        if not new_path.exists():
+            return str(new_path)
+
+        counter += 1
+
+        # Safety check to avoid infinite loops (highly unlikely)
+        if counter > 9999:
+            raise RuntimeError(f"Could not find unique filename after 9999 attempts for: {output_path}")
 
 
 async def translate_text_file_with_callbacks(input_filepath, output_filepath,
@@ -20,7 +63,8 @@ async def translate_text_file_with_callbacks(input_filepath, output_filepath,
                                              check_interruption_callback=None,
                                              llm_provider="ollama", gemini_api_key=None, openai_api_key=None,
                                              context_window=2048, auto_adjust_context=True, min_chunk_size=5,
-                                             simple_mode=False):
+                                             simple_mode=False, checkpoint_manager=None, translation_id=None,
+                                             resume_from_index=0):
     """
     Translate a text file with callback support
 
@@ -113,7 +157,10 @@ async def translate_text_file_with_callbacks(input_filepath, output_filepath,
         context_window=context_window,
         auto_adjust_context=auto_adjust_context,
         min_chunk_size=min_chunk_size,
-        simple_mode=simple_mode
+        simple_mode=simple_mode,
+        checkpoint_manager=checkpoint_manager,
+        translation_id=translation_id,
+        resume_from_index=resume_from_index
     )
 
     if progress_callback: 
@@ -140,7 +187,8 @@ async def translate_srt_file_with_callbacks(input_filepath, output_filepath,
                                            cli_api_endpoint=API_ENDPOINT,
                                            progress_callback=None, log_callback=None, stats_callback=None,
                                            check_interruption_callback=None,
-                                           llm_provider="ollama", gemini_api_key=None, openai_api_key=None):
+                                           llm_provider="ollama", gemini_api_key=None, openai_api_key=None,
+                                           checkpoint_manager=None, translation_id=None, resume_from_block_index=0):
     """
     Translate an SRT subtitle file with callback support
     
@@ -242,7 +290,10 @@ async def translate_srt_file_with_callbacks(input_filepath, output_filepath,
         check_interruption_callback=check_interruption_callback,
         llm_provider=llm_provider,
         gemini_api_key=gemini_api_key,
-        openai_api_key=openai_api_key
+        openai_api_key=openai_api_key,
+        checkpoint_manager=checkpoint_manager,
+        translation_id=translation_id,
+        resume_from_block_index=resume_from_block_index
     )
     
     # Update subtitles with translations
