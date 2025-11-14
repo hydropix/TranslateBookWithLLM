@@ -119,8 +119,8 @@ export const ModelDetector = {
             });
         }
 
-        if (fastModeCheckbox) {
-            fastModeCheckbox.addEventListener('change', () => {
+        if (simpleModeCheckbox) {
+            simpleModeCheckbox.addEventListener('change', () => {
                 this.checkAndShowRecommendation();
             });
         }

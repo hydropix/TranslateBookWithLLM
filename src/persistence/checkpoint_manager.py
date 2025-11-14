@@ -54,6 +54,31 @@ class CheckpointManager:
 
         return success
 
+    def get_job(self, translation_id: str) -> Optional[Dict[str, Any]]:
+        """
+        Get job information by translation ID.
+
+        Args:
+            translation_id: Job identifier
+
+        Returns:
+            Job dictionary or None if not found
+        """
+        return self.db.get_job(translation_id)
+
+    def update_job_config(self, translation_id: str, config: Dict[str, Any]) -> bool:
+        """
+        Update the configuration of an existing job.
+
+        Args:
+            translation_id: Job identifier
+            config: New configuration dictionary
+
+        Returns:
+            True if updated successfully
+        """
+        return self.db.update_job_config(translation_id, config)
+
     def _preserve_input_file(
         self,
         translation_id: str,
@@ -399,8 +424,100 @@ class CheckpointManager:
             return translated_srt, None
 
         elif file_type == 'epub':
-            # EPUB standard mode needs DOM reconstruction
-            return None, "EPUB standard mode resume not yet implemented"
+            # Check if it's fast mode
+            job = self.db.get_job(translation_id)
+            if not job:
+                return None, "Job not found"
+
+            config = job.get('config', {})
+            is_fast_mode = config.get('epub_fast_mode', False)
+
+            if not is_fast_mode:
+                # Standard mode not supported
+                return None, "EPUB standard mode resume not yet implemented"
+
+            # EPUB Fast Mode reconstruction
+            import uuid
+            import tempfile
+            import asyncio
+            from src.core.epub.epub_fast_processor import create_simple_epub
+
+            epub_metadata = config.get('epub_metadata', {
+                'title': 'Untitled',
+                'author': 'Unknown',
+                'language': 'en',
+                'identifier': str(uuid.uuid4())
+            })
+            target_language = config.get('target_language', 'en')
+
+            # Rebuild translated text from chunks (same as TXT)
+            translated_parts = []
+            for chunk in chunks:
+                if chunk['status'] == 'completed' and chunk['translated_text']:
+                    translated_parts.append(chunk['translated_text'])
+                else:
+                    # Use original text if translation failed
+                    translated_parts.append(chunk['original_text'])
+
+            translated_text = '\n'.join(translated_parts)
+
+            # Rebuild EPUB using fast mode logic
+            # Create EPUB in temp location
+            with tempfile.NamedTemporaryFile(delete=False, suffix='.epub') as temp_epub:
+                temp_path = temp_epub.name
+
+            try:
+                # Rebuild EPUB (create_simple_epub is async, so we need to run it)
+                loop = None
+                try:
+                    loop = asyncio.get_event_loop()
+                    if loop.is_closed():
+                        loop = asyncio.new_event_loop()
+                        asyncio.set_event_loop(loop)
+                except RuntimeError:
+                    loop = asyncio.new_event_loop()
+                    asyncio.set_event_loop(loop)
+
+                # Run the async function
+                if loop.is_running():
+                    # If loop is already running (e.g., in async context), create a task
+                    import concurrent.futures
+                    with concurrent.futures.ThreadPoolExecutor() as executor:
+                        future = executor.submit(
+                            lambda: asyncio.run(create_simple_epub(
+                                translated_text,
+                                temp_path,
+                                epub_metadata,
+                                target_language,
+                                log_callback=None
+                            ))
+                        )
+                        future.result()
+                else:
+                    # Loop not running, we can use run_until_complete
+                    loop.run_until_complete(create_simple_epub(
+                        translated_text,
+                        temp_path,
+                        epub_metadata,
+                        target_language,
+                        log_callback=None
+                    ))
+
+                # Read EPUB for download
+                with open(temp_path, 'rb') as f:
+                    epub_content = f.read()
+
+                return epub_content, None  # Return binary EPUB content
+
+            except Exception as e:
+                return None, f"Error rebuilding EPUB: {str(e)}"
+            finally:
+                # Clean up temp file
+                try:
+                    if os.path.exists(temp_path):
+                        os.unlink(temp_path)
+                except:
+                    pass
 
         else:
             return None, f"Unknown file type: {file_type}"

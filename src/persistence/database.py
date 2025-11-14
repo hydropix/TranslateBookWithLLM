@@ -305,6 +305,32 @@ class Database:
                 print(f"Error getting job: {e}")
                 return None
 
+    def update_job_config(self, translation_id: str, config: Dict[str, Any]) -> bool:
+        """
+        Update the configuration of an existing job.
+
+        Args:
+            translation_id: Job identifier
+            config: New configuration dictionary
+
+        Returns:
+            True if updated successfully
+        """
+        with self._lock:
+            try:
+                conn = self._get_connection()
+                cursor = conn.cursor()
+
+                cursor.execute(
+                    "UPDATE translation_jobs SET config = ?, updated_at = CURRENT_TIMESTAMP WHERE translation_id = ?",
+                    (json.dumps(config), translation_id)
+                )
+                conn.commit()
+                return cursor.rowcount > 0
+            except Exception as e:
+                print(f"Error updating job config: {e}")
+                return False
+
     def get_chunks(self, translation_id: str) -> List[Dict[str, Any]]:
         """
         Retrieve all chunks for a job.

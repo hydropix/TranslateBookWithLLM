@@ -47,7 +47,10 @@ async def translate_epub_file(
     fast_mode: bool = False,
     context_window: int = 2048,
     auto_adjust_context: bool = True,
-    min_chunk_size: int = 5
+    min_chunk_size: int = 5,
+    checkpoint_manager = None,
+    translation_id: Optional[str] = None,
+    resume_from_index: int = 0
 ) -> None:
     """
     Translate an EPUB file using LLM
@@ -74,6 +77,9 @@ async def translate_epub_file(
         context_window: Context window size for LLM
         auto_adjust_context: Auto-adjust context based on model
         min_chunk_size: Minimum chunk size
+        checkpoint_manager: Checkpoint manager for resume functionality
+        translation_id: ID of the translation job
+        resume_from_index: Index to resume from
     """
     if not os.path.exists(input_filepath):
         err_msg = f"ERROR: Input EPUB file '{input_filepath}' not found."
@@ -91,7 +97,8 @@ async def translate_epub_file(
             progress_callback, log_callback, stats_callback,
             check_interruption_callback,
             llm_provider, gemini_api_key, openai_api_key,
-            context_window, auto_adjust_context, min_chunk_size
+            context_window, auto_adjust_context, min_chunk_size,
+            checkpoint_manager, translation_id, resume_from_index
         )
         return
 
@@ -739,7 +746,10 @@ async def _translate_epub_fast_mode(
     openai_api_key: Optional[str],
     context_window: int,
     auto_adjust_context: bool,
-    min_chunk_size: int
+    min_chunk_size: int,
+    checkpoint_manager = None,
+    translation_id: Optional[str] = None,
+    resume_from_index: int = 0
 ) -> None:
     """
     Translate EPUB in fast mode (extract text, translate, rebuild)
@@ -761,6 +771,24 @@ async def _translate_epub_fast_mode(
         # Phase 1: Extract pure text
         pure_text, metadata = await extract_pure_text_from_epub(input_filepath, log_callback)
 
+        # Save EPUB metadata in checkpoint for reconstruction
+        if checkpoint_manager and translation_id:
+            try:
+                job_info = checkpoint_manager.get_job(translation_id)
+                if job_info:
+                    config = job_info.get('config', {})
+                    config['epub_metadata'] = metadata
+                    config['epub_fast_mode'] = True
+                    config['target_language'] = target_language
+                    # Update the job with metadata
+                    checkpoint_manager.update_job_config(translation_id, config)
+                    if log_callback:
+                        log_callback("epub_metadata_saved", "EPUB metadata saved to checkpoint")
+            except Exception as e:
+                # Don't fail translation if metadata save fails
+                if log_callback:
+                    log_callback("epub_metadata_save_error", f"Warning: Could not save EPUB metadata: {str(e)}")
+
         # Phase 2: Translate
         translated_text = await translate_text_as_string(
             pure_text, source_language, target_language, model_name,
@@ -774,7 +802,10 @@ async def _translate_epub_fast_mode(
             openai_api_key=openai_api_key,
             context_window=context_window,
             auto_adjust_context=auto_adjust_context,
-            min_chunk_size=min_chunk_size
+            min_chunk_size=min_chunk_size,
+            checkpoint_manager=checkpoint_manager,
+            translation_id=translation_id,
+            resume_from_index=resume_from_index
         )
 
         # Phase 3: Rebuild EPUB
