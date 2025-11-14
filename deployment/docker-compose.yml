@@ -1,7 +1,9 @@
 version: '3.8'
 services:
   translatebook:
-    build: .
+    build:
+      context: ..
+      dockerfile: deployment/Dockerfile
     container_name: translatebook-llm
     ports:
       - "${PORT:-5000}:${PORT:-5000}"

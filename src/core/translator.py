@@ -9,7 +9,7 @@ from tqdm.auto import tqdm
 from src.config import (
     DEFAULT_MODEL, TRANSLATE_TAG_IN, TRANSLATE_TAG_OUT
 )
-from prompts import generate_translation_prompt, generate_subtitle_block_prompt
+from prompts.prompts import generate_translation_prompt, generate_subtitle_block_prompt
 from .llm_client import default_client, LLMClient, create_llm_client
 from .post_processor import clean_translated_text
 from .context_optimizer import (
