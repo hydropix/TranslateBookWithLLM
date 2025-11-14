@@ -94,10 +94,10 @@
 
                 <div class="form-group" style="margin-bottom: 30px;">
                     <label style="display: flex; align-items: center; gap: 10px;">
-                        <input type="checkbox" id="simpleMode" style="width: auto;">
+                        <input type="checkbox" id="fastMode" style="width: auto;">
                         Fast Mode (EPUB only - removes all formatting, maximum reliability)
                     </label>
-                    <div id="simpleModeInfo" style="display: none; margin-top: 10px; padding: 10px; background: #eff6ff; border-left: 3px solid #3b82f6; border-radius: 4px;">
+                    <div id="fastModeInfo" style="display: none; margin-top: 10px; padding: 10px; background: #eff6ff; border-left: 3px solid #3b82f6; border-radius: 4px;">
                         <p style="margin: 0; font-size: 14px; color: #1e40af;">
                             <strong>ℹ️ Fast Mode:</strong> Extracts pure text from EPUB, translates it without HTML tags, and rebuilds a clean EPUB.
                             <br><strong>✅ Benefits:</strong> No placeholder errors, works with weak models, maximum reliability.
@@ -275,6 +275,15 @@
             </div>
         </div>
     </div>
+
+    <footer class="app-footer">
+        <p>
+            Made with <span class="heart">❤️</span> by the TBL community |
+            <a href="https://github.com/hydropix/TranslateBookWithLLM" target="_blank" rel="noopener noreferrer">
+                View on GitHub
+            </a>
+        </p>
+    </footer>
 
     <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
     <script type="module" src="/static/js/index.js?v=20251113-001"></script>

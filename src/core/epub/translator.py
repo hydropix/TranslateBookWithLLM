@@ -44,7 +44,7 @@ async def translate_epub_file(
     llm_provider: str = "ollama",
     gemini_api_key: Optional[str] = None,
     openai_api_key: Optional[str] = None,
-    simple_mode: bool = False,
+    fast_mode: bool = False,
     context_window: int = 2048,
     auto_adjust_context: bool = True,
     min_chunk_size: int = 5
@@ -70,7 +70,7 @@ async def translate_epub_file(
         llm_provider: LLM provider (ollama/gemini/openai)
         gemini_api_key: Gemini API key
         openai_api_key: OpenAI API key
-        simple_mode: Use simple mode (extract pure text, translate, rebuild)
+        fast_mode: Use fast mode (extract pure text, translate, rebuild)
         context_window: Context window size for LLM
         auto_adjust_context: Auto-adjust context based on model
         min_chunk_size: Minimum chunk size
@@ -83,9 +83,9 @@ async def translate_epub_file(
             print(err_msg)
         return
 
-    # Route to simple mode if enabled
-    if simple_mode:
-        await _translate_epub_simple_mode(
+    # Route to fast mode if enabled
+    if fast_mode:
+        await _translate_epub_fast_mode(
             input_filepath, output_filepath, source_language, target_language,
             model_name, chunk_target_lines_arg, cli_api_endpoint,
             progress_callback, log_callback, stats_callback,
@@ -520,9 +520,9 @@ def _validate_and_restore_tags(
             if log_callback:
                 log_callback("epub_placeholders_still_missing",
                            f"WARNING: Some placeholders still missing after all retries: {missing}")
-                log_callback("epub_suggest_simple_mode",
-                           "💡 TIP: If you see many placeholder warnings, enable 'Simple Mode' in the web interface. "
-                           "Simple Mode removes all HTML tags before translation, eliminating placeholder issues. "
+                log_callback("epub_suggest_fast_mode",
+                           "💡 TIP: If you see many placeholder warnings, enable 'Fast Mode' in the web interface. "
+                           "Fast Mode removes all HTML tags before translation, eliminating placeholder issues. "
                            "Perfect for weaker LLM models!")
 
     # Restore tags
@@ -722,7 +722,7 @@ async def _save_epub(
         tqdm.write(success_msg)
 
 
-async def _translate_epub_simple_mode(
+async def _translate_epub_fast_mode(
     input_filepath: str,
     output_filepath: str,
     source_language: str,
@@ -742,16 +742,16 @@ async def _translate_epub_simple_mode(
     min_chunk_size: int
 ) -> None:
     """
-    Translate EPUB in simple mode (extract text, translate, rebuild)
+    Translate EPUB in fast mode (extract text, translate, rebuild)
 
     Args:
         See translate_epub_file() for parameter descriptions
     """
     if log_callback:
-        log_callback("epub_simple_mode_active",
-                   "Simple mode activated: extracting pure text for translation")
+        log_callback("epub_fast_mode_active",
+                   "Fast mode activated: extracting pure text for translation")
 
-    from .epub_simple_processor import (
+    from .epub_fast_processor import (
         extract_pure_text_from_epub,
         translate_text_as_string,
         create_simple_epub
@@ -783,11 +783,11 @@ async def _translate_epub_simple_mode(
         )
 
         if log_callback:
-            log_callback("epub_simple_mode_complete",
-                       f"Simple mode: EPUB translation complete - {output_filepath}")
+            log_callback("epub_fast_mode_complete",
+                       f"Fast mode: EPUB translation complete - {output_filepath}")
 
     except Exception as e:
-        _log_simple_mode_error(e, log_callback)
+        _log_fast_mode_error(e, log_callback)
 
 
 # Helper functions for file discovery and logging
@@ -884,13 +884,13 @@ def _log_major_error(error: Exception, input_filepath: str, log_callback: Option
         traceback.print_exc()
 
 
-def _log_simple_mode_error(error: Exception, log_callback: Optional[Callable]) -> None:
-    """Log simple mode error"""
-    err_msg = f"ERROR in simple mode EPUB translation: {error}"
+def _log_fast_mode_error(error: Exception, log_callback: Optional[Callable]) -> None:
+    """Log fast mode error"""
+    err_msg = f"ERROR in fast mode EPUB translation: {error}"
     if log_callback:
-        log_callback("epub_simple_mode_error", err_msg)
+        log_callback("epub_fast_mode_error", err_msg)
         import traceback
-        log_callback("epub_simple_mode_traceback", traceback.format_exc())
+        log_callback("epub_fast_mode_traceback", traceback.format_exc())
     else:
         print(err_msg)
         import traceback

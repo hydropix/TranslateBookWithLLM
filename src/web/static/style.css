@@ -615,3 +615,40 @@ input[type="range"]::-moz-range-thumb {
     color: #79CDDE;
     font-weight: 600;
 }
+
+/* Footer Styles */
+.app-footer {
+    text-align: center;
+    padding: 30px 20px;
+    margin-top: 50px;
+    color: #A3ADB3;
+    border-top: 1px solid #333333;
+}
+
+.app-footer p {
+    margin: 0;
+    font-size: 14px;
+}
+
+.app-footer a {
+    color: #79CDDE;
+    text-decoration: none;
+    font-weight: 600;
+    transition: color 0.3s;
+}
+
+.app-footer a:hover {
+    color: #9CE5F4;
+    text-decoration: underline;
+}
+
+.app-footer .heart {
+    color: #E57373;
+    animation: heartbeat 1.5s ease-in-out infinite;
+}
+
+@keyframes heartbeat {
+    0%, 100% { transform: scale(1); }
+    10%, 30% { transform: scale(1.1); }
+    20%, 40% { transform: scale(1); }
+}

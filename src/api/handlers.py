@@ -211,7 +211,7 @@ async def perform_actual_translation(translation_id, config, state_manager, outp
                 llm_provider=config.get('llm_provider', 'ollama'),
                 gemini_api_key=config.get('gemini_api_key', ''),
                 openai_api_key=config.get('openai_api_key', ''),
-                simple_mode=config.get('simple_mode', False),
+                fast_mode=config.get('fast_mode', False),
                 context_window=config.get('context_window', 2048),
                 auto_adjust_context=config.get('auto_adjust_context', True),
                 min_chunk_size=config.get('min_chunk_size', 5)

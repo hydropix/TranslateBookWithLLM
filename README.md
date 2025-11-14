@@ -203,7 +203,7 @@ TBL offers **two modes** for translating EPUB files:
 
 **When to use**: You have a good model and formatting is important.
 
-#### Simple Mode ⭐ (Recommended for Compatibility)
+#### Fast Mode ⭐ (Recommended for Compatibility)
 
 - ✅ **Maximum compatibility** with all EPUB readers
 - ✅ Works with **small models** (7B, 8B parameters)
@@ -218,12 +218,12 @@ TBL offers **two modes** for translating EPUB files:
 - Your EPUB reader is strict (Aquile Reader, Adobe Digital Editions)
 - Formatting is not critical
 
-💡 **Tip**: TBL automatically detects small models and recommends Simple Mode!
+💡 **Tip**: TBL automatically detects small models and recommends Fast Mode!
 
-**How to enable Simple Mode**:
+**How to enable Fast Mode**:
 
-- ✅ Check the "Simple Mode (Recommended for small models)" checkbox in the web interface
-- Or use `--simple-mode` flag in command line
+- ✅ Check the "Fast Mode (Recommended for small models)" checkbox in the web interface
+- Or use `--fast-mode` flag in command line
 
 ### 🎬 Translating Subtitles (SRT)
 
@@ -307,15 +307,15 @@ python translate.py -i input_file.txt -o output_file.txt
 | `--api_endpoint`     | 🔗 API URL                         | http://localhost:11434/api/generate |
 | `--gemini_api_key`   | 🔑 Gemini API key                  | -                                   |
 | `--openai_api_key`   | 🔑 OpenAI API key                  | -                                   |
-| `--simple-mode`      | 📚 Simple Mode for EPUB            | Disabled                            |
+| `--fast-mode`      | 📚 Fast Mode for EPUB            | Disabled                            |
 | `--no-color`         | 🎨 Disable colors                  | Colors enabled                      |
 
 ### Practical Examples
 
-**Translate an EPUB book (Simple Mode)**
+**Translate an EPUB book (Fast Mode)**
 
 ```bash
-python translate.py -i book.epub -o book_fr.epub -sl English -tl French --simple-mode
+python translate.py -i book.epub -o book_fr.epub -sl English -tl French --fast-mode
 ```
 
 **Translate with OpenAI GPT-4**
@@ -652,10 +652,10 @@ OUTPUT_DIR=translated_files
    
    
 
-2. **For EPUB with small models**: Use Simple Mode
+2. **For EPUB with small models**: Use Fast Mode
    
    ```bash
-   --simple-mode
+   --fast-mode
    ```
 
 #### ❌ EPUB issues
@@ -664,17 +664,17 @@ OUTPUT_DIR=translated_files
 
 **Solutions**:
 
-1. **Use Simple Mode** (most reliable solution):
+1. **Use Fast Mode** (most reliable solution):
    
    ```bash
-   python translate.py -i book.epub -o book_fr.epub --simple-mode
+   python translate.py -i book.epub -o book_fr.epub --fast-mode
    ```
 
 2. **Check your EPUB reader**: Test with Calibre (more permissive)
 
-3. **If using a small model** (qwen2:7b, llama3:8b): Simple Mode required
+3. **If using a small model** (qwen2:7b, llama3:8b): Fast Mode required
 
-4. **If placeholders remain** (⟦TAG0⟧): This is a bug in Standard Mode, switch to Simple Mode
+4. **If placeholders remain** (⟦TAG0⟧): This is a bug in Standard Mode, switch to Fast Mode
 
 #### ❌ OpenAI/Gemini API errors
 
@@ -745,13 +745,13 @@ A: Depends on the model. GPT-4o is excellent, mistral-small:24b is very good, sm
 **Q: Simple or Standard Mode for my EPUB?**
 A:
 
-- **Simple Mode** if: small model (≤12B), strict reader, or you have problems
+- **Fast Mode** if: small model (≤12B), strict reader, or you have problems
 - **Standard Mode** if: large model (>12B) and complex formatting is important
 
-**Q: Does Simple Mode lose all formatting?**
+**Q: Does Fast Mode lose all formatting?**
 A: Basic structure is preserved (paragraphs, chapters), but advanced formatting (complex tables, CSS) is simplified.
 
-**Q: Why does TBL recommend Simple Mode with my model?**
+**Q: Why does TBL recommend Fast Mode with my model?**
 A: Your model has ≤12 billion parameters. Small models struggle with the placeholder system in Standard Mode.
 
 ### Performance
