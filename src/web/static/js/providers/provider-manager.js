@@ -23,6 +23,14 @@ const OPENAI_MODELS = [
 ];
 
 /**
+ * Auto-retry configuration for Ollama
+ */
+const OLLAMA_RETRY_INTERVAL = 3000; // 3 seconds
+const OLLAMA_MAX_SILENT_RETRIES = 5; // Show message after 5 failed attempts
+let ollamaRetryTimer = null;
+let ollamaRetryCount = 0;
+
+/**
  * Populate model select with options
  * @param {Array} models - Array of model objects or strings
  * @param {string} defaultModel - Default model to select
@@ -71,12 +79,14 @@ export const ProviderManager = {
 
         if (providerSelect) {
             providerSelect.addEventListener('change', () => {
+                // Stop any ongoing Ollama retries when switching providers
+                this.stopOllamaAutoRetry();
                 this.toggleProviderSettings();
             });
         }
 
-        // Show initial provider settings (without loading models - will be loaded on WebSocket connect)
-        this.toggleProviderSettings(false);
+        // Show initial provider settings and load models immediately
+        this.toggleProviderSettings(true);
     },
 
     /**
@@ -129,7 +139,7 @@ export const ProviderManager = {
     },
 
     /**
-     * Load Ollama models
+     * Load Ollama models with auto-retry on failure
      */
     async loadOllamaModels() {
         const modelSelect = DomHelpers.getElement('model');
@@ -165,6 +175,9 @@ export const ProviderManager = {
             }
 
             if (data.models && data.models.length > 0) {
+                // Success - stop auto-retry
+                this.stopOllamaAutoRetry();
+
                 MessageLogger.showMessage('', '');
                 populateModelSelect(data.models, data.default, 'ollama');
                 MessageLogger.addLog(`✅ ${data.count} LLM model(s) loaded. Default: ${data.default}`);
@@ -173,17 +186,29 @@ export const ProviderManager = {
                 // Update available models in state
                 StateManager.setState('models.availableModels', data.models);
             } else {
+                // No models available - start auto-retry
                 const errorMessage = data.error || 'No LLM models available. Ensure Ollama is running and accessible.';
-                MessageLogger.showMessage(`⚠️ ${errorMessage}`, 'error');
-                modelSelect.innerHTML = '<option value="">Check connection !</option>';
-                MessageLogger.addLog(`⚠️ No models available from Ollama at ${apiEndpoint}`);
+
+                // Show message only after several retries
+                if (ollamaRetryCount >= OLLAMA_MAX_SILENT_RETRIES) {
+                    MessageLogger.showMessage(`⚠️ ${errorMessage}`, 'error');
+                    MessageLogger.addLog(`⚠️ No models available from Ollama at ${apiEndpoint} (auto-retrying every ${OLLAMA_RETRY_INTERVAL/1000}s...)`);
+                }
+
+                modelSelect.innerHTML = '<option value="">Waiting for Ollama...</option>';
+                this.startOllamaAutoRetry();
             }
 
         } catch (error) {
             if (!thisRequest.cancelled) {
-                MessageLogger.showMessage(`❌ Error fetching models: ${error.message}`, 'error');
-                MessageLogger.addLog(`❌ Failed to retrieve model list: ${error.message}`);
-                modelSelect.innerHTML = '<option value="">Error loading models - Check Ollama</option>';
+                // Connection error - start auto-retry
+                if (ollamaRetryCount >= OLLAMA_MAX_SILENT_RETRIES) {
+                    MessageLogger.showMessage(`⚠️ Waiting for Ollama to start...`, 'warning');
+                    MessageLogger.addLog(`⚠️ Ollama not accessible, auto-retrying every ${OLLAMA_RETRY_INTERVAL/1000}s...`);
+                }
+
+                modelSelect.innerHTML = '<option value="">Waiting for Ollama...</option>';
+                this.startOllamaAutoRetry();
             }
         } finally {
             // Clear request tracker if it's still ours
@@ -191,6 +216,40 @@ export const ProviderManager = {
                 StateManager.setState('models.currentLoadRequest', null);
             }
         }
+    },
+
+    /**
+     * Start auto-retry mechanism for Ollama
+     */
+    startOllamaAutoRetry() {
+        // Don't start if already running
+        if (ollamaRetryTimer) {
+            return;
+        }
+
+        ollamaRetryCount++;
+
+        ollamaRetryTimer = setTimeout(() => {
+            ollamaRetryTimer = null;
+
+            // Only retry if still on Ollama provider
+            const currentProvider = DomHelpers.getValue('llmProvider');
+            if (currentProvider === 'ollama') {
+                console.log(`Auto-retrying Ollama connection (attempt ${ollamaRetryCount})...`);
+                this.loadOllamaModels();
+            }
+        }, OLLAMA_RETRY_INTERVAL);
+    },
+
+    /**
+     * Stop auto-retry mechanism for Ollama
+     */
+    stopOllamaAutoRetry() {
+        if (ollamaRetryTimer) {
+            clearTimeout(ollamaRetryTimer);
+            ollamaRetryTimer = null;
+        }
+        ollamaRetryCount = 0;
     },
 
     /**

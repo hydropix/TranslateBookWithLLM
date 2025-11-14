@@ -119,7 +119,12 @@ function wireModuleEvents() {
 
     // WebSocket events -> module handlers
     WebSocketManager.on('connect', () => {
-        ProviderManager.refreshModels();
+        // Only refresh models if we don't have any loaded yet
+        const hasModels = StateManager.getState('models.availableModels')?.length > 0;
+        if (!hasModels) {
+            ProviderManager.refreshModels();
+        }
+
         ResumeManager.loadResumableJobs();
         FileManager.refreshFileList();
         TranslationTracker.updateActiveTranslationsState();
