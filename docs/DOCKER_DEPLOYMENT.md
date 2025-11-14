@@ -401,5 +401,3 @@ docker image prune -a
 - [Docker Documentation](https://docs.docker.com/)
 - [Docker Compose Documentation](https://docs.docker.com/compose/)
 - [Project README](README.md)
-- [CLAUDE.md](CLAUDE.md) - Architecture and development guide
-- [SIMPLE_MODE_README.md](SIMPLE_MODE_README.md) - EPUB Fast Mode guide
