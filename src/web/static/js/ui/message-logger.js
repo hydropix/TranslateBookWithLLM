@@ -101,16 +101,33 @@ export const MessageLogger = {
         const translateMatch = response.match(/<TRANSLATION>([\s\S]*?)<\/TRANSLATION>/);
         if (!translateMatch) return;
 
-        let translatedText = translateMatch[1].trim();
+        let translatedText = translateMatch[1];
 
         // Remove placeholder tags (⟦TAG0⟧, ⟦TAG1⟧, etc.) for cleaner preview
         translatedText = translatedText.replace(/⟦TAG\d+⟧/g, '');
 
-        const previewHtml = `
-            <div style="background: #ffffff; border-left: 3px solid #22c55e; padding: 15px; color: #000000; white-space: pre-wrap; line-height: 1.6;">
-                ${DomHelpers.escapeHtml(translatedText)}
-            </div>
-        `;
+        // Remove common leading whitespace (indentation) from all lines
+        const lines = translatedText.split('\n');
+        // Find minimum indentation (excluding empty lines)
+        const minIndent = lines
+            .filter(line => line.trim().length > 0)
+            .reduce((min, line) => {
+                const match = line.match(/^(\s*)/);
+                const indent = match ? match[1].length : 0;
+                return Math.min(min, indent);
+            }, Infinity);
+
+        // Remove the common indentation from all lines
+        if (minIndent > 0 && minIndent !== Infinity) {
+            translatedText = lines
+                .map(line => line.substring(minIndent))
+                .join('\n')
+                .trim();
+        } else {
+            translatedText = translatedText.trim();
+        }
+
+        const previewHtml = `<div style="background: #ffffff; border-left: 3px solid #22c55e; padding: 15px; color: #000000; white-space: pre-wrap; line-height: 1.6;">${DomHelpers.escapeHtml(translatedText)}</div>`;
 
         DomHelpers.setHtml(previewElement, previewHtml);
     },

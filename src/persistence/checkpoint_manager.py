@@ -353,10 +353,50 @@ class CheckpointManager:
             return '\n'.join(translated_parts), None
 
         elif file_type == 'srt':
-            # SRT needs special handling to preserve timing
-            # This would need to be implemented based on SRT structure
-            # For now, return error
-            return None, "SRT resume not yet implemented"
+            # SRT needs special handling to reconstruct from blocks
+            # Each chunk contains block_translations dict mapping subtitle index to translated text
+            job = self.db.get_job(translation_id)
+            if not job:
+                return None, "Job not found"
+
+            # Build a complete translations dictionary from all blocks
+            all_translations = {}
+            for chunk in chunks:
+                block_translations = chunk.get('chunk_data', {}).get('block_translations', {})
+                for idx_str, trans_text in block_translations.items():
+                    idx = int(idx_str)
+                    all_translations[idx] = trans_text
+
+            if not all_translations:
+                return None, "No translations found in checkpoint"
+
+            # Now we need to reconstruct the SRT file
+            # We need the original subtitle structure (timing, numbering)
+            # This should be stored in the config or we need to re-parse the original file
+            config = job['config']
+            preserved_input_path = config.get('preserved_input_path')
+
+            if not preserved_input_path or not Path(preserved_input_path).exists():
+                return None, "Original SRT file not found, cannot reconstruct"
+
+            # Re-parse the original SRT to get structure
+            from src.core.srt_processor import SRTProcessor
+            srt_processor = SRTProcessor()
+
+            with open(preserved_input_path, 'r', encoding='utf-8') as f:
+                original_content = f.read()
+
+            subtitles = srt_processor.parse_srt(original_content)
+
+            # Update subtitles with translations
+            updated_subtitles = srt_processor.update_translated_subtitles(
+                subtitles, all_translations
+            )
+
+            # Reconstruct SRT
+            translated_srt = srt_processor.reconstruct_srt(updated_subtitles)
+
+            return translated_srt, None
 
         elif file_type == 'epub':
             # EPUB standard mode needs DOM reconstruction

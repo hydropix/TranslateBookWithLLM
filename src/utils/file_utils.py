@@ -187,7 +187,8 @@ async def translate_srt_file_with_callbacks(input_filepath, output_filepath,
                                            cli_api_endpoint=API_ENDPOINT,
                                            progress_callback=None, log_callback=None, stats_callback=None,
                                            check_interruption_callback=None,
-                                           llm_provider="ollama", gemini_api_key=None, openai_api_key=None):
+                                           llm_provider="ollama", gemini_api_key=None, openai_api_key=None,
+                                           checkpoint_manager=None, translation_id=None, resume_from_block_index=0):
     """
     Translate an SRT subtitle file with callback support
     
@@ -289,7 +290,10 @@ async def translate_srt_file_with_callbacks(input_filepath, output_filepath,
         check_interruption_callback=check_interruption_callback,
         llm_provider=llm_provider,
         gemini_api_key=gemini_api_key,
-        openai_api_key=openai_api_key
+        openai_api_key=openai_api_key,
+        checkpoint_manager=checkpoint_manager,
+        translation_id=translation_id,
+        resume_from_block_index=resume_from_block_index
     )
     
     # Update subtitles with translations

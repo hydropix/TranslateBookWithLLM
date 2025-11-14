@@ -278,7 +278,10 @@ async def perform_actual_translation(translation_id, config, state_manager, outp
                 check_interruption_callback=should_interrupt_current_task,
                 llm_provider=config.get('llm_provider', 'ollama'),
                 gemini_api_key=config.get('gemini_api_key', ''),
-                openai_api_key=config.get('openai_api_key', '')
+                openai_api_key=config.get('openai_api_key', ''),
+                checkpoint_manager=checkpoint_manager,
+                translation_id=translation_id,
+                resume_from_block_index=resume_from_index
             )
             
             state_manager.set_translation_field(translation_id, 'result', "[SRT file translated - download to view]")

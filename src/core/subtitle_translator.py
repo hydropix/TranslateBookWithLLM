@@ -1,6 +1,7 @@
 """
 Subtitle-specific translation module
 """
+import time
 from typing import List, Dict, Optional
 from tqdm.auto import tqdm
 
@@ -134,10 +135,12 @@ async def translate_subtitles_in_blocks(subtitle_blocks: List[List[Dict[str, str
                                       custom_instructions="", llm_provider="ollama",
                                       gemini_api_key=None, openai_api_key=None,
                                       enable_post_processing=False,
-                                      post_processing_instructions="") -> Dict[int, str]:
+                                      post_processing_instructions="",
+                                      checkpoint_manager=None, translation_id=None,
+                                      resume_from_block_index=0) -> Dict[int, str]:
     """
     Translate subtitle entries in blocks for better context preservation.
-    
+
     Args:
         subtitle_blocks: List of subtitle blocks (each block is a list of subtitle dicts)
         source_language: Source language
@@ -149,7 +152,10 @@ async def translate_subtitles_in_blocks(subtitle_blocks: List[List[Dict[str, str
         stats_callback: Statistics update callback
         check_interruption_callback: Interruption check callback
         custom_instructions: Additional translation instructions
-        
+        checkpoint_manager: CheckpointManager instance for saving progress
+        translation_id: Job ID for checkpoint saving
+        resume_from_block_index: Block index to resume from (for resumed jobs)
+
     Returns:
         dict: Mapping of subtitle index to translated text
     """
@@ -161,12 +167,46 @@ async def translate_subtitles_in_blocks(subtitle_blocks: List[List[Dict[str, str
     total_blocks = len(subtitle_blocks)
     total_subtitles = sum(len(block) for block in subtitle_blocks)
     translations = {}
-    completed_count = 0
-    failed_count = 0
+    completed_count = 0  # Number of subtitles completed
+    failed_count = 0  # Number of subtitles failed
+    completed_blocks_count = 0  # Number of blocks completed
+    failed_blocks_count = 0  # Number of blocks failed
     previous_translation_block = ""
-    
+
+    # Handle resume: load previously translated blocks
+    if checkpoint_manager and translation_id and resume_from_block_index > 0:
+        checkpoint_data = checkpoint_manager.load_checkpoint(translation_id)
+        if checkpoint_data:
+            # Restore completed translations
+            saved_chunks = checkpoint_data['chunks']
+            for chunk in saved_chunks:
+                if chunk['status'] == 'completed' and chunk['translated_text']:
+                    # chunk_data contains the block_translations dict
+                    block_translations = chunk.get('chunk_data', {}).get('block_translations', {})
+                    for idx, trans_text in block_translations.items():
+                        translations[int(idx)] = trans_text
+                        completed_count += 1
+                    completed_blocks_count += 1  # Count completed blocks
+                elif chunk['status'] == 'failed':
+                    # Restore original text for failed blocks
+                    block_translations = chunk.get('chunk_data', {}).get('block_translations', {})
+                    for idx, original_text in block_translations.items():
+                        translations[int(idx)] = original_text
+                        failed_count += 1
+                    failed_blocks_count += 1  # Count failed blocks
+
+            # Restore translation context for continuity
+            if checkpoint_data.get('translation_context'):
+                context = checkpoint_data['translation_context']
+                previous_translation_block = context.get('previous_translation_block', '')
+
+            if log_callback:
+                log_callback("checkpoint_resumed",
+                    f"Resumed from checkpoint: {completed_count} subtitles already completed, "
+                    f"resuming from block {resume_from_block_index + 1}/{total_blocks}")
+
     if log_callback:
-        log_callback("srt_block_translation_start", 
+        log_callback("srt_block_translation_start",
                     f"Starting block translation: {total_subtitles} subtitles in {total_blocks} blocks...")
     
     # Create LLM client based on provider or custom endpoint
@@ -174,14 +214,21 @@ async def translate_subtitles_in_blocks(subtitle_blocks: List[List[Dict[str, str
     
     try:
         for block_idx, block in enumerate(subtitle_blocks):
+            # Skip already processed blocks when resuming
+            if block_idx < resume_from_block_index:
+                continue
+
             if check_interruption_callback and check_interruption_callback():
                 if log_callback:
-                    log_callback("srt_translation_interrupted", 
+                    log_callback("srt_translation_interrupted",
                                f"Translation interrupted at block {block_idx+1}/{total_blocks}")
                 else:
                     tqdm.write(f"\nTranslation interrupted at block {block_idx+1}/{total_blocks}")
+                # Mark as paused when interrupted
+                if checkpoint_manager and translation_id:
+                    checkpoint_manager.mark_paused(translation_id)
                 break
-            
+
             if progress_callback and total_blocks > 0:
                 progress_callback((block_idx / total_blocks) * 100)
             
@@ -214,24 +261,43 @@ async def translate_subtitles_in_blocks(subtitle_blocks: List[List[Dict[str, str
             max_retries = 3
             retry_count = 0
             translated_block_text = None
-            
+
             while retry_count < max_retries:
                 try:
                     if retry_count > 0 and log_callback:
                         log_callback("srt_block_retry", f"Retry attempt {retry_count} for block {block_idx+1}")
-                    
+
+                    # Log the LLM request with structured data for web interface
+                    if log_callback:
+                        log_callback("llm_request", "Sending subtitle block to LLM", data={
+                            'type': 'llm_request',
+                            'prompt': prompt,
+                            'model': model_name
+                        })
+
                     print("\n-------SENT to LLM-------")
                     print(prompt)
                     print("-------SENT to LLM-------\n")
-                    
+
                     # Use provided client or default
                     client = llm_client or default_client
+                    start_time = time.time()
                     full_raw_response = await client.make_request(prompt, model_name)
-                    
+                    execution_time = time.time() - start_time
+
                     print("\n-------LLM RESPONSE-------")
                     print(full_raw_response or "None")
                     print("-------LLM RESPONSE-------\n")
-                    
+
+                    # Log the LLM response with structured data for web interface preview
+                    if full_raw_response and log_callback:
+                        log_callback("llm_response", "LLM Response received", data={
+                            'type': 'llm_response',
+                            'response': full_raw_response,
+                            'execution_time': execution_time,
+                            'model': model_name
+                        })
+
                     if full_raw_response:
                         translated_block_text = client.extract_translation(full_raw_response)
                         
@@ -304,13 +370,14 @@ async def translate_subtitles_in_blocks(subtitle_blocks: List[List[Dict[str, str
                 block_translations = srt_processor.extract_block_translations(
                     translated_block_text, block_indices
                 )
-                
+
                 # Update translations dictionary
                 for idx, trans_text in block_translations.items():
                     translations[idx] = trans_text
                     completed_count += 1
-                
-                # Track failed translations in block
+
+                # Track failed translations in block (individual subtitles that couldn't be extracted)
+                subtitles_failed_in_block = 0
                 for idx in block_indices:
                     if idx not in block_translations:
                         # Keep original text for missing translations
@@ -318,13 +385,40 @@ async def translate_subtitles_in_blocks(subtitle_blocks: List[List[Dict[str, str
                             if int(subtitle['number']) - 1 == idx:
                                 translations[idx] = subtitle['text']
                                 failed_count += 1
+                                subtitles_failed_in_block += 1
                                 break
-                
+
+                # Increment completed blocks count (even if some subtitles failed in extraction)
+                completed_blocks_count += 1
+
                 # Store translated block for context (last 5 subtitles)
                 last_subtitles = []
                 for idx in sorted(block_translations.keys())[-5:]:
                     last_subtitles.append(f"[{idx}]{block_translations[idx]}")
                 previous_translation_block = '\n'.join(last_subtitles)
+
+                # Save checkpoint after successful block translation
+                if checkpoint_manager and translation_id:
+                    # Create chunk_data with block information
+                    block_chunk_data = {
+                        'block_translations': block_translations,
+                        'block_indices': block_indices
+                    }
+                    translation_context = {
+                        'previous_translation_block': previous_translation_block
+                    }
+                    # For SRT: completed_chunks = number of BLOCKS completed (not individual subtitles)
+                    checkpoint_manager.save_checkpoint(
+                        translation_id=translation_id,
+                        chunk_index=block_idx,
+                        original_text=translated_block_text,  # Store the raw LLM response
+                        translated_text=translated_block_text,
+                        chunk_data=block_chunk_data,
+                        translation_context=translation_context,
+                        total_chunks=total_blocks,
+                        completed_chunks=completed_blocks_count,
+                        failed_chunks=failed_blocks_count
+                    )
                 
             else:
                 # Block translation failed - keep original text
@@ -333,13 +427,40 @@ async def translate_subtitles_in_blocks(subtitle_blocks: List[List[Dict[str, str
                     log_callback("srt_block_error", err_msg)
                 else:
                     tqdm.write(f"\n{err_msg}")
-                
+
+                # Store original text for failed translations
+                failed_block_translations = {}
                 for subtitle in block:
                     idx = int(subtitle['number']) - 1
                     translations[idx] = subtitle['text']
+                    failed_block_translations[idx] = subtitle['text']
                     failed_count += 1
-                
+
+                # Increment failed blocks count
+                failed_blocks_count += 1
+
                 previous_translation_block = ""  # Reset context on failure
+
+                # Save checkpoint for failed block
+                if checkpoint_manager and translation_id:
+                    block_chunk_data = {
+                        'block_translations': failed_block_translations,
+                        'block_indices': block_indices
+                    }
+                    translation_context = {
+                        'previous_translation_block': previous_translation_block
+                    }
+                    checkpoint_manager.save_checkpoint(
+                        translation_id=translation_id,
+                        chunk_index=block_idx,
+                        original_text="",  # No translated text for failed blocks
+                        translated_text=None,  # Mark as failed
+                        chunk_data=block_chunk_data,
+                        translation_context=translation_context,
+                        total_chunks=total_blocks,
+                        completed_chunks=completed_blocks_count,
+                        failed_chunks=failed_blocks_count
+                    )
             
             if stats_callback and total_subtitles > 0:
                 stats_callback({

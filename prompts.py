@@ -213,7 +213,8 @@ def generate_subtitle_block_prompt(
     source_language: str = "English",
     target_language: str = "French",
     translate_tag_in: str = TRANSLATE_TAG_IN,
-    translate_tag_out: str = TRANSLATE_TAG_OUT
+    translate_tag_out: str = TRANSLATE_TAG_OUT,
+    custom_instructions: str = ""
 ) -> str:
     """
     Generate translation prompt for multiple subtitle blocks with index markers.
@@ -225,6 +226,7 @@ def generate_subtitle_block_prompt(
         target_language: Target language
         translate_tag_in: Opening tag for translation output
         translate_tag_out: Closing tag for translation output
+        custom_instructions: Additional custom translation instructions
 
     Returns:
         str: The complete prompt formatted for subtitle block translation
@@ -243,6 +245,16 @@ def generate_subtitle_block_prompt(
         example_format=subtitle_example_format
     )
 
+    # Build custom instructions section if provided
+    custom_instructions_section = ""
+    if custom_instructions and custom_instructions.strip():
+        custom_instructions_section = f"""
+
+# ADDITIONAL CUSTOM INSTRUCTIONS
+
+{custom_instructions.strip()}
+"""
+
     # Enhanced instructions for subtitle translation
     role_and_instructions_block = f"""You are a professional {target_language} subtitle translator and dialogue adaptation specialist.
 
@@ -258,7 +270,7 @@ def generate_subtitle_block_prompt(
 **Subtitle-Specific Rules:**
 - Prioritize clarity and reading speed over literal accuracy
 - Condense when necessary without losing meaning
-- Use natural, spoken {target_language} (not formal written style)
+- Use natural, spoken {target_language} (not formal written style){custom_instructions_section}
 
 # TRANSLATION EXAMPLES (Dialogue - English → French)
 
