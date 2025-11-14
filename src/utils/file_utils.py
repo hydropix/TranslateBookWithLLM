@@ -163,21 +163,32 @@ async def translate_text_file_with_callbacks(input_filepath, output_filepath,
         resume_from_index=resume_from_index
     )
 
-    if progress_callback: 
+    if progress_callback:
         progress_callback(100)
 
+    # Add signature footer if enabled
+    from src.config import SIGNATURE_ENABLED, PROJECT_NAME, PROJECT_GITHUB
+
     final_translated_text = "\n".join(translated_parts)
+
+    if SIGNATURE_ENABLED:
+        signature_footer = f"\n\n{'='*60}\n"
+        signature_footer += f"Translated with {PROJECT_NAME}\n"
+        signature_footer += f"{PROJECT_GITHUB}\n"
+        signature_footer += f"{'='*60}\n"
+        final_translated_text += signature_footer
+
     try:
         async with aiofiles.open(output_filepath, 'w', encoding='utf-8') as f:
             await f.write(final_translated_text)
         success_msg = f"Full/Partial translation saved: '{output_filepath}'"
-        if log_callback: 
+        if log_callback:
             log_callback("txt_save_success", success_msg)
     except Exception as e:
         err_msg = f"ERROR: Saving output file '{output_filepath}': {e}"
-        if log_callback: 
+        if log_callback:
             log_callback("txt_save_error", err_msg)
-        else: 
+        else:
             print(err_msg)
 
 

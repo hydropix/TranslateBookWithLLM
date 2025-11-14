@@ -560,7 +560,7 @@ def _create_chapter_xhtml(title: str, text: str, language: str = 'en') -> str:
 
 def _create_content_opf(metadata: dict, chapter_files: list) -> str:
     """
-    Create content.opf file content.
+    Create content.opf file content with translation signature.
 
     Args:
         metadata: Dictionary with title, author, language, identifier
@@ -570,6 +570,7 @@ def _create_content_opf(metadata: dict, chapter_files: list) -> str:
         Complete OPF XML string
     """
     import html
+    from src.config import SIGNATURE_ENABLED, PROJECT_NAME, PROJECT_GITHUB
 
     title = html.escape(metadata.get('title', 'Untitled'))
     author = html.escape(metadata.get('author', 'Unknown'))
@@ -595,6 +596,15 @@ def _create_content_opf(metadata: dict, chapter_files: list) -> str:
 
     spine_xml = '\n'.join(spine_items)
 
+    # Add signature to metadata if enabled
+    signature_metadata = ""
+    if SIGNATURE_ENABLED:
+        contributor_escaped = html.escape(PROJECT_NAME)
+        description_escaped = html.escape(f"Translated using {PROJECT_NAME}\n{PROJECT_GITHUB}")
+        signature_metadata = f'''
+    <dc:contributor opf:role="trl">{contributor_escaped}</dc:contributor>
+    <dc:description>{description_escaped}</dc:description>'''
+
     # EPUB 2.0 format - like working EPUBs
     return f'''<?xml version='1.0' encoding='utf-8'?>
 <package xmlns="http://www.idpf.org/2007/opf" version="2.0" unique-identifier="uuid_id">
@@ -603,7 +613,7 @@ def _create_content_opf(metadata: dict, chapter_files: list) -> str:
     <dc:creator opf:role="aut">{author}</dc:creator>
     <dc:language>{language}</dc:language>
     <dc:identifier id="uuid_id" opf:scheme="uuid">{identifier}</dc:identifier>
-    <dc:date>{date}</dc:date>
+    <dc:date>{date}</dc:date>{signature_metadata}
   </metadata>
   <manifest>
 {manifest_xml}
