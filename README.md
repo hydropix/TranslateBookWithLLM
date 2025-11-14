@@ -307,7 +307,7 @@ python translate.py -i input_file.txt -o output_file.txt
 | `--api_endpoint`     | 🔗 API URL                         | http://localhost:11434/api/generate |
 | `--gemini_api_key`   | 🔑 Gemini API key                  | -                                   |
 | `--openai_api_key`   | 🔑 OpenAI API key                  | -                                   |
-| `--fast-mode`      | 📚 Fast Mode for EPUB            | Disabled                            |
+| `--fast-mode`        | 📚 Fast Mode for EPUB              | Disabled                            |
 | `--no-color`         | 🎨 Disable colors                  | Colors enabled                      |
 
 ### Practical Examples
