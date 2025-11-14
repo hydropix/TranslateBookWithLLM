@@ -86,7 +86,7 @@ def generate_translation_prompt(
     target_language: str = "French",
     translate_tag_in: str = TRANSLATE_TAG_IN,
     translate_tag_out: str = TRANSLATE_TAG_OUT,
-    simple_mode: bool = False
+    fast_mode: bool = False
 ) -> str:
     """
     Generate the translation prompt with all contextual elements.
@@ -100,7 +100,7 @@ def generate_translation_prompt(
         target_language: Target language name
         translate_tag_in: Opening tag for translation output
         translate_tag_out: Closing tag for translation output
-        simple_mode: If True, excludes placeholder preservation instructions (for pure text translation)
+        fast_mode: If True, excludes placeholder preservation instructions (for pure text translation)
 
     Returns:
         str: The complete prompt formatted for translation
@@ -109,7 +109,7 @@ def generate_translation_prompt(
 
     # Build the output format section outside the f-string to avoid backslash issues in Python 3.11
     additional_rules_text = "\n6. Do NOT repeat the input text or tags\n7. Preserve all spacing, indentation, and line breaks exactly as in source"
-    example_format_text = "Votre texte traduit ici." if simple_mode else "Votre texte traduit ici avec tous les ⟦TAG0⟧ préservés exactement."
+    example_format_text = "Votre texte traduit ici." if fast_mode else "Votre texte traduit ici avec tous les ⟦TAG0⟧ préservés exactement."
     output_format_section = _get_output_format_section(
         translate_tag_in,
         translate_tag_out,
@@ -165,7 +165,7 @@ English: "She has been working on this project for three years"
 ✅ CORRECT (active voice): "L'analyse a permis d'obtenir les résultats"
 English: "The results were obtained after analysis"
 
-{'' if simple_mode else PLACEHOLDER_PRESERVATION_SECTION}
+{'' if fast_mode else PLACEHOLDER_PRESERVATION_SECTION}
 
 {output_format_section}
 """

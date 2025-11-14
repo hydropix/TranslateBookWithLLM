@@ -1,5 +1,5 @@
 """
-Simple EPUB processor that extracts pure text, translates it, and rebuilds a minimal EPUB.
+Fast EPUB processor that extracts pure text, translates it, and rebuilds a minimal EPUB.
 
 PRODUCTION-READY APPROACH:
 1. Extract 100% pure text from EPUB (strip ALL HTML/XML/structure)
@@ -62,7 +62,7 @@ async def extract_pure_text_from_epub(epub_path: str, log_callback=None) -> tupl
         raise FileNotFoundError(f"EPUB file not found: {epub_path}")
 
     if log_callback:
-        log_callback("simple_mode_extraction_start", "Simple mode: Extracting pure text from EPUB")
+        log_callback("fast_mode_extraction_start", "Fast mode: Extracting pure text from EPUB")
 
     metadata = {
         'title': 'Untitled',
@@ -155,7 +155,7 @@ async def extract_pure_text_from_epub(epub_path: str, log_callback=None) -> tupl
                         except Exception as e:
                             # Log but continue with other chapters if one fails
                             if log_callback:
-                                log_callback("simple_mode_chapter_extraction_error",
+                                log_callback("fast_mode_chapter_extraction_error",
                                            f"Warning: Failed to extract text from {href}: {e}")
                             continue
 
@@ -166,8 +166,8 @@ async def extract_pure_text_from_epub(epub_path: str, log_callback=None) -> tupl
             raise ValueError("No text content could be extracted from EPUB")
 
         if log_callback:
-            log_callback("simple_mode_extraction_complete",
-                        f"Simple mode: Extracted {len(full_text)} characters of pure text")
+            log_callback("fast_mode_extraction_complete",
+                        f"Fast mode: Extracted {len(full_text)} characters of pure text")
 
         return full_text, metadata
 
@@ -325,13 +325,13 @@ async def create_simple_epub(translated_text: str, output_path: str, metadata: d
         log_callback: Optional logging callback
     """
     if log_callback:
-        log_callback("simple_mode_rebuild_start", "Simple mode: Building generic EPUB from translated text")
+        log_callback("fast_mode_rebuild_start", "Fast mode: Building generic EPUB from translated text")
 
     # Split text into chapters (auto-pagination by word count)
     chapters = _auto_split_into_chapters(translated_text, words_per_chapter=5000)
 
     if log_callback:
-        log_callback("simple_mode_chapters_created", f"Simple mode: Created {len(chapters)} chapters")
+        log_callback("fast_mode_chapters_created", f"Fast mode: Created {len(chapters)} chapters")
 
     with tempfile.TemporaryDirectory() as temp_dir:
         # Create EPUB directory structure - FLAT (EPUB 2.0 style, like working EPUBs)
@@ -412,8 +412,8 @@ async def create_simple_epub(translated_text: str, output_path: str, metadata: d
                     epub_zip.write(xhtml_path, filename)
 
     if log_callback:
-        log_callback("simple_mode_epub_created",
-                    f"Simple mode: EPUB created successfully with {len(chapters)} chapters at {output_path}")
+        log_callback("fast_mode_epub_created",
+                    f"Fast mode: EPUB created successfully with {len(chapters)} chapters at {output_path}")
 
 
 def _auto_split_into_chapters(text: str, words_per_chapter: int = 5000) -> list[str]:
@@ -560,7 +560,7 @@ def _create_chapter_xhtml(title: str, text: str, language: str = 'en') -> str:
 
 def _create_content_opf(metadata: dict, chapter_files: list) -> str:
     """
-    Create content.opf file content.
+    Create content.opf file content with translation signature.
 
     Args:
         metadata: Dictionary with title, author, language, identifier
@@ -570,6 +570,7 @@ def _create_content_opf(metadata: dict, chapter_files: list) -> str:
         Complete OPF XML string
     """
     import html
+    from src.config import SIGNATURE_ENABLED, PROJECT_NAME, PROJECT_GITHUB
 
     title = html.escape(metadata.get('title', 'Untitled'))
     author = html.escape(metadata.get('author', 'Unknown'))
@@ -595,6 +596,15 @@ def _create_content_opf(metadata: dict, chapter_files: list) -> str:
 
     spine_xml = '\n'.join(spine_items)
 
+    # Add signature to metadata if enabled
+    signature_metadata = ""
+    if SIGNATURE_ENABLED:
+        contributor_escaped = html.escape(PROJECT_NAME)
+        description_escaped = html.escape(f"Translated using {PROJECT_NAME}\n{PROJECT_GITHUB}")
+        signature_metadata = f'''
+    <dc:contributor opf:role="trl">{contributor_escaped}</dc:contributor>
+    <dc:description>{description_escaped}</dc:description>'''
+
     # EPUB 2.0 format - like working EPUBs
     return f'''<?xml version='1.0' encoding='utf-8'?>
 <package xmlns="http://www.idpf.org/2007/opf" version="2.0" unique-identifier="uuid_id">
@@ -603,7 +613,7 @@ def _create_content_opf(metadata: dict, chapter_files: list) -> str:
     <dc:creator opf:role="aut">{author}</dc:creator>
     <dc:language>{language}</dc:language>
     <dc:identifier id="uuid_id" opf:scheme="uuid">{identifier}</dc:identifier>
-    <dc:date>{date}</dc:date>
+    <dc:date>{date}</dc:date>{signature_metadata}
   </metadata>
   <manifest>
 {manifest_xml}
@@ -681,7 +691,7 @@ async def translate_text_as_string(
     """
     Translate a text string using the standard text translation workflow.
 
-    This function is used by simple mode EPUB translation to translate
+    This function is used by fast mode EPUB translation to translate
     the extracted pure text.
 
     Args:
@@ -706,8 +716,8 @@ async def translate_text_as_string(
         Translated text string
     """
     if log_callback:
-        log_callback("simple_mode_text_translation_start",
-                    f"Simple mode: Translating text from {source_language} to {target_language}")
+        log_callback("fast_mode_text_translation_start",
+                    f"Fast mode: Translating text from {source_language} to {target_language}")
 
     # Split text into chunks
     structured_chunks = split_text_into_chunks_with_context(text, chunk_target_lines)
@@ -718,25 +728,25 @@ async def translate_text_as_string(
 
     if total_chunks == 0 and text.strip():
         if log_callback:
-            log_callback("simple_mode_no_chunks",
-                        "Simple mode: No chunks generated, processing as single block")
+            log_callback("fast_mode_no_chunks",
+                        "Fast mode: No chunks generated, processing as single block")
         structured_chunks = [{"context_before": "", "main_content": text, "context_after": ""}]
         total_chunks = 1
         if stats_callback:
             stats_callback({'total_chunks': 1, 'completed_chunks': 0, 'failed_chunks': 0})
     elif total_chunks == 0:
         if log_callback:
-            log_callback("simple_mode_empty_text", "Simple mode: Empty text, skipping translation")
+            log_callback("fast_mode_empty_text", "Fast mode: Empty text, skipping translation")
         if progress_callback:
             progress_callback(100)
         return ""
 
     if log_callback:
-        log_callback("simple_mode_chunks_info",
-                    f"Simple mode: Translating {total_chunks} chunks")
+        log_callback("fast_mode_chunks_info",
+                    f"Fast mode: Translating {total_chunks} chunks")
 
     # Translate chunks using the standard text translation workflow
-    # IMPORTANT: Pass simple_mode=True to use simplified prompts without placeholder instructions
+    # IMPORTANT: Pass fast_mode=True to use simplified prompts without placeholder instructions
     translated_parts = await translate_chunks(
         structured_chunks,
         source_language,
@@ -753,7 +763,7 @@ async def translate_text_as_string(
         context_window=context_window,
         auto_adjust_context=auto_adjust_context,
         min_chunk_size=min_chunk_size,
-        simple_mode=True  # Simple mode uses pure text - no HTML/XML placeholders
+        fast_mode=True  # Fast mode uses pure text - no HTML/XML placeholders
     )
 
     if progress_callback:
@@ -766,7 +776,7 @@ async def translate_text_as_string(
     translated_text = _clean_translation_tags(translated_text)
 
     if log_callback:
-        log_callback("simple_mode_text_translation_complete",
-                    f"Simple mode: Translation complete, {len(translated_text)} characters")
+        log_callback("fast_mode_text_translation_complete",
+                    f"Fast mode: Translation complete, {len(translated_text)} characters")
 
     return translated_text

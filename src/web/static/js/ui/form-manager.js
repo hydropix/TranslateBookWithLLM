@@ -78,11 +78,11 @@ export const FormManager = {
             });
         }
 
-        // Simple mode checkbox
-        const simpleMode = DomHelpers.getElement('simpleMode');
-        if (simpleMode) {
-            simpleMode.addEventListener('change', (e) => {
-                this.handleSimpleModeToggle(e.target.checked);
+        // Fast mode checkbox
+        const fastMode = DomHelpers.getElement('fastMode');
+        if (fastMode) {
+            fastMode.addEventListener('change', (e) => {
+                this.handleFastModeToggle(e.target.checked);
             });
         }
 
@@ -148,24 +148,24 @@ export const FormManager = {
     },
 
     /**
-     * Handle simple mode toggle
-     * @param {boolean} isChecked - Whether simple mode is checked
+     * Handle fast mode toggle
+     * @param {boolean} isChecked - Whether fast mode is checked
      */
-    handleSimpleModeToggle(isChecked) {
-        const simpleModeInfo = DomHelpers.getElement('simpleModeInfo');
+    handleFastModeToggle(isChecked) {
+        const fastModeInfo = DomHelpers.getElement('fastModeInfo');
 
         // Use inline style to override display:none
-        if (simpleModeInfo) {
+        if (fastModeInfo) {
             if (isChecked) {
-                simpleModeInfo.style.display = 'block';
+                fastModeInfo.style.display = 'block';
             } else {
-                simpleModeInfo.style.display = 'none';
+                fastModeInfo.style.display = 'none';
             }
         }
 
-        // Re-check model size when simple mode changes
+        // Re-check model size when fast mode changes
         // This will be handled by model-detector.js when it's created
-        window.dispatchEvent(new CustomEvent('simpleModeChanged', { detail: { enabled: isChecked } }));
+        window.dispatchEvent(new CustomEvent('fastModeChanged', { detail: { enabled: isChecked } }));
     },
 
     /**
@@ -347,7 +347,7 @@ export const FormManager = {
             context_window: parseInt(DomHelpers.getValue('contextWindow')),
             max_attempts: parseInt(DomHelpers.getValue('maxAttempts')),
             retry_delay: parseInt(DomHelpers.getValue('retryDelay')),
-            simple_mode: DomHelpers.getElement('simpleMode')?.checked || false
+            fast_mode: DomHelpers.getElement('fastMode')?.checked || false
         };
     },
 

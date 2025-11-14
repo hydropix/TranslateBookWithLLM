@@ -223,7 +223,7 @@ TBL offers **two modes** for translating EPUB files:
 **How to enable Fast Mode**:
 
 - ✅ Check the "Fast Mode (Recommended for small models)" checkbox in the web interface
-- Or use `--simple-mode` flag in command line
+- Or use `--fast-mode` flag in command line
 
 ### 🎬 Translating Subtitles (SRT)
 
@@ -307,7 +307,7 @@ python translate.py -i input_file.txt -o output_file.txt
 | `--api_endpoint`     | 🔗 API URL                         | http://localhost:11434/api/generate |
 | `--gemini_api_key`   | 🔑 Gemini API key                  | -                                   |
 | `--openai_api_key`   | 🔑 OpenAI API key                  | -                                   |
-| `--simple-mode`      | 📚 Fast Mode for EPUB            | Disabled                            |
+| `--fast-mode`        | 📚 Fast Mode for EPUB              | Disabled                            |
 | `--no-color`         | 🎨 Disable colors                  | Colors enabled                      |
 
 ### Practical Examples
@@ -315,7 +315,7 @@ python translate.py -i input_file.txt -o output_file.txt
 **Translate an EPUB book (Fast Mode)**
 
 ```bash
-python translate.py -i book.epub -o book_fr.epub -sl English -tl French --simple-mode
+python translate.py -i book.epub -o book_fr.epub -sl English -tl French --fast-mode
 ```
 
 **Translate with OpenAI GPT-4**
@@ -655,7 +655,7 @@ OUTPUT_DIR=translated_files
 2. **For EPUB with small models**: Use Fast Mode
    
    ```bash
-   --simple-mode
+   --fast-mode
    ```
 
 #### ❌ EPUB issues
@@ -667,7 +667,7 @@ OUTPUT_DIR=translated_files
 1. **Use Fast Mode** (most reliable solution):
    
    ```bash
-   python translate.py -i book.epub -o book_fr.epub --simple-mode
+   python translate.py -i book.epub -o book_fr.epub --fast-mode
    ```
 
 2. **Check your EPUB reader**: Test with Calibre (more permissive)

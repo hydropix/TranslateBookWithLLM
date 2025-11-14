@@ -25,7 +25,7 @@ from typing import List, Dict, Tuple, Optional
 
 async def generate_translation_request(main_content, context_before, context_after, previous_translation_context,
                                        source_language="English", target_language="French", model=DEFAULT_MODEL,
-                                       llm_client=None, log_callback=None, simple_mode=False):
+                                       llm_client=None, log_callback=None, fast_mode=False):
     """
     Generate translation request to LLM API
 
@@ -39,7 +39,7 @@ async def generate_translation_request(main_content, context_before, context_aft
         model (str): LLM model name
         llm_client: LLM client instance
         log_callback (callable): Logging callback function
-        simple_mode (bool): If True, uses simplified prompts without placeholder instructions
+        fast_mode (bool): If True, uses simplified prompts without placeholder instructions
 
     Returns:
         str: Translated text or None if failed
@@ -57,7 +57,7 @@ async def generate_translation_request(main_content, context_before, context_aft
         previous_translation_context,
         source_language,
         target_language,
-        simple_mode=simple_mode
+        fast_mode=fast_mode
     )
     
     # Log the LLM request with structured data for web interface
@@ -120,7 +120,7 @@ async def translate_chunks(chunks, source_language, target_language, model_name,
                           api_endpoint, progress_callback=None, log_callback=None,
                           stats_callback=None, check_interruption_callback=None,
                           llm_provider="ollama", gemini_api_key=None, openai_api_key=None,
-                          context_window=2048, auto_adjust_context=True, min_chunk_size=5, simple_mode=False,
+                          context_window=2048, auto_adjust_context=True, min_chunk_size=5, fast_mode=False,
                           checkpoint_manager=None, translation_id=None, resume_from_index=0):
     """
     Translate a list of text chunks
@@ -138,7 +138,7 @@ async def translate_chunks(chunks, source_language, target_language, model_name,
         context_window (int): Context window size (num_ctx)
         auto_adjust_context (bool): Enable automatic context adjustment
         min_chunk_size (int): Minimum chunk size when auto-adjusting
-        simple_mode (bool): If True, uses simplified prompts without placeholder instructions
+        fast_mode (bool): If True, uses simplified prompts without placeholder instructions
         checkpoint_manager: CheckpointManager instance for saving progress
         translation_id: Job ID for checkpoint saving
         resume_from_index: Index to resume from (for resumed jobs)
@@ -309,7 +309,7 @@ async def translate_chunks(chunks, source_language, target_language, model_name,
                 main_content_to_translate, context_before_text, context_after_text,
                 last_successful_llm_context, source_language, target_language,
                 model_name, llm_client=llm_client, log_callback=log_callback,
-                simple_mode=simple_mode
+                fast_mode=fast_mode
             )
 
             if translated_chunk_text is not None:

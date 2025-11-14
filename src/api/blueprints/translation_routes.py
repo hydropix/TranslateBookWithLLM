@@ -60,7 +60,7 @@ def create_translation_blueprint(state_manager, start_translation_job):
             'output_filename': data['output_filename'],
             'llm_provider': data.get('llm_provider', 'ollama'),
             'gemini_api_key': data.get('gemini_api_key') or os.getenv('GEMINI_API_KEY', ''),
-            'simple_mode': data.get('simple_mode', False)
+            'fast_mode': data.get('fast_mode', False)
         }
 
         # Add file-specific or text-specific configuration

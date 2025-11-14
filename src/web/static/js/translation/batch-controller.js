@@ -57,7 +57,7 @@ function getTranslationConfig(file) {
         retry_delay: parseInt(DomHelpers.getValue('retryDelay')),
         output_filename: file.outputFilename,
         file_type: file.fileType,
-        simple_mode: DomHelpers.getElement('simpleMode')?.checked || false
+        fast_mode: DomHelpers.getElement('fastMode')?.checked || false
     };
 
     // Handle file input based on type

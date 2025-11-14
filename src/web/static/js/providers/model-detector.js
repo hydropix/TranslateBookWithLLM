@@ -2,7 +2,7 @@
  * Model Detector - Detect model size and show recommendations
  *
  * Analyzes model names to determine parameter size and recommends
- * simple mode for models ≤12B parameters when translating EPUBs.
+ * fast mode for models ≤12B parameters when translating EPUBs.
  */
 
 import { DomHelpers } from '../ui/dom-helpers.js';
@@ -44,24 +44,24 @@ function isSmallModel(modelName) {
 
 export const ModelDetector = {
     /**
-     * Check if model is small and show recommendation for simple mode
-     * Called when model selection changes or simple mode checkbox changes
+     * Check if model is small and show recommendation for fast mode
+     * Called when model selection changes or fast mode checkbox changes
      */
     checkAndShowRecommendation() {
         const modelSelect = DomHelpers.getElement('model');
-        const simpleModeCheckbox = DomHelpers.getElement('simpleMode');
+        const fastModeCheckbox = DomHelpers.getElement('fastMode');
         const recommendationDiv = DomHelpers.getElement('smallModelRecommendation');
 
-        if (!modelSelect || !simpleModeCheckbox || !recommendationDiv) {
+        if (!modelSelect || !fastModeCheckbox || !recommendationDiv) {
             console.warn('Model detector: Required elements not found');
             return;
         }
 
         const modelName = DomHelpers.getValue('model');
-        const isSimpleModeEnabled = simpleModeCheckbox.checked;
+        const isFastModeEnabled = fastModeCheckbox.checked;
 
-        // Show recommendation if small model and not already in simple mode (use inline style)
-        if (isSmallModel(modelName) && !isSimpleModeEnabled) {
+        // Show recommendation if small model and not already in fast mode (use inline style)
+        if (isSmallModel(modelName) && !isFastModeEnabled) {
             if (recommendationDiv) recommendationDiv.style.display = 'block';
         } else {
             if (recommendationDiv) recommendationDiv.style.display = 'none';
@@ -100,7 +100,7 @@ export const ModelDetector = {
 
         if (size <= 12) {
             return `This model (${size}B parameters) may struggle with complex EPUB formatting. ` +
-                   `Consider enabling "Simple Mode" for better results.`;
+                   `Consider enabling "Fast Mode" for better results.`;
         }
 
         return null;
@@ -119,8 +119,8 @@ export const ModelDetector = {
             });
         }
 
-        if (simpleModeCheckbox) {
-            simpleModeCheckbox.addEventListener('change', () => {
+        if (fastModeCheckbox) {
+            fastModeCheckbox.addEventListener('change', () => {
                 this.checkAndShowRecommendation();
             });
         }

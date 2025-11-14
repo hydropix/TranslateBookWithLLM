@@ -63,7 +63,7 @@ async def translate_text_file_with_callbacks(input_filepath, output_filepath,
                                              check_interruption_callback=None,
                                              llm_provider="ollama", gemini_api_key=None, openai_api_key=None,
                                              context_window=2048, auto_adjust_context=True, min_chunk_size=5,
-                                             simple_mode=False, checkpoint_manager=None, translation_id=None,
+                                             fast_mode=False, checkpoint_manager=None, translation_id=None,
                                              resume_from_index=0):
     """
     Translate a text file with callback support
@@ -80,7 +80,7 @@ async def translate_text_file_with_callbacks(input_filepath, output_filepath,
         log_callback (callable): Logging callback
         stats_callback (callable): Statistics callback
         check_interruption_callback (callable): Interruption check callback
-        simple_mode (bool): If True, uses simplified prompts without placeholder instructions
+        fast_mode (bool): If True, uses simplified prompts without placeholder instructions
     """
     if not os.path.exists(input_filepath):
         err_msg = f"ERROR: Input file '{input_filepath}' not found."
@@ -157,27 +157,38 @@ async def translate_text_file_with_callbacks(input_filepath, output_filepath,
         context_window=context_window,
         auto_adjust_context=auto_adjust_context,
         min_chunk_size=min_chunk_size,
-        simple_mode=simple_mode,
+        fast_mode=fast_mode,
         checkpoint_manager=checkpoint_manager,
         translation_id=translation_id,
         resume_from_index=resume_from_index
     )
 
-    if progress_callback: 
+    if progress_callback:
         progress_callback(100)
 
+    # Add signature footer if enabled
+    from src.config import SIGNATURE_ENABLED, PROJECT_NAME, PROJECT_GITHUB
+
     final_translated_text = "\n".join(translated_parts)
+
+    if SIGNATURE_ENABLED:
+        signature_footer = f"\n\n{'='*60}\n"
+        signature_footer += f"Translated with {PROJECT_NAME}\n"
+        signature_footer += f"{PROJECT_GITHUB}\n"
+        signature_footer += f"{'='*60}\n"
+        final_translated_text += signature_footer
+
     try:
         async with aiofiles.open(output_filepath, 'w', encoding='utf-8') as f:
             await f.write(final_translated_text)
         success_msg = f"Full/Partial translation saved: '{output_filepath}'"
-        if log_callback: 
+        if log_callback:
             log_callback("txt_save_success", success_msg)
     except Exception as e:
         err_msg = f"ERROR: Saving output file '{output_filepath}': {e}"
-        if log_callback: 
+        if log_callback:
             log_callback("txt_save_error", err_msg)
-        else: 
+        else:
             print(err_msg)
 
 
@@ -333,10 +344,10 @@ async def translate_file(input_filepath, output_filepath,
                         check_interruption_callback=None,
                         llm_provider="ollama", gemini_api_key=None, openai_api_key=None,
                         context_window=2048, auto_adjust_context=True, min_chunk_size=5,
-                        simple_mode=False):
+                        fast_mode=False):
     """
     Translate a file (auto-detect format)
-    
+
     Args:
         input_filepath (str): Path to input file
         output_filepath (str): Path to output file
@@ -362,7 +373,7 @@ async def translate_file(input_filepath, output_filepath,
                                   llm_provider=llm_provider,
                                   gemini_api_key=gemini_api_key,
                                   openai_api_key=openai_api_key,
-                                  simple_mode=simple_mode)
+                                  fast_mode=fast_mode)
     elif ext == '.srt':
         await translate_srt_file_with_callbacks(
             input_filepath, output_filepath,
@@ -376,7 +387,7 @@ async def translate_file(input_filepath, output_filepath,
             openai_api_key=openai_api_key
         )
     else:
-        # For .txt files, always use simple mode (no placeholder preservation needed)
+        # For .txt files, always use fast mode (no placeholder preservation needed)
         await translate_text_file_with_callbacks(
             input_filepath, output_filepath,
             source_language, target_language,
@@ -390,5 +401,5 @@ async def translate_file(input_filepath, output_filepath,
             context_window=context_window,
             auto_adjust_context=auto_adjust_context,
             min_chunk_size=min_chunk_size,
-            simple_mode=True
+            fast_mode=True
         )

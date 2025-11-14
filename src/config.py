@@ -80,6 +80,16 @@ OPENAI_API_KEY = os.getenv('OPENAI_API_KEY', '')
 SRT_LINES_PER_BLOCK = int(os.getenv('SRT_LINES_PER_BLOCK', '5'))
 SRT_MAX_CHARS_PER_BLOCK = int(os.getenv('SRT_MAX_CHARS_PER_BLOCK', '500'))
 
+# Translation signature configuration
+# This adds a discrete attribution to translations to support the project.
+# The signature is non-intrusive: EPUB metadata, text file footer, or SRT comment.
+# Please consider keeping this enabled to help others discover this free, open-source tool!
+# Your support helps maintain and improve the project. Thank you!
+SIGNATURE_ENABLED = os.getenv('SIGNATURE_ENABLED', 'true').lower() == 'true'
+PROJECT_NAME = "TranslateBook with LLM (TBL)"
+PROJECT_GITHUB = "https://github.com/hydropix/TranslateBookWithLLM"
+SIGNATURE_VERSION = "1.0"
+
 # Default languages from environment
 DEFAULT_SOURCE_LANGUAGE = os.getenv('DEFAULT_SOURCE_LANGUAGE', 'English')
 DEFAULT_TARGET_LANGUAGE = os.getenv('DEFAULT_TARGET_LANGUAGE', 'French')
