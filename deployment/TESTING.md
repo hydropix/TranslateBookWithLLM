@@ -8,6 +8,8 @@ This guide explains how to test the Docker deployment of TranslateBookWithLLM.
 - For Windows: WSL 2 enabled
 - At least 2GB of free disk space
 
+**Note:** This guide uses `docker-compose` (standalone) commands. On newer systems (GitHub Actions, recent Ubuntu), use `docker compose` (with space) instead.
+
 ## Quick Start
 
 ### Automated Testing (Recommended)

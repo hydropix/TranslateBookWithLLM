@@ -32,7 +32,7 @@ jobs:
     - name: Build Docker image
       working-directory: ./deployment
       run: |
-        docker-compose build
+        docker compose build
 
     - name: Start Docker container
       working-directory: ./deployment
@@ -40,7 +40,7 @@ jobs:
         # Create .env file from example
         cp .env.docker.example .env
         # Start container in detached mode
-        docker-compose up -d
+        docker compose up -d
 
     - name: Wait for container to be healthy
       run: |
@@ -50,11 +50,11 @@ jobs:
     - name: Check container status
       working-directory: ./deployment
       run: |
-        docker-compose ps
+        docker compose ps
         # Check if container is running
-        if ! docker-compose ps | grep -q "Up"; then
+        if ! docker compose ps | grep -q "Up"; then
           echo "Container is not running!"
-          docker-compose logs
+          docker compose logs
           exit 1
         fi
 
@@ -90,13 +90,13 @@ jobs:
       working-directory: ./deployment
       run: |
         echo "Container logs:"
-        docker-compose logs
+        docker compose logs
 
     - name: Stop and cleanup
       if: always()
       working-directory: ./deployment
       run: |
-        docker-compose down -v
+        docker compose down -v
 
     - name: Test summary
       if: success()
