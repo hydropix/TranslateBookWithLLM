@@ -1,0 +1,112 @@
+name: Docker Build and Test
+
+on:
+  push:
+    branches: [ main, dev ]
+    paths:
+      - 'deployment/**'
+      - 'src/**'
+      - 'translation_api.py'
+      - 'requirements.txt'
+      - '.github/workflows/docker-test.yml'
+  pull_request:
+    branches: [ main, dev ]
+    paths:
+      - 'deployment/**'
+      - 'src/**'
+      - 'translation_api.py'
+      - 'requirements.txt'
+  workflow_dispatch:  # Allow manual trigger
+
+jobs:
+  docker-build-test:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Build Docker image
+      working-directory: ./deployment
+      run: |
+        docker compose build
+
+    - name: Start Docker container
+      working-directory: ./deployment
+      run: |
+        # Create .env file from example
+        cp .env.docker.example .env
+        # Start container in detached mode
+        docker compose up -d
+
+    - name: Wait for container to be healthy
+      run: |
+        echo "Waiting for container to start (45 seconds)..."
+        sleep 45
+
+    - name: Check container status
+      working-directory: ./deployment
+      run: |
+        docker compose ps
+        # Check if container is running
+        if ! docker compose ps | grep -q "Up"; then
+          echo "Container is not running!"
+          docker compose logs
+          exit 1
+        fi
+
+    - name: Test health endpoint
+      run: |
+        echo "Testing health endpoint..."
+        response=$(curl -s http://localhost:5000/api/health)
+        echo "Response: $response"
+
+        # Check if response contains "ok" status
+        if echo "$response" | grep -q '"status":"ok"'; then
+          echo "✅ Health check passed"
+        else
+          echo "❌ Health check failed"
+          exit 1
+        fi
+
+    - name: Test web interface
+      run: |
+        echo "Testing web interface..."
+        http_code=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:5000/)
+        echo "HTTP Status Code: $http_code"
+
+        if [ "$http_code" = "200" ]; then
+          echo "✅ Web interface is accessible"
+        else
+          echo "❌ Web interface test failed"
+          exit 1
+        fi
+
+    - name: View container logs (on failure)
+      if: failure()
+      working-directory: ./deployment
+      run: |
+        echo "Container logs:"
+        docker compose logs
+
+    - name: Stop and cleanup
+      if: always()
+      working-directory: ./deployment
+      run: |
+        docker compose down -v
+
+    - name: Test summary
+      if: success()
+      run: |
+        echo "============================================"
+        echo "✅ All Docker tests passed successfully!"
+        echo "============================================"
+        echo ""
+        echo "Tests completed:"
+        echo "  ✅ Docker image build"
+        echo "  ✅ Container startup"
+        echo "  ✅ Health endpoint (HTTP 200, status: ok)"
+        echo "  ✅ Web interface (HTTP 200)"
