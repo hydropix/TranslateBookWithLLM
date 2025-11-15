@@ -252,7 +252,7 @@ docker-compose logs
    # Linux:
    # API_ENDPOINT=http://172.17.0.1:11434/api/generate
 
-   DEFAULT_MODEL=mistral-small:24b
+   DEFAULT_MODEL=qwen3:14b
    ```
 
 3. Verify Ollama is accessible from container:

@@ -23,7 +23,7 @@ services:
       # Use host.docker.internal to access host machine from Docker on Windows/Mac
       # On Linux, use --network host or the host's IP address
       - API_ENDPOINT=${API_ENDPOINT:-http://host.docker.internal:11434/api/generate}
-      - DEFAULT_MODEL=${DEFAULT_MODEL:-mistral-small:24b}
+      - DEFAULT_MODEL=${DEFAULT_MODEL:-qwen3:14b}
       - OLLAMA_NUM_CTX=${OLLAMA_NUM_CTX:-8192}
 
       # Gemini Configuration (if using Gemini provider)
