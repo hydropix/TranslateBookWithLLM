@@ -33,7 +33,7 @@ async def translate_epub_file(
     input_filepath: str,
     output_filepath: str,
     source_language: str = "English",
-    target_language: str = "French",
+    target_language: str = "Chinese",
     model_name: str = DEFAULT_MODEL,
     chunk_target_lines_arg: int = MAIN_LINES_PER_CHUNK,
     cli_api_endpoint: str = API_ENDPOINT,

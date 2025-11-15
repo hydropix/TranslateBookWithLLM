@@ -92,7 +92,7 @@ SIGNATURE_VERSION = "1.0"
 
 # Default languages from environment
 DEFAULT_SOURCE_LANGUAGE = os.getenv('DEFAULT_SOURCE_LANGUAGE', 'English')
-DEFAULT_TARGET_LANGUAGE = os.getenv('DEFAULT_TARGET_LANGUAGE', 'French')
+DEFAULT_TARGET_LANGUAGE = os.getenv('DEFAULT_TARGET_LANGUAGE', 'Chinese')
 
 # Server configuration
 HOST = os.getenv('HOST', '127.0.0.1')

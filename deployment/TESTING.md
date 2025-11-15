@@ -284,7 +284,7 @@ echo "This is a test translation." > test.txt
 curl -X POST http://localhost:5000/api/translate \
   -F "file=@test.txt" \
   -F "source_language=English" \
-  -F "target_language=French" \
+  -F "target_language=Chinese" \
   -F "llm_provider=gemini" \
   -F "gemini_api_key=YOUR_KEY"
 ```

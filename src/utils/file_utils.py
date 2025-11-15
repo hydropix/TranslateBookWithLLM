@@ -56,7 +56,7 @@ def get_unique_output_path(output_path):
 
 
 async def translate_text_file_with_callbacks(input_filepath, output_filepath,
-                                             source_language="English", target_language="French",
+                                             source_language="English", target_language="Chinese",
                                              model_name=DEFAULT_MODEL, chunk_target_lines_cli=MAIN_LINES_PER_CHUNK,
                                              cli_api_endpoint=API_ENDPOINT,
                                              progress_callback=None, log_callback=None, stats_callback=None,
@@ -193,7 +193,7 @@ async def translate_text_file_with_callbacks(input_filepath, output_filepath,
 
 
 async def translate_srt_file_with_callbacks(input_filepath, output_filepath,
-                                           source_language="English", target_language="French",
+                                           source_language="English", target_language="Chinese",
                                            model_name=DEFAULT_MODEL, chunk_target_lines_cli=MAIN_LINES_PER_CHUNK,
                                            cli_api_endpoint=API_ENDPOINT,
                                            progress_callback=None, log_callback=None, stats_callback=None,
@@ -337,7 +337,7 @@ async def translate_srt_file_with_callbacks(input_filepath, output_filepath,
 
 
 async def translate_file(input_filepath, output_filepath,
-                        source_language="English", target_language="French",
+                        source_language="English", target_language="Chinese",
                         model_name=DEFAULT_MODEL, chunk_target_size_cli=MAIN_LINES_PER_CHUNK,
                         cli_api_endpoint=API_ENDPOINT,
                         progress_callback=None, log_callback=None, stats_callback=None,

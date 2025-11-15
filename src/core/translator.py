@@ -24,7 +24,7 @@ from typing import List, Dict, Tuple, Optional
 
 
 async def generate_translation_request(main_content, context_before, context_after, previous_translation_context,
-                                       source_language="English", target_language="French", model=DEFAULT_MODEL,
+                                       source_language="English", target_language="Chinese", model=DEFAULT_MODEL,
                                        llm_client=None, log_callback=None, fast_mode=False):
     """
     Generate translation request to LLM API
