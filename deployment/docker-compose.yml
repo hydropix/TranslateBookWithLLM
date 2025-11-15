@@ -1,4 +1,3 @@
-version: '3.8'
 services:
   translatebook:
     build:
@@ -10,6 +9,7 @@ services:
     volumes:
       - ./translated_files:/app/translated_files
       - ./logs:/app/logs  # Optional: for persistent logs
+      - ./data:/app/data  # Required: for checkpoint/resume functionality and job history
     environment:
       # Server Configuration
       - PORT=${PORT:-5000}

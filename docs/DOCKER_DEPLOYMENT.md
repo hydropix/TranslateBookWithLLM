@@ -111,8 +111,57 @@ The Docker setup automatically creates persistent volumes:
 
 - `./translated_files` - Translated output files
 - `./logs` - Application logs (if logging is configured)
+- `./data` - **Required**: Checkpoint database and job history (see Checkpoint System below)
 
 These folders are created automatically and persist between container restarts.
+
+### Checkpoint and Resume System
+
+TranslateBookWithLLM includes a checkpoint system that allows you to resume interrupted translations. This requires the `data` volume to be properly configured.
+
+**How it works:**
+
+1. **Automatic Checkpointing**: Progress is saved automatically during translation
+2. **Job Database**: SQLite database at `data/jobs.db` tracks all translation jobs
+3. **Resume Capability**: Use the `/api/resume/<translation_id>` endpoint to continue interrupted translations
+4. **File Preservation**: Original uploaded files are kept in `data/uploads/` for resumption
+
+**Volume Configuration:**
+
+The `data` volume is **required** for checkpoint functionality. It's already configured in `docker-compose.yml`:
+
+```yaml
+volumes:
+  - ./data:/app/data  # Required: for checkpoint/resume functionality and job history
+```
+
+**Important Notes:**
+
+- **Data Persistence**: The `data` directory must persist between container restarts
+- **Job Retention**: All job history and checkpoints are stored in `data/jobs.db`
+- **Backup Recommendation**: Regularly backup the `data` directory (see Data Backup section)
+- **Disk Space**: Monitor `data/uploads/` as it stores original files until jobs complete
+
+**Using Resume Feature:**
+
+Via Web Interface:
+- Interrupted translations show a "Resume" button
+- Click to continue from last checkpoint
+
+Via API:
+```bash
+curl -X POST http://localhost:5000/api/resume/<translation_id>
+```
+
+**Checking Job Status:**
+
+```bash
+# List all jobs
+curl http://localhost:5000/api/jobs
+
+# Get specific job details
+curl http://localhost:5000/api/status/<translation_id>
+```
 
 ### Resource Limits
 
@@ -178,6 +227,132 @@ docker-compose exec translatebook bash
 
 # Run Python commands
 docker-compose exec translatebook python translate.py --help
+```
+
+## Using CLI Mode in Docker
+
+While the Docker container runs the web interface by default, you can also use the CLI for batch processing and automation.
+
+### Basic CLI Usage
+
+**View help:**
+```bash
+docker-compose exec translatebook python translate.py --help
+```
+
+**Translate a text file:**
+```bash
+# First, copy your file into the container's volume
+cp my_book.txt ./translated_files/
+
+# Then translate it
+docker-compose exec translatebook python translate.py \
+  -i /app/translated_files/my_book.txt \
+  -o /app/translated_files/my_book_fr.txt \
+  -sl English -tl French
+```
+
+### EPUB Translation via CLI
+
+**Standard mode:**
+```bash
+docker-compose exec translatebook python translate.py \
+  -i /app/translated_files/input.epub \
+  -o /app/translated_files/output_fr.epub \
+  -sl English -tl French \
+  -m mistral-small:24b
+```
+
+**Fast mode (recommended for compatibility):**
+```bash
+docker-compose exec translatebook python translate.py \
+  -i /app/translated_files/input.epub \
+  -o /app/translated_files/output_fr.epub \
+  -sl English -tl French \
+  --fast-mode
+```
+
+### SRT Subtitle Translation via CLI
+
+```bash
+docker-compose exec translatebook python translate.py \
+  -i /app/translated_files/movie.srt \
+  -o /app/translated_files/movie_es.srt \
+  -sl English -tl Spanish
+```
+
+### Using Different LLM Providers via CLI
+
+**Gemini:**
+```bash
+docker-compose exec translatebook python translate.py \
+  -i /app/translated_files/book.txt \
+  -o /app/translated_files/book_fr.txt \
+  --provider gemini \
+  --gemini_api_key $GEMINI_API_KEY \
+  -m gemini-2.0-flash
+```
+
+**OpenAI:**
+```bash
+docker-compose exec translatebook python translate.py \
+  -i /app/translated_files/book.txt \
+  -o /app/translated_files/book_fr.txt \
+  --provider openai \
+  --openai_api_key $OPENAI_API_KEY \
+  --api_endpoint https://api.openai.com/v1/chat/completions \
+  -m gpt-4o
+```
+
+### Batch Processing with Docker
+
+Create a script for batch translation:
+
+```bash
+#!/bin/bash
+# batch_translate.sh
+
+FILES=(
+  "chapter1.txt"
+  "chapter2.txt"
+  "chapter3.txt"
+)
+
+for file in "${FILES[@]}"; do
+  echo "Translating $file..."
+  docker-compose exec -T translatebook python translate.py \
+    -i "/app/translated_files/$file" \
+    -o "/app/translated_files/${file%.txt}_fr.txt" \
+    -sl English -tl French
+done
+```
+
+**Run the batch script:**
+```bash
+chmod +x batch_translate.sh
+./batch_translate.sh
+```
+
+### Mounting Custom Directories
+
+To work with files outside the default `translated_files` directory, add a custom volume:
+
+**Edit docker-compose.yml:**
+```yaml
+volumes:
+  - ./translated_files:/app/translated_files
+  - ./logs:/app/logs
+  - ./data:/app/data
+  - /path/to/your/books:/app/books  # Add custom mount
+```
+
+**Then use:**
+```bash
+docker-compose up -d
+docker-compose exec translatebook python translate.py \
+  -i /app/books/input.epub \
+  -o /app/books/output_fr.epub \
+  --fast-mode
 ```
 
 ## Health Monitoring
@@ -342,6 +517,76 @@ For orchestration, consider:
 4. **Network isolation** - Use Docker networks to isolate services
 5. **Regular updates** - Keep base images and dependencies updated
 
+## Translation Features
+
+### EPUB Fast Mode
+
+TranslateBookWithLLM supports two modes for EPUB translation:
+
+**Standard Mode (default):**
+- Preserves all HTML/XML formatting, styles, and structure
+- Best for books with complex layouts and formatting
+- Requires capable LLMs (>12B parameters) to handle XML/HTML tags
+
+**Fast Mode (recommended for compatibility):**
+- Strips HTML/XML, works with pure text
+- Generates EPUB 2.0 output for maximum reader compatibility
+- No placeholder/tag management issues
+- **Recommended for small models (≤12B parameters)**
+- Best for strict EPUB readers (Aquile Reader, Adobe Digital Editions)
+
+**Using Fast Mode:**
+
+Via Web Interface:
+- Check the "Fast Mode" option when uploading an EPUB file
+- Recommended automatically when using small models
+
+Via CLI:
+```bash
+# Using Fast Mode (recommended)
+docker-compose exec translatebook python translate.py \
+  -i /app/uploads/book.epub \
+  -o /app/translated_files/book_fr.epub \
+  -sl English -tl French \
+  --fast-mode
+
+# Standard mode (preserves formatting)
+docker-compose exec translatebook python translate.py \
+  -i /app/uploads/book.epub \
+  -o /app/translated_files/book_fr.epub \
+  -sl English -tl French
+```
+
+**When to use Fast Mode:**
+- ✅ Maximum EPUB reader compatibility needed
+- ✅ Using small LLMs (≤12B parameters)
+- ✅ Source EPUB has minimal special formatting
+- ✅ Want to avoid placeholder/tag preservation issues
+
+See [SIMPLE_MODE_README.md](../SIMPLE_MODE_README.md) for complete documentation.
+
+### Translation Signatures
+
+All translations include a discrete signature for attribution:
+
+- **EPUB**: Adds Dublin Core metadata (`dc:contributor` with role "trl", `dc:description`)
+- **Text Files**: Adds footer with project name and GitHub link
+- **SRT Files**: Adds comment at end with attribution
+
+**Configuration:**
+
+Enable/disable via `.env`:
+
+```env
+# Enable signatures (default)
+SIGNATURE_ENABLED=true
+
+# Disable signatures
+SIGNATURE_ENABLED=false
+```
+
+See [TRANSLATION_SIGNATURE.md](../TRANSLATION_SIGNATURE.md) for details.
+
 ## Performance Optimization
 
 ### Increase Context Window
@@ -371,6 +616,132 @@ MIN_CHUNK_SIZE=5
 MAX_CHUNK_SIZE=100
 ```
 
+## Data Backup and Migration
+
+### Backing Up Translation Data
+
+It's important to regularly backup your translation data, especially the checkpoint database.
+
+**Backup all persistent data:**
+```bash
+# Create timestamped backup
+DATE=$(date +%Y%m%d_%H%M%S)
+tar -czf backup_translatebook_$DATE.tar.gz \
+  ./data \
+  ./translated_files \
+  ./logs
+
+# Or use rsync for incremental backups
+rsync -av --delete ./data ./backups/data/
+rsync -av --delete ./translated_files ./backups/translated_files/
+```
+
+**Backup only checkpoint database:**
+```bash
+# Stop container first (recommended)
+docker-compose stop
+
+# Copy database
+cp ./data/jobs.db ./backups/jobs_$(date +%Y%m%d).db
+
+# Restart container
+docker-compose start
+```
+
+**Automated daily backups:**
+```bash
+# Add to crontab (crontab -e)
+0 2 * * * cd /path/to/project && tar -czf /path/to/backups/backup_$(date +\%Y\%m\%d).tar.gz data translated_files
+```
+
+### Restoring from Backup
+
+**Restore all data:**
+```bash
+# Stop container
+docker-compose down
+
+# Extract backup
+tar -xzf backup_translatebook_20250114.tar.gz
+
+# Restart container
+docker-compose up -d
+```
+
+**Restore only database:**
+```bash
+# Stop container
+docker-compose stop
+
+# Restore database
+cp ./backups/jobs_20250114.db ./data/jobs.db
+
+# Restart container
+docker-compose start
+```
+
+### Migrating to a New Server
+
+**On old server:**
+```bash
+# Create full backup
+docker-compose down
+tar -czf translatebook_migration.tar.gz \
+  data \
+  translated_files \
+  .env \
+  docker-compose.yml
+
+# Transfer file to new server
+scp translatebook_migration.tar.gz user@newserver:/path/to/destination/
+```
+
+**On new server:**
+```bash
+# Extract backup
+tar -xzf translatebook_migration.tar.gz
+
+# Verify .env configuration (update API endpoints if needed)
+nano .env
+
+# Start container
+docker-compose up -d
+
+# Verify all jobs are accessible
+curl http://localhost:5000/api/jobs
+```
+
+### Database Maintenance
+
+**Check database size:**
+```bash
+docker-compose exec translatebook du -sh /app/data/jobs.db
+```
+
+**Clean up completed jobs older than 30 days:**
+
+Currently, there's no automatic cleanup. Monitor disk space and manually manage old jobs:
+
+```bash
+# View database content
+docker-compose exec translatebook sqlite3 /app/data/jobs.db "SELECT id, status, created_at FROM jobs ORDER BY created_at DESC LIMIT 20;"
+
+# Manually backup and clean if needed
+docker-compose stop
+cp ./data/jobs.db ./data/jobs_backup.db
+# Optionally: manually clean old entries from the database
+docker-compose start
+```
+
+**Monitor data directory size:**
+```bash
+# Check total size
+du -sh ./data
+
+# Check uploads directory (should clean after job completion)
+du -sh ./data/uploads
+```
+
 ## Cleanup
 
 ### Remove Container and Volumes
@@ -379,12 +750,17 @@ MAX_CHUNK_SIZE=100
 # Stop and remove container
 docker-compose down
 
-# Remove volumes (WARNING: deletes translated files)
+# Remove volumes (WARNING: deletes translated files and checkpoint data)
 docker-compose down -v
 
 # Remove images
 docker rmi translatebookwithllm_translatebook
 ```
+
+**Important:** Before removing volumes, ensure you have backups of:
+- `./data/jobs.db` - Job history and checkpoints
+- `./translated_files` - Completed translations
+- `./data/uploads` - Original files for pending jobs
 
 ### Clean Up Old Images
 

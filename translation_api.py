@@ -143,4 +143,4 @@ if __name__ == '__main__':
         logger.warning("   gunicorn --worker-class eventlet -w 1 --bind 0.0.0.0:5000 translation_api:app")
         logger.info("")
 
-    socketio.run(app, debug=False, host=HOST, port=PORT)
+    socketio.run(app, debug=False, host=HOST, port=PORT, allow_unsafe_werkzeug=True)
