@@ -111,7 +111,7 @@ export const ModelDetector = {
      */
     initialize() {
         const modelSelect = DomHelpers.getElement('model');
-        const simpleModeCheckbox = DomHelpers.getElement('simpleMode');
+        const fastModeCheckbox = DomHelpers.getElement('fastMode');
 
         if (modelSelect) {
             modelSelect.addEventListener('change', () => {
@@ -119,8 +119,8 @@ export const ModelDetector = {
             });
         }
 
-        if (simpleModeCheckbox) {
-            simpleModeCheckbox.addEventListener('change', () => {
+        if (fastModeCheckbox) {
+            fastModeCheckbox.addEventListener('change', () => {
                 this.checkAndShowRecommendation();
             });
         }
