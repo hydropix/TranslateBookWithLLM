@@ -155,7 +155,7 @@ def interactive_env_setup():
 
     config['PORT'] = input("\n2️⃣  Web server port [5000]: ").strip() or '5000'
     config['DEFAULT_SOURCE_LANGUAGE'] = input("3️⃣  Default source language [English]: ").strip() or 'English'
-    config['DEFAULT_TARGET_LANGUAGE'] = input("4️⃣  Default target language [French]: ").strip() or 'French'
+    config['DEFAULT_TARGET_LANGUAGE'] = input("4️⃣  Default target language [Chinese]: ").strip() or 'Chinese'
 
     # Write .env file
     try:

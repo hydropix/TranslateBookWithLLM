@@ -300,7 +300,7 @@ python translate.py -i input_file.txt -o output_file.txt
 | `-i, --input`        | 📄 Input file (.txt, .epub, .srt)  | **Required**                        |
 | `-o, --output`       | 📄 Output file                     | Auto-generated                      |
 | `-sl, --source_lang` | 🌍 Source language                 | English                             |
-| `-tl, --target_lang` | 🌍 Target language                 | French                              |
+| `-tl, --target_lang` | 🌍 Target language                 | Chinese                             |
 | `-m, --model`        | 🤖 LLM model to use                | mistral-small:24b                   |
 | `-cs, --chunksize`   | 📏 Lines per chunk                 | 25                                  |
 | `--provider`         | 🏢 Provider (ollama/gemini/openai) | ollama                              |
@@ -315,7 +315,7 @@ python translate.py -i input_file.txt -o output_file.txt
 **Translate an EPUB book (Fast Mode)**
 
 ```bash
-python translate.py -i book.epub -o book_fr.epub -sl English -tl French --fast-mode
+python translate.py -i book.epub -o book_zh.epub -sl English -tl Chinese --fast-mode
 ```
 
 **Translate with OpenAI GPT-4**
@@ -342,13 +342,13 @@ python translate.py -i document.txt -o document_de.txt \
 **Translate subtitles**
 
 ```bash
-python translate.py -i movie.srt -o movie_fr.srt -sl English -tl French
+python translate.py -i movie.srt -o movie_zh.srt -sl English -tl Chinese
 ```
 
 **Translation with larger chunks for better context**
 
 ```bash
-python translate.py -i novel.txt -o novel_fr.txt -cs 50
+python translate.py -i novel.txt -o novel_zh.txt -cs 50
 ```
 
 ---
@@ -407,7 +407,7 @@ TBL supports three types of providers:
 3. **Command Line**:
    
    ```bash
-   python translate.py -i book.txt -o book_fr.txt \
+   python translate.py -i book.txt -o book_zh.txt \
     --provider openai \
     --openai_api_key sk-your-key \
     --api_endpoint https://api.openai.com/v1/chat/completions \
@@ -448,7 +448,7 @@ TBL supports three types of providers:
 3. **Command Line**:
    
    ```bash
-   python translate.py -i document.txt -o document_fr.txt \
+   python translate.py -i document.txt -o document_zh.txt \
     --provider gemini \
     --gemini_api_key your-key \
     -m gemini-2.0-flash
@@ -667,7 +667,7 @@ OUTPUT_DIR=translated_files
 1. **Use Fast Mode** (most reliable solution):
    
    ```bash
-   python translate.py -i book.epub -o book_fr.epub --fast-mode
+   python translate.py -i book.epub -o book_zh.epub --fast-mode
    ```
 
 2. **Check your EPUB reader**: Test with Calibre (more permissive)

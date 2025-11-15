@@ -19,10 +19,10 @@ These represent HTML/XML tags that have been temporarily replaced.
 
 **Example with placeholders:**
 English: "This is ⟦TAG0⟧very important⟦TAG1⟧ information"
-✅ CORRECT: "Voici une information ⟦TAG0⟧très importante⟦TAG1⟧"
-❌ WRONG: "Voici une information très importante" (placeholders removed)
-❌ WRONG: "Voici une information ⟦ TAG0 ⟧très importante⟦ TAG1 ⟧" (spaces added)
-❌ WRONG: "Voici une information ⟦TAG0_translated⟧très importante⟦TAG1⟧" (modified)
+✅ CORRECT: "这是⟦TAG0⟧非常重要的⟦TAG1⟧信息"
+❌ WRONG: "这是非常重要的信息" (placeholders removed)
+❌ WRONG: "这是 ⟦ TAG0 ⟧非常重要的⟦ TAG1 ⟧ 信息" (spaces added)
+❌ WRONG: "这是⟦TAG0_translated⟧非常重要的⟦TAG1⟧信息" (modified)
 """
 
 
@@ -83,7 +83,7 @@ def generate_translation_prompt(
     context_after: str,
     previous_translation_context: str,
     source_language: str = "English",
-    target_language: str = "French",
+    target_language: str = "Chinese",
     translate_tag_in: str = TRANSLATE_TAG_IN,
     translate_tag_out: str = TRANSLATE_TAG_OUT,
     fast_mode: bool = False
@@ -109,7 +109,7 @@ def generate_translation_prompt(
 
     # Build the output format section outside the f-string to avoid backslash issues in Python 3.11
     additional_rules_text = "\n6. Do NOT repeat the input text or tags\n7. Preserve all spacing, indentation, and line breaks exactly as in source"
-    example_format_text = "Votre texte traduit ici." if fast_mode else "Votre texte traduit ici avec tous les ⟦TAG0⟧ préservés exactement."
+    example_format_text = "您翻译的文本在这里。" if fast_mode else "您翻译的文本在这里，所有⟦TAG0⟧标记都精确保留。"
     output_format_section = _get_output_format_section(
         translate_tag_in,
         translate_tag_out,
@@ -138,32 +138,32 @@ def generate_translation_prompt(
 - URLs: `https://example.com`, `www.site.org`
 - Programming identifiers, API names, and technical terms
 
-# TRANSLATION EXAMPLES (English → French)
+# TRANSLATION EXAMPLES (English → Chinese)
 
-**Example 1 - Sentence Restructuring:**
-❌ WRONG (word-by-word): "Il a été donné le livre par son ami"
-✅ CORRECT (natural): "Son ami lui a offert le livre"
+**Example 1 - Topic-Comment Structure:**
+❌ WRONG (word-by-word): "他被他的朋友给了这本书"
+✅ CORRECT (natural): "他朋友送给他这本书" or "这本书是他朋友送的"
 English: "He was given the book by his friend"
 
 **Example 2 - Idiomatic Adaptation:**
-❌ WRONG (literal): "Il pleut des chats et des chiens"
-✅ CORRECT (adapted): "Il pleut des cordes"
+❌ WRONG (literal): "下猫和狗"
+✅ CORRECT (adapted): "倾盆大雨" or "大雨滂沱"
 English: "It's raining cats and dogs"
 
 **Example 3 - Cultural Context:**
-❌ WRONG (direct): "Le repas de Thanksgiving sera jeudi"
-✅ CORRECT (clarified): "Le repas de Thanksgiving (fête américaine) aura lieu jeudi"
+❌ WRONG (direct): "感恩节晚餐将在星期四"
+✅ CORRECT (clarified): "感恩节（美国节日）晚餐将在星期四举行"
 English: "Thanksgiving dinner will be on Thursday"
 
-**Example 4 - Verb Structure:**
-❌ WRONG (awkward): "Elle a commencé à travailler sur ce projet il y a trois ans"
-✅ CORRECT (natural): "Elle travaille sur ce projet depuis trois ans"
+**Example 4 - Duration Expression:**
+❌ WRONG (awkward): "她已经工作在这个项目上三年了"
+✅ CORRECT (natural): "她做这个项目已经三年了"
 English: "She has been working on this project for three years"
 
-**Example 5 - Passive to Active:**
-❌ WRONG (passive kept): "Les résultats ont été obtenus après analyse"
-✅ CORRECT (active voice): "L'analyse a permis d'obtenir les résultats"
-English: "The results were obtained after analysis"
+**Example 5 - Measure Words:**
+❌ WRONG (missing): "我买了三苹果"
+✅ CORRECT (with measure word): "我买了三个苹果"
+English: "I bought three apples"
 
 {'' if fast_mode else PLACEHOLDER_PRESERVATION_SECTION}
 
@@ -211,7 +211,7 @@ def generate_subtitle_block_prompt(
     subtitle_blocks: List[Tuple[int, str]],
     previous_translation_block: str,
     source_language: str = "English",
-    target_language: str = "French",
+    target_language: str = "Chinese",
     translate_tag_in: str = TRANSLATE_TAG_IN,
     translate_tag_out: str = TRANSLATE_TAG_OUT,
     custom_instructions: str = ""
@@ -235,7 +235,7 @@ def generate_subtitle_block_prompt(
 
     # Build the output format section outside the f-string to avoid backslash issues in Python 3.11
     subtitle_additional_rules = "\n6. Each subtitle has an index marker: [index]text - PRESERVE these markers exactly\n7. Maintain line breaks between indexed subtitles"
-    subtitle_example_format = "[1]Première ligne traduite\n[2]Deuxième ligne traduite"
+    subtitle_example_format = "[1]第一行翻译文本\n[2]第二行翻译文本"
     subtitle_output_format_section = _get_output_format_section(
         translate_tag_in,
         translate_tag_out,
@@ -272,21 +272,21 @@ def generate_subtitle_block_prompt(
 - Condense when necessary without losing meaning
 - Use natural, spoken {target_language} (not formal written style){custom_instructions_section}
 
-# TRANSLATION EXAMPLES (Dialogue - English → French)
+# TRANSLATION EXAMPLES (Dialogue - English → Chinese)
 
 **Example 1 - Natural Dialogue:**
-❌ WRONG: "Je ne peux pas croire que tu as fait cela"
-✅ CORRECT: "J'en reviens pas que t'aies fait ça"
+❌ WRONG: "我不能相信你做了那个" (literal/awkward)
+✅ CORRECT: "真不敢相信你干了这事儿" or "你竟然做了这个！"
 English: "I can't believe you did that"
 
-**Example 2 - Slang Adaptation:**
-❌ WRONG: "C'est très cool, mec"
-✅ CORRECT: "C'est trop bien !"
+**Example 2 - Colloquial Expression:**
+❌ WRONG: "那太酷了，伙计" (unnatural)
+✅ CORRECT: "太棒了！" or "真不错！"
 English: "That's so cool, dude"
 
 **Example 3 - Condensing for Readability:**
-❌ WRONG: "Je pense qu'il serait préférable que nous partions maintenant"
-✅ CORRECT: "On devrait partir maintenant"
+❌ WRONG: "我认为我们最好现在离开会更好" (wordy)
+✅ CORRECT: "我们该走了" or "现在走吧"
 English: "I think it would be better if we left now"
 
 {subtitle_output_format_section}
