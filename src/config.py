@@ -34,7 +34,7 @@ if not _env_exists:
     print("🔧 DEFAULT SETTINGS BEING USED:")
     print(f"   • API Endpoint: http://localhost:11434/api/generate")
     print(f"   • LLM Provider: ollama")
-    print(f"   • Model: mistral-small:24b")
+    print(f"   • Model: qwen3:14b")
     print(f"   • Port: 5000")
     print(f"\n💡 TIP: If using a remote server or different provider, you MUST")
     print(f"   create a .env file with the correct settings.\n")
@@ -55,7 +55,7 @@ load_dotenv()
 
 # Load from environment variables with defaults
 API_ENDPOINT = os.getenv('API_ENDPOINT', 'http://localhost:11434/api/generate')
-DEFAULT_MODEL = os.getenv('DEFAULT_MODEL', 'mistral-small:24b')
+DEFAULT_MODEL = os.getenv('DEFAULT_MODEL', 'qwen3:14b')
 PORT = int(os.getenv('PORT', '5000'))
 MAIN_LINES_PER_CHUNK = int(os.getenv('MAIN_LINES_PER_CHUNK', '25'))
 REQUEST_TIMEOUT = int(os.getenv('REQUEST_TIMEOUT', '900'))

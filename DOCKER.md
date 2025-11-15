@@ -18,7 +18,7 @@ docker run -d \
   -v $(pwd)/translated_files:/app/translated_files \
   -v $(pwd)/logs:/app/logs \
   -e API_ENDPOINT=http://host.docker.internal:11434/api/generate \
-  -e DEFAULT_MODEL=mistral-small:24b \
+  -e DEFAULT_MODEL=qwen3:14b \
   ghcr.io/bropro/translatebookwithllm:latest
 ```
 
@@ -44,7 +44,7 @@ Edit the `.env` file to configure your LLM settings:
 
 ```env
 API_ENDPOINT=http://host.docker.internal:11434/api/generate
-DEFAULT_MODEL=mistral-small:24b
+DEFAULT_MODEL=qwen3:14b
 LLM_PROVIDER=ollama
 PORT=5000
 OLLAMA_NUM_CTX=2048
@@ -95,7 +95,7 @@ Docker automatically pulls the correct architecture for your system.
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `API_ENDPOINT` | LLM API endpoint | `http://localhost:11434/api/generate` |
-| `DEFAULT_MODEL` | Default LLM model | `mistral-small:24b` |
+| `DEFAULT_MODEL` | Default LLM model | `qwen3:14b` |
 | `LLM_PROVIDER` | Provider (ollama/gemini/openai) | `ollama` |
 | `GEMINI_API_KEY` | Gemini API key | - |
 | `OPENAI_API_KEY` | OpenAI API key | - |
@@ -132,7 +132,7 @@ chmod 755 translated_files logs data
 docker run -d \
   -p 5000:5000 \
   -e API_ENDPOINT=http://host.docker.internal:11434/api/generate \
-  -e DEFAULT_MODEL=mistral-small:24b \
+  -e DEFAULT_MODEL=qwen3:14b \
   ghcr.io/bropro/translatebookwithllm:latest
 ```
 
@@ -157,7 +157,7 @@ services:
       - "5000:5000"
     environment:
       - API_ENDPOINT=http://ollama:11434/api/generate
-      - DEFAULT_MODEL=mistral-small:24b
+      - DEFAULT_MODEL=qwen3:14b
     depends_on:
       - ollama
 

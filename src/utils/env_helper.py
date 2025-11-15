@@ -61,7 +61,7 @@ def validate_env_config(verbose: bool = True) -> dict:
     # Check critical configuration
     api_endpoint = os.getenv('API_ENDPOINT', 'http://localhost:11434/api/generate')
     llm_provider = os.getenv('LLM_PROVIDER', 'ollama')
-    default_model = os.getenv('DEFAULT_MODEL', 'mistral-small:24b')
+    default_model = os.getenv('DEFAULT_MODEL', 'qwen3:14b')
     gemini_key = os.getenv('GEMINI_API_KEY', '')
     openai_key = os.getenv('OPENAI_API_KEY', '')
 
@@ -142,7 +142,7 @@ def interactive_env_setup():
 
     if config['LLM_PROVIDER'] == 'ollama':
         config['API_ENDPOINT'] = input("   Ollama API endpoint [http://localhost:11434/api/generate]: ").strip() or 'http://localhost:11434/api/generate'
-        config['DEFAULT_MODEL'] = input("   Model name [mistral-small:24b]: ").strip() or 'mistral-small:24b'
+        config['DEFAULT_MODEL'] = input("   Model name [qwen3:14b]: ").strip() or 'qwen3:14b'
 
     elif config['LLM_PROVIDER'] == 'gemini':
         config['GEMINI_API_KEY'] = input("   Gemini API Key: ").strip()

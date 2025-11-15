@@ -158,7 +158,7 @@ def get_max_model_context(model_name: str) -> int:
     Get maximum context size for a model based on its family.
 
     Args:
-        model_name: Name of the model (e.g., "mistral-small:24b")
+        model_name: Name of the model (e.g., "qwen3:14b")
 
     Returns:
         Maximum context size in tokens

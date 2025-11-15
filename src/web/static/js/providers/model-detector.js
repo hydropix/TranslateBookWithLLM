@@ -9,7 +9,7 @@ import { DomHelpers } from '../ui/dom-helpers.js';
 
 /**
  * Extract parameter size from model name
- * @param {string} modelName - Model name (e.g., "mistral-small:7b", "llama-12b")
+ * @param {string} modelName - Model name (e.g., "qwen3:14b", "llama-12b")
  * @returns {number|null} Size in billions of parameters, or null if not detected
  */
 function extractModelSize(modelName) {
