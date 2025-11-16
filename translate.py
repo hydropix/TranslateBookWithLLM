@@ -5,7 +5,11 @@ import os
 import argparse
 import asyncio
 
-from src.config import DEFAULT_MODEL, MAIN_LINES_PER_CHUNK, API_ENDPOINT, LLM_PROVIDER, GEMINI_API_KEY, OPENAI_API_KEY, DEFAULT_SOURCE_LANGUAGE, DEFAULT_TARGET_LANGUAGE
+from src.config import (
+    DEFAULT_MODEL, MAIN_LINES_PER_CHUNK, API_ENDPOINT, LLM_PROVIDER,
+    GEMINI_API_KEY, OPENAI_API_KEY, DEFAULT_SOURCE_LANGUAGE, DEFAULT_TARGET_LANGUAGE,
+    CHUNK_SIZE_CHARS, ENABLE_CHARACTER_CHUNKING
+)
 from src.utils.file_utils import translate_file, get_unique_output_path
 from src.utils.unified_logger import setup_cli_logger, LogType
 
@@ -24,6 +28,13 @@ if __name__ == "__main__":
     parser.add_argument("--openai_api_key", default=OPENAI_API_KEY, help="OpenAI API key (required if using openai provider).")
     parser.add_argument("--no-color", action="store_true", help="Disable colored output.")
     parser.add_argument("--fast-mode", action="store_true", help="Use fast mode for EPUB (strips formatting, maximum compatibility).")
+
+    # Character-based chunking arguments (T047-T048)
+    parser.add_argument("--chunk-size", type=int, default=CHUNK_SIZE_CHARS,
+                       help=f"Target chunk size in characters for character-based chunking (default: {CHUNK_SIZE_CHARS}).")
+    parser.add_argument("--enable-char-chunking", type=lambda x: x.lower() == 'true',
+                       default=ENABLE_CHARACTER_CHUNKING, metavar='BOOL',
+                       help=f"Enable character-based chunking (default: {ENABLE_CHARACTER_CHUNKING}). Use 'true' or 'false'.")
 
     args = parser.parse_args()
 
@@ -109,6 +120,8 @@ if __name__ == "__main__":
         'input_file': args.input,
         'output_file': args.output,
         'chunk_size': args.chunksize,
+        'char_chunk_size': args.chunk_size,
+        'enable_char_chunking': args.enable_char_chunking,
         'api_endpoint': args.api_endpoint,
         'llm_provider': args.provider
     })

@@ -252,7 +252,11 @@ async def perform_actual_translation(translation_id, config, state_manager, outp
                 min_chunk_size=config.get('min_chunk_size', 5),
                 checkpoint_manager=checkpoint_manager,
                 translation_id=translation_id,
-                resume_from_index=resume_from_index
+                resume_from_index=resume_from_index,
+                # T051: Pass character-based chunking configuration
+                enable_character_chunking=config.get('enable_character_chunking'),
+                chunk_size_chars=config.get('chunk_size_chars'),
+                chunk_tolerance=config.get('chunk_tolerance')
             )
 
             if os.path.exists(output_filepath_on_server) and state_manager.get_translation_field(translation_id, 'status') not in ['error', 'interrupted_before_save']:

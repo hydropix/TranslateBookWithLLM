@@ -21,6 +21,36 @@ from .context_optimizer import (
 from typing import List, Dict, Tuple, Optional
 
 
+def report_chunk_statistics(stats, log_callback=None):
+    """
+    Report chunk statistics to the log callback (T049).
+
+    Args:
+        stats: ChunkStatistics object from chunking module
+        log_callback: Optional logging callback
+    """
+    if not log_callback or not stats:
+        return
+
+    # Log summary
+    log_callback("chunk_statistics_summary",
+                f"📊 Chunk Statistics: {stats.summary()}")
+
+    # Log detailed breakdown if chunks were generated
+    if stats.total_chunks > 0:
+        log_callback("chunk_statistics_detail",
+                    f"   Total: {stats.total_chunks} chunks, "
+                    f"Size range: {stats.min_size}-{stats.max_size} chars")
+
+        # Warn if tolerance target not met
+        if stats.within_tolerance_percentage < 80:
+            log_callback("chunk_statistics_warning",
+                        f"⚠️  Warning: Only {stats.within_tolerance_percentage:.1f}% of chunks within tolerance (target: 80%)")
+
+        # Warn about oversized chunks
+        if stats.warning_count > 0:
+            log_callback("chunk_statistics_oversized_warning",
+                        f"⚠️  {stats.warning_count} chunks exceeded 150% target size")
 
 
 async def generate_translation_request(main_content, context_before, context_after, previous_translation_context,

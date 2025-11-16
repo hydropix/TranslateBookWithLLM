@@ -90,6 +90,13 @@ PROJECT_NAME = "TranslateBook with LLM (TBL)"
 PROJECT_GITHUB = "https://github.com/hydropix/TranslateBookWithLLM"
 SIGNATURE_VERSION = "1.0"
 
+# Character-based chunking configuration
+# These parameters control the new character-based chunking for more consistent chunk sizes
+CHUNK_SIZE_CHARS = int(os.getenv('CHUNK_SIZE_CHARS', '2500'))  # Target chunk size in characters
+CHUNK_TOLERANCE = float(os.getenv('CHUNK_TOLERANCE', '0.2'))  # ±20% tolerance
+ENABLE_CHARACTER_CHUNKING = os.getenv('ENABLE_CHARACTER_CHUNKING', 'true').lower() == 'true'
+REPORT_CHUNK_STATS = os.getenv('REPORT_CHUNK_STATS', 'true').lower() == 'true'
+
 # Default languages from environment
 DEFAULT_SOURCE_LANGUAGE = os.getenv('DEFAULT_SOURCE_LANGUAGE', 'English')
 DEFAULT_TARGET_LANGUAGE = os.getenv('DEFAULT_TARGET_LANGUAGE', 'Chinese')

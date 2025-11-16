@@ -35,6 +35,13 @@ import aiofiles
 from src.config import NAMESPACES, DEFAULT_MODEL, MAIN_LINES_PER_CHUNK, API_ENDPOINT, SENTENCE_TERMINATORS, TRANSLATE_TAG_IN, TRANSLATE_TAG_OUT
 from ..text_processor import split_text_into_chunks_with_context
 from ..translator import translate_chunks
+from ..chunking import (
+    EPUBChapter,
+    ChunkingConfiguration,
+    chunk_text_by_characters,
+    calculate_chunk_statistics,
+)
+from typing import List, Optional
 
 
 async def extract_pure_text_from_epub(epub_path: str, log_callback=None) -> tuple[str, dict]:
@@ -668,6 +675,440 @@ def _create_toc_ncx(metadata: dict, num_chapters: int) -> str:
 {nav_xml}
   </navMap>
 </ncx>'''
+
+
+# ============================================================================
+# NEW: Per-Chapter Processing Functions (User Story 2)
+# ============================================================================
+
+async def extract_chapters_from_epub(epub_path: str, log_callback=None) -> tuple[List[EPUBChapter], dict]:
+    """
+    Extract text from each chapter independently (per-chapter processing).
+
+    Args:
+        epub_path: Path to input EPUB file
+        log_callback: Optional logging callback
+
+    Returns:
+        tuple: (list of EPUBChapter objects, metadata dict)
+            - Each chapter contains its extracted text content
+            - Metadata includes title, author, language, identifier
+
+    Raises:
+        FileNotFoundError: If EPUB file doesn't exist
+        zipfile.BadZipFile: If file is not a valid ZIP/EPUB
+        ValueError: If EPUB structure is invalid
+    """
+    if not os.path.exists(epub_path):
+        raise FileNotFoundError(f"EPUB file not found: {epub_path}")
+
+    if log_callback:
+        log_callback("chapter_extraction_start", "Extracting chapters from EPUB (per-chapter processing)")
+
+    metadata = {
+        'title': 'Untitled',
+        'author': 'Unknown',
+        'language': 'en',
+        'identifier': str(uuid.uuid4()),
+        'epub_version': '2.0'
+    }
+
+    chapters = []
+
+    try:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            # Extract EPUB
+            try:
+                with zipfile.ZipFile(epub_path, 'r') as zip_ref:
+                    zip_ref.extractall(temp_dir)
+            except zipfile.BadZipFile as e:
+                raise zipfile.BadZipFile(f"Invalid EPUB file (not a valid ZIP): {epub_path}") from e
+
+            # Find OPF file
+            opf_path = None
+            for root, _, files in os.walk(temp_dir):
+                for file in files:
+                    if file.endswith('.opf'):
+                        opf_path = os.path.join(root, file)
+                        break
+                if opf_path:
+                    break
+
+            if not opf_path:
+                raise ValueError(f"Invalid EPUB structure: No OPF file found in {epub_path}")
+
+            # Parse OPF
+            try:
+                opf_tree = etree.parse(opf_path)
+                opf_root = opf_tree.getroot()
+            except Exception as e:
+                raise ValueError(f"Failed to parse OPF file: {e}") from e
+
+            # Detect EPUB version
+            epub_version = opf_root.get('version', '2.0')
+            metadata['epub_version'] = epub_version
+
+            if log_callback:
+                log_callback("epub_version_detected", f"Detected EPUB version: {epub_version}")
+
+            # Extract metadata
+            metadata_elem = opf_root.find('.//opf:metadata', namespaces=NAMESPACES)
+            if metadata_elem is not None:
+                title_elem = metadata_elem.find('.//dc:title', namespaces=NAMESPACES)
+                if title_elem is not None and title_elem.text:
+                    metadata['title'] = title_elem.text.strip()
+
+                creator_elem = metadata_elem.find('.//dc:creator', namespaces=NAMESPACES)
+                if creator_elem is not None and creator_elem.text:
+                    metadata['author'] = creator_elem.text.strip()
+
+                lang_elem = metadata_elem.find('.//dc:language', namespaces=NAMESPACES)
+                if lang_elem is not None and lang_elem.text:
+                    metadata['language'] = lang_elem.text.strip()
+
+                id_elem = metadata_elem.find('.//dc:identifier', namespaces=NAMESPACES)
+                if id_elem is not None and id_elem.text:
+                    metadata['identifier'] = id_elem.text.strip()
+
+            # Get content files from spine
+            manifest = opf_root.find('.//opf:manifest', namespaces=NAMESPACES)
+            spine = opf_root.find('.//opf:spine', namespaces=NAMESPACES)
+
+            if manifest is None or spine is None:
+                raise ValueError("Invalid EPUB structure: No manifest or spine found in OPF")
+
+            # Build ID to href mapping
+            id_to_href = {}
+            for item in manifest.findall('.//opf:item', namespaces=NAMESPACES):
+                item_id = item.get('id')
+                href = item.get('href')
+                media_type = item.get('media-type')
+                if item_id and href and media_type in ['application/xhtml+xml', 'text/html']:
+                    id_to_href[item_id] = href
+
+            # Process spine items in reading order
+            opf_dir = os.path.dirname(opf_path)
+            chapter_index = 0
+
+            for itemref in spine.findall('.//opf:itemref', namespaces=NAMESPACES):
+                idref = itemref.get('idref')
+                if idref and idref in id_to_href:
+                    href = id_to_href[idref]
+                    content_path = os.path.join(opf_dir, href)
+
+                    if os.path.exists(content_path):
+                        try:
+                            # Extract text from this chapter
+                            chapter_text = await extract_text_from_chapter(content_path)
+                            chapter_title = _extract_chapter_title(content_path) or f"Chapter {chapter_index + 1}"
+
+                            chapter = EPUBChapter(
+                                chapter_id=href,
+                                chapter_index=chapter_index,
+                                title=chapter_title,
+                                original_content=chapter_text,
+                                character_count=len(chapter_text),
+                                chunk_count=0,
+                            )
+                            chapters.append(chapter)
+
+                            if log_callback:
+                                log_callback(
+                                    "chapter_extracted",
+                                    f"Extracted chapter {chapter_index + 1}: {chapter_title} ({len(chapter_text)} chars)"
+                                )
+
+                            chapter_index += 1
+
+                        except Exception as e:
+                            if log_callback:
+                                log_callback(
+                                    "chapter_extraction_error",
+                                    f"Warning: Failed to extract chapter {href}: {e}"
+                                )
+                            continue
+
+        if not chapters:
+            raise ValueError("No chapters could be extracted from EPUB")
+
+        if log_callback:
+            log_callback(
+                "chapter_extraction_complete",
+                f"Extracted {len(chapters)} chapters from EPUB"
+            )
+
+        return chapters, metadata
+
+    except (FileNotFoundError, zipfile.BadZipFile, ValueError):
+        raise
+    except Exception as e:
+        raise RuntimeError(f"Unexpected error during EPUB chapter extraction: {e}") from e
+
+
+async def extract_text_from_chapter(xhtml_path: str) -> str:
+    """
+    Extract pure text from a single XHTML chapter file.
+
+    This is a helper function for per-chapter processing (T027).
+
+    Args:
+        xhtml_path: Path to XHTML/HTML chapter file
+
+    Returns:
+        str: Pure text content extracted from the chapter
+    """
+    # Reuse the existing extraction logic
+    return await _extract_pure_text_from_xhtml(xhtml_path)
+
+
+def _extract_chapter_title(xhtml_path: str) -> Optional[str]:
+    """
+    Extract chapter title from XHTML file (from <title> tag or first <h1>).
+
+    Args:
+        xhtml_path: Path to XHTML file
+
+    Returns:
+        str or None: Chapter title if found
+    """
+    try:
+        with open(xhtml_path, 'r', encoding='utf-8') as f:
+            content = f.read()
+
+        # Try XML parsing first
+        try:
+            parser = etree.XMLParser(recover=True, remove_blank_text=True)
+            tree = etree.fromstring(content.encode('utf-8'), parser)
+        except:
+            parser = etree.HTMLParser()
+            tree = etree.fromstring(content.encode('utf-8'), parser)
+
+        # Try to find title in <title> tag
+        title_elem = tree.xpath('.//title', namespaces=NAMESPACES)
+        if title_elem and title_elem[0].text:
+            title = title_elem[0].text.strip()
+            if title and title.lower() not in ['untitled', 'chapter']:
+                return title
+
+        # Try to find title in first <h1> tag
+        h1_elem = tree.xpath('.//h1', namespaces=NAMESPACES)
+        if h1_elem:
+            h1_text = ''.join(h1_elem[0].itertext()).strip()
+            if h1_text:
+                return h1_text
+
+        return None
+
+    except Exception:
+        return None
+
+
+def process_epub_chapters(
+    chapters: List[EPUBChapter],
+    config: Optional[ChunkingConfiguration] = None,
+    log_callback=None
+) -> List[EPUBChapter]:
+    """
+    Process EPUB chapters by chunking each independently (T028).
+
+    This function iterates over the spine items (chapters) and chunks each
+    chapter independently using the character-based chunking algorithm.
+
+    Args:
+        chapters: List of EPUBChapter objects with original_content
+        config: Chunking configuration (uses defaults if None)
+        log_callback: Optional logging callback
+
+    Returns:
+        List of EPUBChapter objects with chunks populated
+    """
+    if config is None:
+        config = ChunkingConfiguration()
+
+    if log_callback:
+        log_callback("chapter_chunking_start", f"Chunking {len(chapters)} chapters independently")
+
+    for chapter in chapters:
+        if not chapter.original_content or not chapter.original_content.strip():
+            # Skip empty chapters
+            chapter.chunks = []
+            chapter.chunk_count = 0
+            if log_callback:
+                log_callback(
+                    "chapter_empty",
+                    f"Skipping empty chapter: {chapter.chapter_id}"
+                )
+            continue
+
+        # Chunk this chapter using character-based chunking
+        chunks = chunk_text_by_characters(
+            chapter.original_content,
+            config=config,
+            chapter_id=chapter.chapter_id,
+            chapter_index=chapter.chapter_index
+        )
+
+        chapter.chunks = chunks
+        chapter.chunk_count = len(chunks)
+
+        if log_callback:
+            log_callback(
+                "chapter_chunked",
+                f"Chapter {chapter.chapter_index + 1} ({chapter.title}): {len(chunks)} chunks created"
+            )
+
+    # Calculate and log statistics
+    all_chunks = []
+    for chapter in chapters:
+        all_chunks.extend(chapter.chunks)
+
+    if all_chunks and log_callback:
+        stats = calculate_chunk_statistics(all_chunks, config)
+        log_callback(
+            "chunking_statistics",
+            f"Total chunks: {stats.total_chunks}, "
+            f"Avg size: {stats.average_size:.0f} chars, "
+            f"Within tolerance: {stats.within_tolerance_percentage:.1f}%"
+        )
+
+    return chapters
+
+
+async def reassemble_epub_from_chapters(
+    chapters: List[EPUBChapter],
+    output_path: str,
+    metadata: dict,
+    target_language: str,
+    log_callback=None
+) -> None:
+    """
+    Rebuild EPUB from translated chapters (T033).
+
+    Creates a valid EPUB 2.0 file from the translated chapter content,
+    ensuring proper structure and compatibility with strict readers.
+
+    Args:
+        chapters: List of EPUBChapter objects with translated_content
+        output_path: Path for output EPUB file
+        metadata: Dictionary with title, author, language, identifier
+        target_language: Target language code
+        log_callback: Optional logging callback
+
+    Raises:
+        ValueError: If no chapters have translated content
+    """
+    if log_callback:
+        log_callback("reassemble_start", f"Reassembling EPUB with {len(chapters)} chapters")
+
+    # Validate that we have translated content
+    chapters_with_content = [c for c in chapters if c.translated_content and c.translated_content.strip()]
+    if not chapters_with_content:
+        raise ValueError("No chapters have translated content")
+
+    # Update metadata with target language
+    metadata['language'] = target_language.lower()[:2] if target_language else metadata.get('language', 'en')
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        # Create EPUB structure (flat for EPUB 2.0 compatibility)
+        meta_inf_dir = os.path.join(temp_dir, 'META-INF')
+        os.makedirs(meta_inf_dir, exist_ok=True)
+
+        # 1. Create mimetype file (MUST be first and uncompressed) - T030
+        mimetype_path = os.path.join(temp_dir, 'mimetype')
+        async with aiofiles.open(mimetype_path, 'w', encoding='utf-8') as f:
+            await f.write('application/epub+zip')
+
+        # 2. Create container.xml - T031
+        container_xml = _create_container_xml()
+        container_path = os.path.join(meta_inf_dir, 'container.xml')
+        async with aiofiles.open(container_path, 'w', encoding='utf-8') as f:
+            await f.write(container_xml)
+
+        # 3. Create CSS file
+        css_content = _create_simple_css()
+        css_path = os.path.join(temp_dir, 'stylesheet.css')
+        async with aiofiles.open(css_path, 'w', encoding='utf-8') as f:
+            await f.write(css_content)
+
+        # 4. Create chapter XHTML files
+        chapter_files = []
+        for i, chapter in enumerate(chapters_with_content, 1):
+            filename = f'chapter_{i:03d}.xhtml'
+            chapter_files.append(filename)
+
+            # Clean translation tags
+            chapter_text = _clean_translation_tags(chapter.translated_content)
+
+            # Use original chapter title or default
+            chapter_title = chapter.title or f'Chapter {i}'
+
+            # Create XHTML content
+            xhtml_content = _create_chapter_xhtml(chapter_title, chapter_text, metadata['language'])
+            xhtml_path = os.path.join(temp_dir, filename)
+            async with aiofiles.open(xhtml_path, 'w', encoding='utf-8') as f:
+                await f.write(xhtml_content)
+
+            if log_callback:
+                log_callback(
+                    "chapter_written",
+                    f"Written chapter {i}: {chapter_title} ({len(chapter_text)} chars)"
+                )
+
+        # 5. Create content.opf (package document) - T032
+        opf_content = _create_content_opf(metadata, chapter_files)
+        opf_path = os.path.join(temp_dir, 'content.opf')
+        async with aiofiles.open(opf_path, 'w', encoding='utf-8') as f:
+            await f.write(opf_content)
+
+        # 6. Create toc.ncx (navigation)
+        ncx_content = _create_toc_ncx(metadata, len(chapter_files))
+        ncx_path = os.path.join(temp_dir, 'toc.ncx')
+        async with aiofiles.open(ncx_path, 'w', encoding='utf-8') as f:
+            await f.write(ncx_content)
+
+        # 7. Create EPUB zip with correct ordering - T030 (mimetype first, uncompressed)
+        with zipfile.ZipFile(output_path, 'w', zipfile.ZIP_DEFLATED) as epub_zip:
+            # mimetype MUST be first and uncompressed
+            epub_zip.write(mimetype_path, 'mimetype', compress_type=zipfile.ZIP_STORED)
+
+            # META-INF/container.xml second
+            epub_zip.write(container_path, 'META-INF/container.xml')
+
+            # Package files
+            epub_zip.write(opf_path, 'content.opf')
+            epub_zip.write(ncx_path, 'toc.ncx')
+            epub_zip.write(css_path, 'stylesheet.css')
+
+            # Chapter files in order
+            for filename in chapter_files:
+                xhtml_path = os.path.join(temp_dir, filename)
+                if os.path.exists(xhtml_path):
+                    epub_zip.write(xhtml_path, filename)
+
+    if log_callback:
+        log_callback(
+            "reassemble_complete",
+            f"EPUB created with {len(chapter_files)} chapters at {output_path}"
+        )
+
+
+def get_epub_version(opf_content: str) -> str:
+    """
+    Detect EPUB version from OPF content (T034).
+
+    Args:
+        opf_content: OPF XML content as string
+
+    Returns:
+        str: EPUB version ('2.0' or '3.0')
+    """
+    try:
+        parser = etree.XMLParser(recover=True)
+        root = etree.fromstring(opf_content.encode('utf-8'), parser)
+        version = root.get('version', '2.0')
+        return version
+    except Exception:
+        return '2.0'  # Default to 2.0 for compatibility
 
 
 async def translate_text_as_string(

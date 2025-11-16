@@ -9,6 +9,7 @@ import { StateManager } from '../core/state-manager.js';
 import { ApiClient } from '../core/api-client.js';
 import { MessageLogger } from '../ui/message-logger.js';
 import { DomHelpers } from '../ui/dom-helpers.js';
+import { ProgressManager } from './progress-manager.js';
 
 export const TranslationTracker = {
     /**
@@ -61,6 +62,12 @@ export const TranslationTracker = {
         // Handle logs
         if (data.log) {
             MessageLogger.addLog(`[${currentFile.name}] ${data.log}`);
+
+            // T052: Parse chunk statistics from log messages
+            const chunkStats = ProgressManager.parseChunkStatisticsFromLog(data.log);
+            if (chunkStats) {
+                ProgressManager.updateChunkStatistics(chunkStats);
+            }
         }
 
         // Handle progress

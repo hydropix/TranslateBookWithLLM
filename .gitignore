@@ -9,3 +9,16 @@ CLAUDE.md
 .env
 /docs
 /venv
+/.specify
+/specs
+*.egg-info/
+dist/
+build/
+*.log
+.env.*
+!.env.example
+.vscode/
+*.tmp
+*.swp
+.DS_Store
+Thumbs.db

@@ -9,7 +9,10 @@ from flask import Blueprint, request, jsonify
 from src.config import (
     MAIN_LINES_PER_CHUNK,
     REQUEST_TIMEOUT,
-    OLLAMA_NUM_CTX
+    OLLAMA_NUM_CTX,
+    ENABLE_CHARACTER_CHUNKING,
+    CHUNK_SIZE_CHARS,
+    CHUNK_TOLERANCE
 )
 
 
@@ -60,7 +63,11 @@ def create_translation_blueprint(state_manager, start_translation_job):
             'output_filename': data['output_filename'],
             'llm_provider': data.get('llm_provider', 'ollama'),
             'gemini_api_key': data.get('gemini_api_key') or os.getenv('GEMINI_API_KEY', ''),
-            'fast_mode': data.get('fast_mode', False)
+            'fast_mode': data.get('fast_mode', False),
+            # T051: Character-based chunking configuration from web requests
+            'enable_character_chunking': data.get('enable_character_chunking', ENABLE_CHARACTER_CHUNKING),
+            'chunk_size_chars': int(data.get('chunk_size_chars', CHUNK_SIZE_CHARS)),
+            'chunk_tolerance': float(data.get('chunk_tolerance', CHUNK_TOLERANCE))
         }
 
         # Add file-specific or text-specific configuration

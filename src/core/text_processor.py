@@ -2,7 +2,7 @@
 Text processing module for chunking and context management
 """
 import re
-from src.config import SENTENCE_TERMINATORS
+from src.config import SENTENCE_TERMINATORS, ENABLE_CHARACTER_CHUNKING, CHUNK_SIZE_CHARS, CHUNK_TOLERANCE
 
 
 def get_adjusted_start_index(all_lines, intended_start_idx, max_look_back_lines=20):
@@ -170,5 +170,77 @@ def split_text_into_chunks_with_context(text, main_lines_per_chunk_target):
         current_position = final_main_end_index
         if current_position <= initial_main_start_index:
             current_position = initial_main_start_index + 1
-    
+
     return structured_chunks
+
+
+def split_text_into_chunks_character_based(text, target_size=None, tolerance=None):
+    """
+    Split text into chunks using character-based chunking (T050).
+
+    Uses the new chunking module for consistent chunk sizes.
+
+    Args:
+        text (str): Input text to split
+        target_size (int, optional): Target chunk size in characters (default: CHUNK_SIZE_CHARS)
+        tolerance (float, optional): Tolerance range as decimal (default: CHUNK_TOLERANCE)
+
+    Returns:
+        tuple: (list of chunk dicts, ChunkStatistics object)
+            Each chunk dict has: context_before, main_content, context_after
+    """
+    from src.core.chunking import (
+        ChunkingConfiguration,
+        chunk_text_by_characters,
+        calculate_chunk_statistics
+    )
+
+    if target_size is None:
+        target_size = CHUNK_SIZE_CHARS
+    if tolerance is None:
+        tolerance = CHUNK_TOLERANCE
+
+    # Create configuration
+    config = ChunkingConfiguration(
+        target_size=target_size,
+        min_tolerance=1.0 - tolerance,
+        max_tolerance=1.0 + tolerance,
+        report_statistics=True
+    )
+
+    # Chunk the text
+    text_chunks = chunk_text_by_characters(text, config)
+
+    # Convert TextChunk objects to legacy format for backward compatibility
+    structured_chunks = []
+    for i, chunk in enumerate(text_chunks):
+        # Get context from neighboring chunks
+        context_before = chunk.context_before
+        context_after = chunk.context_after
+
+        structured_chunks.append({
+            "context_before": context_before,
+            "main_content": chunk.content,
+            "context_after": context_after
+        })
+
+    # Calculate statistics
+    stats = calculate_chunk_statistics(text_chunks, config)
+
+    return structured_chunks, stats
+
+
+def get_chunking_method(enable_character_chunking=None):
+    """
+    Get the appropriate chunking method based on configuration (T054).
+
+    Args:
+        enable_character_chunking (bool, optional): Override flag for character-based chunking
+
+    Returns:
+        str: 'character' or 'line' based on configuration
+    """
+    if enable_character_chunking is None:
+        enable_character_chunking = ENABLE_CHARACTER_CHUNKING
+
+    return 'character' if enable_character_chunking else 'line'

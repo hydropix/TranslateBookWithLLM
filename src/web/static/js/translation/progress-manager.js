@@ -89,6 +89,65 @@ export const ProgressManager = {
         DomHelpers.setText('failedChunks', '0');
         DomHelpers.setText('elapsedTime', '0s');
         DomHelpers.hide('statsGrid');
+        // Reset chunk statistics panel
+        this.hideChunkStatistics();
+    },
+
+    /**
+     * Update chunk statistics display (T052)
+     * @param {Object} chunkStats - Chunk statistics data
+     */
+    updateChunkStatistics(chunkStats) {
+        const panel = DomHelpers.getElement('chunkStatisticsPanel');
+        if (!panel) return;
+
+        if (chunkStats) {
+            DomHelpers.setText('chunkAvgSize', chunkStats.avgSize || '-');
+            DomHelpers.setText('chunkSizeRange', chunkStats.sizeRange || '-');
+            DomHelpers.setText('chunkWithinTolerance', chunkStats.withinTolerance || '-');
+            DomHelpers.setText('chunkOversized', chunkStats.oversized || '0');
+            panel.style.display = 'block';
+        }
+    },
+
+    /**
+     * Hide chunk statistics panel
+     */
+    hideChunkStatistics() {
+        const panel = DomHelpers.getElement('chunkStatisticsPanel');
+        if (panel) {
+            panel.style.display = 'none';
+        }
+    },
+
+    /**
+     * Parse chunk statistics from log message (T052)
+     * @param {string} message - Log message
+     * @returns {Object|null} Parsed chunk statistics or null
+     */
+    parseChunkStatisticsFromLog(message) {
+        // Parse: "📊 Chunk Statistics: X chunks, avg Y chars (Z-W range), A.B% within tolerance, C oversized"
+        const summaryMatch = message.match(/📊 Chunk Statistics: (\d+) chunks, avg (\d+) chars \((\d+)-(\d+) range\), ([\d.]+)% within tolerance(?:, (\d+) oversized)?/);
+        if (summaryMatch) {
+            return {
+                totalChunks: summaryMatch[1],
+                avgSize: summaryMatch[2] + ' chars',
+                sizeRange: summaryMatch[3] + '-' + summaryMatch[4] + ' chars',
+                withinTolerance: summaryMatch[5] + '%',
+                oversized: summaryMatch[6] || '0'
+            };
+        }
+
+        // Alternative pattern for simpler summary
+        const simpleMatch = message.match(/Total: (\d+) chunks, Size range: (\d+)-(\d+) chars/);
+        if (simpleMatch) {
+            return {
+                totalChunks: simpleMatch[1],
+                sizeRange: simpleMatch[2] + '-' + simpleMatch[3] + ' chars'
+            };
+        }
+
+        return null;
     },
 
     /**

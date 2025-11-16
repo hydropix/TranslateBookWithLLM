@@ -5,12 +5,19 @@ import os
 import asyncio
 import aiofiles
 from pathlib import Path
-from src.core.text_processor import split_text_into_chunks_with_context
-from src.core.translator import translate_chunks
+from src.core.text_processor import (
+    split_text_into_chunks_with_context,
+    split_text_into_chunks_character_based,
+    get_chunking_method
+)
+from src.core.translator import translate_chunks, report_chunk_statistics
 from src.core.subtitle_translator import translate_subtitles, translate_subtitles_in_blocks
 from src.core.epub import translate_epub_file
 from src.core.srt_processor import SRTProcessor
-from src.config import DEFAULT_MODEL, MAIN_LINES_PER_CHUNK, API_ENDPOINT, SRT_LINES_PER_BLOCK, SRT_MAX_CHARS_PER_BLOCK
+from src.config import (
+    DEFAULT_MODEL, MAIN_LINES_PER_CHUNK, API_ENDPOINT, SRT_LINES_PER_BLOCK, SRT_MAX_CHARS_PER_BLOCK,
+    ENABLE_CHARACTER_CHUNKING, CHUNK_SIZE_CHARS, CHUNK_TOLERANCE
+)
 
 
 def get_unique_output_path(output_path):
@@ -64,7 +71,9 @@ async def translate_text_file_with_callbacks(input_filepath, output_filepath,
                                              llm_provider="ollama", gemini_api_key=None, openai_api_key=None,
                                              context_window=2048, auto_adjust_context=True, min_chunk_size=5,
                                              fast_mode=False, checkpoint_manager=None, translation_id=None,
-                                             resume_from_index=0):
+                                             resume_from_index=0,
+                                             enable_character_chunking=None, chunk_size_chars=None,
+                                             chunk_tolerance=None):
     """
     Translate a text file with callback support
 
@@ -81,6 +90,9 @@ async def translate_text_file_with_callbacks(input_filepath, output_filepath,
         stats_callback (callable): Statistics callback
         check_interruption_callback (callable): Interruption check callback
         fast_mode (bool): If True, uses simplified prompts without placeholder instructions
+        enable_character_chunking (bool): Enable character-based chunking (T053)
+        chunk_size_chars (int): Target chunk size in characters
+        chunk_tolerance (float): Tolerance for chunk size
     """
     if not os.path.exists(input_filepath):
         err_msg = f"ERROR: Input file '{input_filepath}' not found."
@@ -101,10 +113,37 @@ async def translate_text_file_with_callbacks(input_filepath, output_filepath,
             print(err_msg)
         return
 
-    if log_callback: 
+    if log_callback:
         log_callback("txt_split_start", f"Splitting text from '{source_language}'...")
 
-    structured_chunks = split_text_into_chunks_with_context(original_text, chunk_target_lines_cli)
+    # T053: Feature flag check for character-based chunking
+    # T054: Backward compatibility with line-based chunking fallback
+    chunking_stats = None
+    use_char_chunking = enable_character_chunking if enable_character_chunking is not None else ENABLE_CHARACTER_CHUNKING
+
+    if use_char_chunking:
+        # Use new character-based chunking
+        target_size = chunk_size_chars if chunk_size_chars is not None else CHUNK_SIZE_CHARS
+        tolerance = chunk_tolerance if chunk_tolerance is not None else CHUNK_TOLERANCE
+
+        if log_callback:
+            log_callback("txt_chunking_mode", f"Using character-based chunking (target: {target_size} chars)")
+
+        structured_chunks, chunking_stats = split_text_into_chunks_character_based(
+            original_text, target_size=target_size, tolerance=tolerance
+        )
+
+        # Report chunk statistics (T049)
+        if chunking_stats:
+            report_chunk_statistics(chunking_stats, log_callback)
+
+    else:
+        # Fallback to legacy line-based chunking
+        if log_callback:
+            log_callback("txt_chunking_mode", f"Using line-based chunking (target: {chunk_target_lines_cli} lines)")
+
+        structured_chunks = split_text_into_chunks_with_context(original_text, chunk_target_lines_cli)
+
     total_chunks = len(structured_chunks)
 
     if stats_callback and total_chunks > 0:
@@ -112,33 +151,37 @@ async def translate_text_file_with_callbacks(input_filepath, output_filepath,
 
     if total_chunks == 0 and original_text.strip():
         warn_msg = "WARNING: No segments generated for non-empty text. Processing as a single block."
-        if log_callback: 
+        if log_callback:
             log_callback("txt_no_chunks_warning", warn_msg)
         structured_chunks = [{"context_before": "", "main_content": original_text, "context_after": ""}]
         total_chunks = 1
-        if stats_callback: 
+        if stats_callback:
             stats_callback({'total_chunks': 1, 'completed_chunks': 0, 'failed_chunks': 0})
     elif total_chunks == 0:
         info_msg = "Empty input file. No translation needed."
-        if log_callback: 
+        if log_callback:
             log_callback("txt_empty_input", info_msg)
         try:
-            async with aiofiles.open(output_filepath, 'w', encoding='utf-8') as f: 
+            async with aiofiles.open(output_filepath, 'w', encoding='utf-8') as f:
                 await f.write("")
-            if log_callback: 
+            if log_callback:
                 log_callback("txt_empty_output_created", f"Empty output file '{output_filepath}' created.")
         except Exception as e:
             err_msg = f"ERROR: Saving empty file '{output_filepath}': {e}"
-            if log_callback: 
+            if log_callback:
                 log_callback("txt_empty_save_error", err_msg)
-        if progress_callback: 
+        if progress_callback:
             progress_callback(100)
         return
 
     if log_callback:
         log_callback("txt_translation_info_lang", f"Translating from {source_language} to {target_language}.")
         log_callback("txt_translation_info_chunks1", f"{total_chunks} main segments in memory.")
-        log_callback("txt_translation_info_chunks2", f"Target size per segment: ~{chunk_target_lines_cli} lines.")
+        if use_char_chunking:
+            target_size = chunk_size_chars if chunk_size_chars is not None else CHUNK_SIZE_CHARS
+            log_callback("txt_translation_info_chunks2", f"Target size per segment: ~{target_size} characters.")
+        else:
+            log_callback("txt_translation_info_chunks2", f"Target size per segment: ~{chunk_target_lines_cli} lines.")
 
     # Translate chunks
     translated_parts = await translate_chunks(
