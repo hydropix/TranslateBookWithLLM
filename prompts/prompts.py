@@ -17,12 +17,13 @@ These represent HTML/XML tags that have been temporarily replaced.
 3. Maintain their EXACT position in the sentence structure
 4. Do NOT add spaces around them unless present in the source
 
-**Example with placeholders:**
+**Examples with placeholders (multilingual):**
+
+English → Chinese:
 English: "This is ⟦TAG0⟧very important⟦TAG1⟧ information"
 ✅ CORRECT: "这是⟦TAG0⟧非常重要的⟦TAG1⟧信息"
 ❌ WRONG: "这是非常重要的信息" (placeholders removed)
 ❌ WRONG: "这是 ⟦ TAG0 ⟧非常重要的⟦ TAG1 ⟧ 信息" (spaces added)
-❌ WRONG: "这是⟦TAG0_translated⟧非常重要的⟦TAG1⟧信息" (modified)
 """
 
 
@@ -105,11 +106,25 @@ def generate_translation_prompt(
     Returns:
         str: The complete prompt formatted for translation
     """
-    source_lang = source_language.upper()
+    # Get target-language-specific example text for output format
+    example_texts = {
+        "chinese": "您翻译的文本在这里" if fast_mode else "您翻译的文本在这里，所有⟦TAG0⟧标记都精确保留",
+        "french": "Votre texte traduit ici" if fast_mode else "Votre texte traduit ici, tous les marqueurs ⟦TAG0⟧ sont préservés exactement",
+        "spanish": "Su texto traducido aquí" if fast_mode else "Su texto traducido aquí, todos los marcadores ⟦TAG0⟧ se preservan exactamente",
+        "german": "Ihr übersetzter Text hier" if fast_mode else "Ihr übersetzter Text hier, alle ⟦TAG0⟧-Markierungen werden genau beibehalten",
+        "japanese": "翻訳されたテキストはこちら" if fast_mode else "翻訳されたテキストはこちら、すべての⟦TAG0⟧マーカーは正確に保持されます",
+        "italian": "Il tuo testo tradotto qui" if fast_mode else "Il tuo testo tradotto qui, tutti i marcatori ⟦TAG0⟧ sono conservati esattamente",
+        "portuguese": "Seu texto traduzido aqui" if fast_mode else "Seu texto traduzido aqui, todos os marcadores ⟦TAG0⟧ são preservados exatamente",
+        "russian": "Ваш переведенный текст здесь" if fast_mode else "Ваш переведенный текст здесь, все маркеры ⟦TAG0⟧ сохранены точно",
+        "korean": "번역된 텍스트는 여기에" if fast_mode else "번역된 텍스트는 여기에, 모든 ⟦TAG0⟧ 마커는 정확히 보존됩니다",
+    }
+
+    # Try to match target language to get appropriate example
+    target_lang_lower = target_language.lower()
+    example_format_text = example_texts.get(target_lang_lower, "Your translated text here")
 
     # Build the output format section outside the f-string to avoid backslash issues in Python 3.11
     additional_rules_text = "\n6. Do NOT repeat the input text or tags\n7. Preserve all spacing, indentation, and line breaks exactly as in source"
-    example_format_text = "您翻译的文本在这里。" if fast_mode else "您翻译的文本在这里，所有⟦TAG0⟧标记都精确保留。"
     output_format_section = _get_output_format_section(
         translate_tag_in,
         translate_tag_out,
@@ -122,14 +137,22 @@ def generate_translation_prompt(
     # PROMPT - can be edited for custom usages
     role_and_instructions_block = f"""You are a professional {target_language} translator and writer.
 
+# CRITICAL: TARGET LANGUAGE IS {target_language.upper()}
+
+**YOUR TRANSLATION MUST BE WRITTEN ENTIRELY IN {target_language.upper()}.**
+
+You are translating FROM {source_language} TO {target_language}.
+Your output must be in {target_language} ONLY - do NOT use any other language.
+
 # TRANSLATION PRINCIPLES
 
 **Quality Standards:**
-- Translate faithfully while preserving the author's voice, tone, and style
-- Maintain the original meaning and literary quality
+- Translate faithfully while preserving the author's style
+- Maintain the original meaning
 - Restructure sentences naturally in {target_language} (avoid word-by-word translation)
 - Adapt cultural references, idioms, and expressions to {target_language} context
 - Keep the exact text layout, spacing, line breaks, and indentation
+- **WRITE YOUR TRANSLATION IN {target_language.upper()} - THIS IS MANDATORY**
 
 **Technical Content (DO NOT TRANSLATE):**
 - Code snippets and syntax: `function()`, `variable_name`, `class MyClass`
@@ -138,34 +161,13 @@ def generate_translation_prompt(
 - URLs: `https://example.com`, `www.site.org`
 - Programming identifiers, API names, and technical terms
 
-# TRANSLATION EXAMPLES (English → Chinese)
-
-**Example 1 - Topic-Comment Structure:**
-❌ WRONG (word-by-word): "他被他的朋友给了这本书"
-✅ CORRECT (natural): "他朋友送给他这本书" or "这本书是他朋友送的"
-English: "He was given the book by his friend"
-
-**Example 2 - Idiomatic Adaptation:**
-❌ WRONG (literal): "下猫和狗"
-✅ CORRECT (adapted): "倾盆大雨" or "大雨滂沱"
-English: "It's raining cats and dogs"
-
-**Example 3 - Cultural Context:**
-❌ WRONG (direct): "感恩节晚餐将在星期四"
-✅ CORRECT (clarified): "感恩节（美国节日）晚餐将在星期四举行"
-English: "Thanksgiving dinner will be on Thursday"
-
-**Example 4 - Duration Expression:**
-❌ WRONG (awkward): "她已经工作在这个项目上三年了"
-✅ CORRECT (natural): "她做这个项目已经三年了"
-English: "She has been working on this project for three years"
-
-**Example 5 - Measure Words:**
-❌ WRONG (missing): "我买了三苹果"
-✅ CORRECT (with measure word): "我买了三个苹果"
-English: "I bought three apples"
-
 {'' if fast_mode else PLACEHOLDER_PRESERVATION_SECTION}
+
+# FINAL REMINDER: YOUR OUTPUT LANGUAGE
+
+**YOU MUST TRANSLATE INTO {target_language.upper()}.**
+Your entire translation output must be written in {target_language}.
+Do NOT write in {source_language} or any other language - ONLY {target_language.upper()}.
 
 {output_format_section}
 """
@@ -231,8 +233,6 @@ def generate_subtitle_block_prompt(
     Returns:
         str: The complete prompt formatted for subtitle block translation
     """
-    source_lang = source_language.upper()
-
     # Build the output format section outside the f-string to avoid backslash issues in Python 3.11
     subtitle_additional_rules = "\n6. Each subtitle has an index marker: [index]text - PRESERVE these markers exactly\n7. Maintain line breaks between indexed subtitles"
     subtitle_example_format = "[1]第一行翻译文本\n[2]第二行翻译文本"
@@ -258,6 +258,13 @@ def generate_subtitle_block_prompt(
     # Enhanced instructions for subtitle translation
     role_and_instructions_block = f"""You are a professional {target_language} subtitle translator and dialogue adaptation specialist.
 
+# CRITICAL: TARGET LANGUAGE IS {target_language.upper()}
+
+**YOUR SUBTITLE TRANSLATION MUST BE WRITTEN ENTIRELY IN {target_language.upper()}.**
+
+You are translating subtitles FROM {source_language} TO {target_language}.
+Your output must be in {target_language} ONLY - do NOT use any other language.
+
 # SUBTITLE TRANSLATION PRINCIPLES
 
 **Quality Standards:**
@@ -266,28 +273,18 @@ def generate_subtitle_block_prompt(
 - Keep subtitle length readable (typically 40-42 characters per line)
 - Restructure sentences naturally (avoid word-by-word translation)
 - Maintain speaker's tone, personality, and emotion
+- **WRITE YOUR TRANSLATION IN {target_language.upper()} - THIS IS MANDATORY**
 
 **Subtitle-Specific Rules:**
 - Prioritize clarity and reading speed over literal accuracy
 - Condense when necessary without losing meaning
 - Use natural, spoken {target_language} (not formal written style){custom_instructions_section}
 
-# TRANSLATION EXAMPLES (Dialogue - English → Chinese)
+# FINAL REMINDER: YOUR OUTPUT LANGUAGE
 
-**Example 1 - Natural Dialogue:**
-❌ WRONG: "我不能相信你做了那个" (literal/awkward)
-✅ CORRECT: "真不敢相信你干了这事儿" or "你竟然做了这个！"
-English: "I can't believe you did that"
-
-**Example 2 - Colloquial Expression:**
-❌ WRONG: "那太酷了，伙计" (unnatural)
-✅ CORRECT: "太棒了！" or "真不错！"
-English: "That's so cool, dude"
-
-**Example 3 - Condensing for Readability:**
-❌ WRONG: "我认为我们最好现在离开会更好" (wordy)
-✅ CORRECT: "我们该走了" or "现在走吧"
-English: "I think it would be better if we left now"
+**YOU MUST TRANSLATE INTO {target_language.upper()}.**
+Your entire subtitle translation must be written in {target_language}.
+Do NOT write in {source_language} or any other language - ONLY {target_language.upper()}.
 
 {subtitle_output_format_section}
 """

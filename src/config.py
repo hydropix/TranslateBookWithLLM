@@ -167,7 +167,7 @@ class TranslationConfig:
     interface_type: str = "cli"  # or "web"
     enable_colors: bool = True
     enable_interruption: bool = False
-    
+
     @classmethod
     def from_cli_args(cls, args) -> 'TranslationConfig':
         """Create config from CLI arguments"""
