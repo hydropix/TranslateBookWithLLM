@@ -236,6 +236,9 @@ def _extract_text_recursive(element, text_parts: list):
     """
     Recursively extract text from element and its children.
 
+    Block-level elements accumulate their inline content with spaces,
+    then add the complete block as a single text part.
+
     Args:
         element: lxml element
         text_parts: List to append text to
@@ -255,25 +258,63 @@ def _extract_text_recursive(element, text_parts: list):
     else:
         tag = ''
 
+    tag_lower = tag.lower()
+
+    # If this is a block element, accumulate all inline content with spaces
+    if tag_lower in block_tags:
+        inline_parts = []
+        _extract_inline_text(element, inline_parts)
+        block_text = ' '.join(inline_parts)
+        # Clean up multiple spaces
+        block_text = ' '.join(block_text.split())
+        if block_text:
+            text_parts.append(block_text)
+            text_parts.append('')  # Empty string creates paragraph break
+    else:
+        # For non-block elements, process normally (handles nested structures)
+        # Handle element text
+        if hasattr(element, 'text') and element.text:
+            text = element.text.strip()
+            if text:
+                text_parts.append(text)
+
+        # Process children
+        for child in element:
+            _extract_text_recursive(child, text_parts)
+
+            # Handle tail text (text after child element)
+            if hasattr(child, 'tail') and child.tail:
+                tail = child.tail.strip()
+                if tail:
+                    text_parts.append(tail)
+
+
+def _extract_inline_text(element, inline_parts: list):
+    """
+    Extract all text from an element and its children as inline content.
+
+    This accumulates text without adding paragraph breaks, suitable for
+    gathering all content within a block-level element.
+
+    Args:
+        element: lxml element
+        inline_parts: List to append text parts to
+    """
     # Handle element text
     if hasattr(element, 'text') and element.text:
         text = element.text.strip()
         if text:
-            text_parts.append(text)
+            inline_parts.append(text)
 
-    # Process children
+    # Process children recursively
     for child in element:
-        _extract_text_recursive(child, text_parts)
+        _extract_inline_text(child, inline_parts)
 
         # Handle tail text (text after child element)
         if hasattr(child, 'tail') and child.tail:
             tail = child.tail.strip()
             if tail:
-                text_parts.append(tail)
-
-    # Add paragraph break after block elements
-    if tag.lower() in block_tags and text_parts and text_parts[-1] != '':
-        text_parts.append('')  # Empty string creates paragraph break
+                inline_parts.append(tail)
 
 
 def _clean_translation_tags(text: str) -> str:
