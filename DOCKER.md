@@ -7,7 +7,7 @@ This guide explains how to use the official Docker images published to GitHub Co
 ### Pull the Latest Image
 
 ```bash
-docker pull ghcr.io/bropro/translatebookwithllm:latest
+docker pull ghcr.io/hydropix/translatebookwithllm:latest
 ```
 
 ### Run the Container
@@ -19,7 +19,7 @@ docker run -d \
   -v $(pwd)/logs:/app/logs \
   -e API_ENDPOINT=http://host.docker.internal:11434/api/generate \
   -e DEFAULT_MODEL=qwen3:14b \
-  ghcr.io/bropro/translatebookwithllm:latest
+  ghcr.io/hydropix/translatebookwithllm:latest
 ```
 
 Access the web interface at: `http://localhost:5000`
@@ -58,7 +58,7 @@ version: '3.8'
 
 services:
   translate-book:
-    image: ghcr.io/bropro/translatebookwithllm:latest
+    image: ghcr.io/hydropix/translatebookwithllm:latest
     ports:
       - "5000:5000"
     volumes:
@@ -133,7 +133,7 @@ docker run -d \
   -p 5000:5000 \
   -e API_ENDPOINT=http://host.docker.internal:11434/api/generate \
   -e DEFAULT_MODEL=qwen3:14b \
-  ghcr.io/bropro/translatebookwithllm:latest
+  ghcr.io/hydropix/translatebookwithllm:latest
 ```
 
 **Note**: `host.docker.internal` allows the container to access services on the host.
@@ -152,7 +152,7 @@ services:
       - ollama_data:/root/.ollama
 
   translate-book:
-    image: ghcr.io/bropro/translatebookwithllm:latest
+    image: ghcr.io/hydropix/translatebookwithllm:latest
     ports:
       - "5000:5000"
     environment:
@@ -175,7 +175,7 @@ docker run -d \
   -e LLM_PROVIDER=gemini \
   -e GEMINI_API_KEY=your_api_key_here \
   -e DEFAULT_MODEL=gemini-2.0-flash \
-  ghcr.io/bropro/translatebookwithllm:latest
+  ghcr.io/hydropix/translatebookwithllm:latest
 ```
 
 ### OpenAI
@@ -187,7 +187,7 @@ docker run -d \
   -e OPENAI_API_KEY=your_api_key_here \
   -e API_ENDPOINT=https://api.openai.com/v1/chat/completions \
   -e DEFAULT_MODEL=gpt-4o \
-  ghcr.io/bropro/translatebookwithllm:latest
+  ghcr.io/hydropix/translatebookwithllm:latest
 ```
 
 ## Health Check
@@ -240,7 +240,7 @@ If you need to build a custom image:
 
 ```bash
 # Clone the repository
-git clone https://github.com/bropro/TranslateBookWithLLM.git
+git clone https://github.com/hydropix/TranslateBookWithLLM.git
 cd TranslateBookWithLLM
 
 # Build the image
@@ -267,13 +267,13 @@ Images are automatically built and published to GitHub Container Registry when:
 
 ```bash
 # Latest version
-docker pull ghcr.io/bropro/translatebookwithllm:latest
+docker pull ghcr.io/hydropix/translatebookwithllm:latest
 
 # Specific version
-docker pull ghcr.io/bropro/translatebookwithllm:v1.2.3
+docker pull ghcr.io/hydropix/translatebookwithllm:v1.2.3
 
 # Specific commit
-docker pull ghcr.io/bropro/translatebookwithllm:main-abc1234
+docker pull ghcr.io/hydropix/translatebookwithllm:main-abc1234
 ```
 
 ## CI/CD Integration
@@ -289,4 +289,4 @@ The project uses GitHub Actions to automatically build and publish Docker images
 For issues related to Docker deployment:
 1. Check this documentation
 2. Review container logs
-3. Open an issue at: https://github.com/bropro/TranslateBookWithLLM/issues
+3. Open an issue at: https://github.com/hydropix/TranslateBookWithLLM/issues
