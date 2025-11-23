@@ -794,11 +794,14 @@ A: Yes, edit `prompts.py`, but it's technical.
 **Q: Are my files stored on your servers?**
 A: No, TBL runs on YOUR machine. Nothing is sent elsewhere (except if you use OpenAI/Gemini).
 
-**Q: Are uploaded files deleted?**
-A: Yes, source files are deleted after translation. Translated files remain until you delete them.
+**Q: What happens to my files during translation?**
+A: TBL runs entirely on your local machine. Your files are processed locally by the web server running on your computer:
+- **With Ollama**: 100% local - nothing leaves your machine
+- **With OpenAI/Gemini**: Only the text content is sent to their APIs for translation (consult their data policies)
+- Source files are deleted after translation. Translated files remain in `translated_files/` until you delete them.
 
 **Q: Are there file size limits?**
-A: Yes, configurable. By default: reasonable limits to prevent abuse. Modifiable in code if needed.
+A: Yes, configurable. Default limits are set to ensure smooth operation. Modifiable in `.env` or code if needed.
 
 ---
 
