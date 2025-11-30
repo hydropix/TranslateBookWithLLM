@@ -49,8 +49,9 @@ async def generate_translation_request(main_content, context_before, context_aft
         if log_callback:
             log_callback("skip_translation", f"Skipping LLM for single/empty character: '{main_content}'")
         return main_content
-    
-    structured_prompt = generate_translation_prompt(
+
+    # Generate system and user prompts separately
+    prompt_pair = generate_translation_prompt(
         main_content,
         context_before,
         context_after,
@@ -59,20 +60,23 @@ async def generate_translation_request(main_content, context_before, context_aft
         target_language,
         fast_mode=fast_mode
     )
-    
+
     # Log the LLM request with structured data for web interface
     if log_callback:
         log_callback("llm_request", "Sending request to LLM", data={
             'type': 'llm_request',
-            'prompt': structured_prompt,
+            'system_prompt': prompt_pair.system,
+            'user_prompt': prompt_pair.user,
             'model': model
         })
 
     start_time = time.time()
 
-    # Use provided client or default
+    # Use provided client or default - pass system and user prompts separately
     client = llm_client or default_client
-    full_raw_response = await client.make_request(structured_prompt, model)
+    full_raw_response = await client.make_request(
+        prompt_pair.user, model, system_prompt=prompt_pair.system
+    )
     execution_time = time.time() - start_time
 
     if not full_raw_response:
@@ -254,7 +258,7 @@ async def translate_chunks(chunks, source_language, target_language, model_name,
             # PHASE 2: Estimate and adjust context before sending request
             if llm_provider == "ollama" and auto_adjust_context:
                 # Generate the prompt (without sending it yet)
-                prompt = generate_translation_prompt(
+                prompt_pair = generate_translation_prompt(
                     main_content_to_translate,
                     context_before_text,
                     context_after_text,
@@ -262,10 +266,12 @@ async def translate_chunks(chunks, source_language, target_language, model_name,
                     source_language,
                     target_language
                 )
+                # Combine system and user prompts for token estimation
+                combined_prompt = prompt_pair.system + "\n\n" + prompt_pair.user
 
                 # Estimate number of tokens
                 estimation = estimate_tokens_with_margin(
-                    text=prompt,
+                    text=combined_prompt,
                     language=source_language,
                     apply_margin=True
                 )

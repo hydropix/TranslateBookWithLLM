@@ -29,29 +29,30 @@ class LLMClient:
             self._provider = create_llm_provider(self.provider_type, **self.provider_kwargs)
         return self._provider
     
-    async def make_request(self, prompt: str, model: Optional[str] = None, 
-                    timeout: int = None) -> Optional[str]:
+    async def make_request(self, prompt: str, model: Optional[str] = None,
+                    timeout: int = None, system_prompt: Optional[str] = None) -> Optional[str]:
         """
         Make a request to the LLM API with error handling and retries
-        
+
         Args:
-            prompt: The prompt to send
+            prompt: The user prompt to send (content to process)
             model: Model to use (defaults to instance model)
             timeout: Request timeout in seconds
-            
+            system_prompt: Optional system prompt (role/instructions)
+
         Returns:
             Raw response text or None if failed
         """
         provider = self._get_provider()
-        
+
         # Update model if specified
         if model:
             provider.model = model
-            
+
         if timeout:
-            return await provider.generate(prompt, timeout)
+            return await provider.generate(prompt, timeout, system_prompt=system_prompt)
         else:
-            return await provider.generate(prompt)
+            return await provider.generate(prompt, system_prompt=system_prompt)
     
     def extract_translation(self, response: str) -> Optional[str]:
         """
