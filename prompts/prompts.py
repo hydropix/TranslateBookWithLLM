@@ -1,5 +1,11 @@
-from typing import List, Tuple
+from typing import List, Tuple, NamedTuple
 from src.config import TRANSLATE_TAG_IN, TRANSLATE_TAG_OUT, INPUT_TAG_IN, INPUT_TAG_OUT
+
+
+class PromptPair(NamedTuple):
+    """A pair of system and user prompts for LLM translation."""
+    system: str
+    user: str
 
 
 # ============================================================================
@@ -88,7 +94,7 @@ def generate_translation_prompt(
     translate_tag_in: str = TRANSLATE_TAG_IN,
     translate_tag_out: str = TRANSLATE_TAG_OUT,
     fast_mode: bool = False
-) -> str:
+) -> PromptPair:
     """
     Generate the translation prompt with all contextual elements.
 
@@ -104,7 +110,7 @@ def generate_translation_prompt(
         fast_mode: If True, excludes placeholder preservation instructions (for pure text translation)
 
     Returns:
-        str: The complete prompt formatted for translation
+        PromptPair: A named tuple with 'system' and 'user' prompts
     """
     # Get target-language-specific example text for output format
     example_texts = {
@@ -134,8 +140,8 @@ def generate_translation_prompt(
         example_format=example_format_text
     )
 
-    # PROMPT - can be edited for custom usages
-    role_and_instructions_block = f"""You are a professional {target_language} translator and writer.
+    # SYSTEM PROMPT - Role and instructions (stable across requests)
+    system_prompt = f"""You are a professional {target_language} translator and writer.
 
 # CRITICAL: TARGET LANGUAGE IS {target_language.upper()}
 
@@ -169,14 +175,12 @@ Your output must be in {target_language} ONLY - do NOT use any other language.
 Your entire translation output must be written in {target_language}.
 Do NOT write in {source_language} or any other language - ONLY {target_language.upper()}.
 
-{output_format_section}
-"""
+{output_format_section}"""
 
+    # USER PROMPT - Context and content to translate (varies per request)
     previous_translation_block_text = ""
     if previous_translation_context and previous_translation_context.strip():
-        previous_translation_block_text = f"""
-
-# CONTEXT - Previous Paragraph
+        previous_translation_block_text = f"""# CONTEXT - Previous Paragraph
 
 For consistency and natural flow, here's what came immediately before:
 
@@ -184,8 +188,7 @@ For consistency and natural flow, here's what came immediately before:
 
 """
 
-    text_to_translate_block = f"""
-# TEXT TO TRANSLATE
+    user_prompt = f"""{previous_translation_block_text}# TEXT TO TRANSLATE
 
 {INPUT_TAG_IN}
 {main_content}
@@ -200,13 +203,7 @@ Start with {translate_tag_in} and end with {translate_tag_out}. Nothing before o
 
 Provide your translation now:"""
 
-    parts = [part.strip() for part in [
-        role_and_instructions_block,
-        previous_translation_block_text,
-        text_to_translate_block
-    ] if part]
-
-    return "\n\n".join(parts).strip()
+    return PromptPair(system=system_prompt.strip(), user=user_prompt.strip())
 
 
 def generate_subtitle_block_prompt(
@@ -217,7 +214,7 @@ def generate_subtitle_block_prompt(
     translate_tag_in: str = TRANSLATE_TAG_IN,
     translate_tag_out: str = TRANSLATE_TAG_OUT,
     custom_instructions: str = ""
-) -> str:
+) -> PromptPair:
     """
     Generate translation prompt for multiple subtitle blocks with index markers.
 
@@ -231,7 +228,7 @@ def generate_subtitle_block_prompt(
         custom_instructions: Additional custom translation instructions
 
     Returns:
-        str: The complete prompt formatted for subtitle block translation
+        PromptPair: A named tuple with 'system' and 'user' prompts
     """
     # Build the output format section outside the f-string to avoid backslash issues in Python 3.11
     subtitle_additional_rules = "\n6. Each subtitle has an index marker: [index]text - PRESERVE these markers exactly\n7. Maintain line breaks between indexed subtitles"
@@ -255,8 +252,8 @@ def generate_subtitle_block_prompt(
 {custom_instructions.strip()}
 """
 
-    # Enhanced instructions for subtitle translation
-    role_and_instructions_block = f"""You are a professional {target_language} subtitle translator and dialogue adaptation specialist.
+    # SYSTEM PROMPT - Role and instructions for subtitle translation
+    system_prompt = f"""You are a professional {target_language} subtitle translator and dialogue adaptation specialist.
 
 # CRITICAL: TARGET LANGUAGE IS {target_language.upper()}
 
@@ -286,15 +283,12 @@ Your output must be in {target_language} ONLY - do NOT use any other language.
 Your entire subtitle translation must be written in {target_language}.
 Do NOT write in {source_language} or any other language - ONLY {target_language.upper()}.
 
-{subtitle_output_format_section}
-"""
+{subtitle_output_format_section}"""
 
-    # Previous translation context
+    # USER PROMPT - Context and subtitles to translate
     previous_translation_block_text = ""
     if previous_translation_block and previous_translation_block.strip():
-        previous_translation_block_text = f"""
-
-# CONTEXT - Previous Subtitle Block
+        previous_translation_block_text = f"""# CONTEXT - Previous Subtitle Block
 
 For continuity and consistency, here's the previous subtitle block:
 
@@ -308,8 +302,7 @@ For continuity and consistency, here's the previous subtitle block:
     # Join subtitles outside f-string to avoid Python 3.11 backslash issues
     formatted_subtitles_text = "\n".join(formatted_subtitles)
 
-    text_to_translate_block = f"""
-# SUBTITLES TO TRANSLATE
+    user_prompt = f"""{previous_translation_block_text}# SUBTITLES TO TRANSLATE
 
 {INPUT_TAG_IN}
 {formatted_subtitles_text}
@@ -325,10 +318,4 @@ Start with {translate_tag_in} and end with {translate_tag_out}. Nothing before o
 
 Provide your translation now:"""
 
-    parts = [part.strip() for part in [
-        role_and_instructions_block,
-        previous_translation_block_text,
-        text_to_translate_block
-    ] if part]
-
-    return "\n".join(parts).strip()
+    return PromptPair(system=system_prompt.strip(), user=user_prompt.strip())

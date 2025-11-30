@@ -246,8 +246,8 @@ async def translate_subtitles_in_blocks(subtitle_blocks: List[List[Dict[str, str
             if not subtitle_tuples:
                 continue
             
-            # Generate prompt for this block
-            prompt = generate_subtitle_block_prompt(
+            # Generate system and user prompts for this block
+            prompt_pair = generate_subtitle_block_prompt(
                 subtitle_tuples,
                 previous_translation_block,
                 source_language,
@@ -271,18 +271,23 @@ async def translate_subtitles_in_blocks(subtitle_blocks: List[List[Dict[str, str
                     if log_callback:
                         log_callback("llm_request", "Sending subtitle block to LLM", data={
                             'type': 'llm_request',
-                            'prompt': prompt,
+                            'system_prompt': prompt_pair.system,
+                            'user_prompt': prompt_pair.user,
                             'model': model_name
                         })
 
-                    print("\n-------SENT to LLM-------")
-                    print(prompt)
-                    print("-------SENT to LLM-------\n")
+                    print("\n-------SENT to LLM (SYSTEM)-------")
+                    print(prompt_pair.system)
+                    print("-------SENT to LLM (USER)-------")
+                    print(prompt_pair.user)
+                    print("-------END SENT to LLM-------\n")
 
-                    # Use provided client or default
+                    # Use provided client or default - pass system and user prompts separately
                     client = llm_client or default_client
                     start_time = time.time()
-                    full_raw_response = await client.make_request(prompt, model_name)
+                    full_raw_response = await client.make_request(
+                        prompt_pair.user, model_name, system_prompt=prompt_pair.system
+                    )
                     execution_time = time.time() - start_time
 
                     print("\n-------LLM RESPONSE-------")
@@ -314,12 +319,12 @@ async def translate_subtitles_in_blocks(subtitle_blocks: List[List[Dict[str, str
                             
                             if missing_tags:
                                 if log_callback:
-                                    log_callback("srt_placeholder_validation_failed", 
+                                    log_callback("srt_placeholder_validation_failed",
                                                f"Block {block_idx+1} missing tags: {missing_tags}")
-                                
+
                                 if retry_count < max_retries - 1:
                                     # Enhance prompt with stronger instructions about preserving tags
-                                    prompt = generate_subtitle_block_prompt(
+                                    prompt_pair = generate_subtitle_block_prompt(
                                         subtitle_tuples,
                                         previous_translation_block,
                                         source_language,

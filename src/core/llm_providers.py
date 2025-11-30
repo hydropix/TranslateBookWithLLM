@@ -22,15 +22,15 @@ class ContextOverflowError(Exception):
 
 class LLMProvider(ABC):
     """Abstract base class for LLM providers"""
-    
+
     def __init__(self, model: str):
         self.model = model
         self._compiled_regex = re.compile(
-            rf"{re.escape(TRANSLATE_TAG_IN)}(.*?){re.escape(TRANSLATE_TAG_OUT)}", 
+            rf"{re.escape(TRANSLATE_TAG_IN)}(.*?){re.escape(TRANSLATE_TAG_OUT)}",
             re.DOTALL
         )
         self._client = None
-    
+
     async def _get_client(self) -> httpx.AsyncClient:
         """Get or create a persistent HTTP client with connection pooling"""
         if self._client is None:
@@ -39,16 +39,27 @@ class LLMProvider(ABC):
                 timeout=httpx.Timeout(REQUEST_TIMEOUT)
             )
         return self._client
-    
+
     async def close(self):
         """Close the HTTP client"""
         if self._client:
             await self._client.aclose()
             self._client = None
-    
+
     @abstractmethod
-    async def generate(self, prompt: str, timeout: int = REQUEST_TIMEOUT) -> Optional[str]:
-        """Generate text from prompt"""
+    async def generate(self, prompt: str, timeout: int = REQUEST_TIMEOUT,
+                      system_prompt: Optional[str] = None) -> Optional[str]:
+        """
+        Generate text from prompt.
+
+        Args:
+            prompt: The user prompt (content to process)
+            timeout: Request timeout in seconds
+            system_prompt: Optional system prompt (role/instructions)
+
+        Returns:
+            Generated text or None if failed
+        """
         pass
     
     def extract_translation(self, response: str) -> Optional[str]:
@@ -134,9 +145,20 @@ class OllamaProvider(LLMProvider):
         self.api_endpoint = api_endpoint
         self.context_window = context_window
         self.log_callback = log_callback
-    
-    async def generate(self, prompt: str, timeout: int = REQUEST_TIMEOUT) -> Optional[str]:
-        """Generate text using Ollama API"""
+
+    async def generate(self, prompt: str, timeout: int = REQUEST_TIMEOUT,
+                      system_prompt: Optional[str] = None) -> Optional[str]:
+        """
+        Generate text using Ollama API.
+
+        Args:
+            prompt: The user prompt (content to translate)
+            timeout: Request timeout in seconds
+            system_prompt: Optional system prompt (role/instructions)
+
+        Returns:
+            Generated text or None if failed
+        """
         payload = {
             "model": self.model,
             "prompt": prompt,
@@ -146,6 +168,10 @@ class OllamaProvider(LLMProvider):
                 "truncate": False
             }
         }
+
+        # Add system prompt if provided (Ollama supports 'system' field)
+        if system_prompt:
+            payload["system"] = system_prompt
 
         client = await self._get_client()
         for attempt in range(MAX_TRANSLATION_ATTEMPTS):
@@ -254,21 +280,38 @@ class OllamaProvider(LLMProvider):
 
 class OpenAICompatibleProvider(LLMProvider):
     """OpenAI compatible API provider"""
-    
+
     def __init__(self, api_endpoint: str, model: str, api_key: Optional[str] = None):
         super().__init__(model)
         self.api_endpoint = api_endpoint
         self.api_key = api_key
-    
-    async def generate(self, prompt: str, timeout: int = REQUEST_TIMEOUT) -> Optional[str]:
-        """Generate text using an OpenAI compatible API"""
+
+    async def generate(self, prompt: str, timeout: int = REQUEST_TIMEOUT,
+                      system_prompt: Optional[str] = None) -> Optional[str]:
+        """
+        Generate text using an OpenAI compatible API.
+
+        Args:
+            prompt: The user prompt (content to translate)
+            timeout: Request timeout in seconds
+            system_prompt: Optional system prompt (role/instructions)
+
+        Returns:
+            Generated text or None if failed
+        """
         headers = {"Content-Type": "application/json"}
         if self.api_key:
             headers["Authorization"] = f"Bearer {self.api_key}"
 
+        # Build messages array with optional system prompt
+        messages = []
+        if system_prompt:
+            messages.append({"role": "system", "content": system_prompt})
+        messages.append({"role": "user", "content": prompt})
+
         payload = {
             "model": self.model,
-            "messages": [{"role": "user", "content": prompt}],
+            "messages": messages,
             "stream": False,
         }
         
@@ -372,15 +415,27 @@ class GeminiProvider(LLMProvider):
             print(f"Error fetching Gemini models: {e}")
             return []
     
-    async def generate(self, prompt: str, timeout: int = REQUEST_TIMEOUT) -> Optional[str]:
-        """Generate text using Gemini API"""
+    async def generate(self, prompt: str, timeout: int = REQUEST_TIMEOUT,
+                      system_prompt: Optional[str] = None) -> Optional[str]:
+        """
+        Generate text using Gemini API.
+
+        Args:
+            prompt: The user prompt (content to translate)
+            timeout: Request timeout in seconds
+            system_prompt: Optional system prompt (role/instructions)
+
+        Returns:
+            Generated text or None if failed
+        """
         headers = {
             "Content-Type": "application/json",
             "x-goog-api-key": self.api_key
         }
-        
+
         payload = {
             "contents": [{
+                "role": "user",
                 "parts": [{
                     "text": prompt
                 }]
@@ -390,6 +445,14 @@ class GeminiProvider(LLMProvider):
                 "maxOutputTokens": 2048
             }
         }
+
+        # Add system instruction if provided (Gemini API supports systemInstruction field)
+        if system_prompt:
+            payload["systemInstruction"] = {
+                "parts": [{
+                    "text": system_prompt
+                }]
+            }
         
         # Debug logs removed - uncomment if needed for troubleshooting
         # print(f"[DEBUG] Gemini API URL: {self.api_endpoint}")
