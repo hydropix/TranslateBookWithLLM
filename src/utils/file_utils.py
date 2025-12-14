@@ -62,6 +62,7 @@ async def translate_text_file_with_callbacks(input_filepath, output_filepath,
                                              progress_callback=None, log_callback=None, stats_callback=None,
                                              check_interruption_callback=None,
                                              llm_provider="ollama", gemini_api_key=None, openai_api_key=None,
+                                             openrouter_api_key=None,
                                              context_window=2048, auto_adjust_context=True, min_chunk_size=5,
                                              fast_mode=False, checkpoint_manager=None, translation_id=None,
                                              resume_from_index=0):
@@ -154,6 +155,7 @@ async def translate_text_file_with_callbacks(input_filepath, output_filepath,
         llm_provider=llm_provider,
         gemini_api_key=gemini_api_key,
         openai_api_key=openai_api_key,
+        openrouter_api_key=openrouter_api_key,
         context_window=context_window,
         auto_adjust_context=auto_adjust_context,
         min_chunk_size=min_chunk_size,
@@ -199,6 +201,7 @@ async def translate_srt_file_with_callbacks(input_filepath, output_filepath,
                                            progress_callback=None, log_callback=None, stats_callback=None,
                                            check_interruption_callback=None,
                                            llm_provider="ollama", gemini_api_key=None, openai_api_key=None,
+                                           openrouter_api_key=None,
                                            checkpoint_manager=None, translation_id=None, resume_from_block_index=0):
     """
     Translate an SRT subtitle file with callback support
@@ -302,6 +305,7 @@ async def translate_srt_file_with_callbacks(input_filepath, output_filepath,
         llm_provider=llm_provider,
         gemini_api_key=gemini_api_key,
         openai_api_key=openai_api_key,
+        openrouter_api_key=openrouter_api_key,
         checkpoint_manager=checkpoint_manager,
         translation_id=translation_id,
         resume_from_block_index=resume_from_block_index
@@ -343,6 +347,7 @@ async def translate_file(input_filepath, output_filepath,
                         progress_callback=None, log_callback=None, stats_callback=None,
                         check_interruption_callback=None,
                         llm_provider="ollama", gemini_api_key=None, openai_api_key=None,
+                        openrouter_api_key=None,
                         context_window=2048, auto_adjust_context=True, min_chunk_size=5,
                         fast_mode=False):
     """
@@ -373,6 +378,7 @@ async def translate_file(input_filepath, output_filepath,
                                   llm_provider=llm_provider,
                                   gemini_api_key=gemini_api_key,
                                   openai_api_key=openai_api_key,
+                                  openrouter_api_key=openrouter_api_key,
                                   fast_mode=fast_mode)
     elif ext == '.srt':
         await translate_srt_file_with_callbacks(
@@ -384,7 +390,8 @@ async def translate_file(input_filepath, output_filepath,
             check_interruption_callback=check_interruption_callback,
             llm_provider=llm_provider,
             gemini_api_key=gemini_api_key,
-            openai_api_key=openai_api_key
+            openai_api_key=openai_api_key,
+            openrouter_api_key=openrouter_api_key
         )
     else:
         # For .txt files, always use fast mode (no placeholder preservation needed)
@@ -398,6 +405,7 @@ async def translate_file(input_filepath, output_filepath,
             llm_provider=llm_provider,
             gemini_api_key=gemini_api_key,
             openai_api_key=openai_api_key,
+            openrouter_api_key=openrouter_api_key,
             context_window=context_window,
             auto_adjust_context=auto_adjust_context,
             min_chunk_size=min_chunk_size,

@@ -205,6 +205,12 @@ export const FormManager = {
             if (config.gemini_api_key) {
                 DomHelpers.setValue('geminiApiKey', config.gemini_api_key);
             }
+            if (config.openai_api_key) {
+                DomHelpers.setValue('openaiApiKey', config.openai_api_key);
+            }
+            if (config.openrouter_api_key) {
+                DomHelpers.setValue('openrouterApiKey', config.openrouter_api_key);
+            }
 
             // Store in state
             StateManager.setState('ui.defaultConfig', config);
@@ -333,6 +339,7 @@ export const FormManager = {
         // Get API keys
         const geminiApiKey = provider === 'gemini' ? DomHelpers.getValue('geminiApiKey') : '';
         const openaiApiKey = provider === 'openai' ? DomHelpers.getValue('openaiApiKey') : '';
+        const openrouterApiKey = provider === 'openrouter' ? DomHelpers.getValue('openrouterApiKey') : '';
 
         return {
             source_language: sourceLanguageVal,
@@ -342,6 +349,7 @@ export const FormManager = {
             llm_provider: provider,
             gemini_api_key: geminiApiKey,
             openai_api_key: openaiApiKey,
+            openrouter_api_key: openrouterApiKey,
             chunk_size: parseInt(DomHelpers.getValue('chunkSize')),
             timeout: parseInt(DomHelpers.getValue('timeout')),
             context_window: parseInt(DomHelpers.getValue('contextWindow')),

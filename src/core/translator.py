@@ -124,6 +124,7 @@ async def translate_chunks(chunks, source_language, target_language, model_name,
                           api_endpoint, progress_callback=None, log_callback=None,
                           stats_callback=None, check_interruption_callback=None,
                           llm_provider="ollama", gemini_api_key=None, openai_api_key=None,
+                          openrouter_api_key=None,
                           context_window=2048, auto_adjust_context=True, min_chunk_size=5, fast_mode=False,
                           checkpoint_manager=None, translation_id=None, resume_from_index=0):
     """
@@ -203,7 +204,7 @@ async def translate_chunks(chunks, source_language, target_language, model_name,
                 log_callback("context_validation_warning", warning)
 
     # Create LLM client based on provider or custom endpoint
-    llm_client = create_llm_client(llm_provider, gemini_api_key, api_endpoint, model_name, openai_api_key)
+    llm_client = create_llm_client(llm_provider, gemini_api_key, api_endpoint, model_name, openai_api_key, openrouter_api_key)
 
     try:
         iterator = tqdm(chunks, desc=f"Translating {source_language} to {target_language}", unit="seg") if not log_callback else chunks

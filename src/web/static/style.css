@@ -630,6 +630,18 @@ input[type="range"]::-moz-range-thumb {
     font-size: 14px;
 }
 
+/* Provider settings links (OpenRouter, etc.) */
+.form-group small a {
+    color: #79CDDE;
+    text-decoration: none;
+    transition: color 0.3s;
+}
+
+.form-group small a:hover {
+    color: #9CE5F4;
+    text-decoration: underline;
+}
+
 .app-footer a {
     color: #79CDDE;
     text-decoration: none;

@@ -17,7 +17,10 @@ from src.config import (
     RETRY_DELAY_SECONDS,
     DEFAULT_SOURCE_LANGUAGE,
     DEFAULT_TARGET_LANGUAGE,
-    DEBUG_MODE
+    DEBUG_MODE,
+    GEMINI_API_KEY,
+    OPENAI_API_KEY,
+    OPENROUTER_API_KEY
 )
 
 # Setup logger for this module
@@ -51,19 +54,19 @@ def create_config_blueprint():
 
     @bp.route('/api/models', methods=['GET'])
     def get_available_models():
-        """Get available models from Ollama or Gemini"""
+        """Get available models from Ollama, Gemini, or OpenRouter"""
         provider = request.args.get('provider', 'ollama')
 
         if provider == 'gemini':
             return _get_gemini_models()
+        elif provider == 'openrouter':
+            return _get_openrouter_models()
         else:
             return _get_ollama_models()
 
     @bp.route('/api/config', methods=['GET'])
     def get_default_config():
         """Get default configuration values"""
-        gemini_api_key = os.getenv('GEMINI_API_KEY', '')
-
         config_response = {
             "api_endpoint": DEFAULT_OLLAMA_API_ENDPOINT,
             "default_model": DEFAULT_MODEL,
@@ -73,7 +76,9 @@ def create_config_blueprint():
             "max_attempts": MAX_TRANSLATION_ATTEMPTS,
             "retry_delay": RETRY_DELAY_SECONDS,
             "supported_formats": ["txt", "epub", "srt"],
-            "gemini_api_key": gemini_api_key,
+            "gemini_api_key": GEMINI_API_KEY,
+            "openai_api_key": OPENAI_API_KEY,
+            "openrouter_api_key": OPENROUTER_API_KEY,
             "default_source_language": DEFAULT_SOURCE_LANGUAGE,
             "default_target_language": DEFAULT_TARGET_LANGUAGE
         }
@@ -86,6 +91,58 @@ def create_config_blueprint():
             logger.debug(f"   default_model: {DEFAULT_MODEL}")
 
         return jsonify(config_response)
+
+    def _get_openrouter_models():
+        """Get available text-only models from OpenRouter API"""
+        api_key = request.args.get('api_key')
+        if not api_key:
+            api_key = os.getenv('OPENROUTER_API_KEY', OPENROUTER_API_KEY)
+
+        if not api_key:
+            return jsonify({
+                "models": [],
+                "model_names": [],
+                "default": "anthropic/claude-sonnet-4",
+                "status": "api_key_missing",
+                "count": 0,
+                "error": "OpenRouter API key is required. Set OPENROUTER_API_KEY environment variable or pass api_key parameter."
+            })
+
+        try:
+            from src.core.llm_providers import OpenRouterProvider
+
+            openrouter_provider = OpenRouterProvider(api_key=api_key)
+            models = asyncio.run(openrouter_provider.get_available_models(text_only=True))
+
+            if models:
+                model_names = [m['id'] for m in models]
+                return jsonify({
+                    "models": models,
+                    "model_names": model_names,
+                    "default": "anthropic/claude-sonnet-4",
+                    "status": "openrouter_connected",
+                    "count": len(models)
+                })
+            else:
+                return jsonify({
+                    "models": [],
+                    "model_names": [],
+                    "default": "anthropic/claude-sonnet-4",
+                    "status": "openrouter_error",
+                    "count": 0,
+                    "error": "Failed to retrieve OpenRouter models"
+                })
+
+        except Exception as e:
+            print(f"❌ Error retrieving OpenRouter models: {e}")
+            return jsonify({
+                "models": [],
+                "model_names": [],
+                "default": "anthropic/claude-sonnet-4",
+                "status": "openrouter_error",
+                "count": 0,
+                "error": f"Error connecting to OpenRouter API: {str(e)}"
+            })
 
     def _get_gemini_models():
         """Get available models from Gemini API"""

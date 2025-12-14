@@ -243,7 +243,7 @@ export const ApiClient = {
 
     /**
      * Get available models for a provider
-     * @param {string} provider - Provider name ('ollama', 'gemini', 'openai')
+     * @param {string} provider - Provider name ('ollama', 'gemini', 'openai', 'openrouter')
      * @param {Object} [options] - Additional options (api_endpoint, api_key)
      * @returns {Promise<Object>} Models list
      */
@@ -255,6 +255,11 @@ export const ApiClient = {
             params.append('api_key', options.apiKey);
         } else if (provider === 'openai') {
             params.append('provider', 'openai');
+        } else if (provider === 'openrouter') {
+            params.append('provider', 'openrouter');
+            if (options.apiKey) {
+                params.append('api_key', options.apiKey);
+            }
         } else {
             // Ollama
             if (options.apiEndpoint) {

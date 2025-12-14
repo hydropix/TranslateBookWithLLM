@@ -90,10 +90,15 @@ MIN_CHUNK_SIZE = int(os.getenv("MIN_CHUNK_SIZE", "5"))
 MAX_CHUNK_SIZE = int(os.getenv("MAX_CHUNK_SIZE", "100"))
 
 # LLM Provider configuration
-LLM_PROVIDER = os.getenv('LLM_PROVIDER', 'ollama')  # 'ollama', 'gemini', or 'openai'
+LLM_PROVIDER = os.getenv('LLM_PROVIDER', 'ollama')  # 'ollama', 'gemini', 'openai', or 'openrouter'
 GEMINI_API_KEY = os.getenv('GEMINI_API_KEY', '')
 GEMINI_MODEL = os.getenv('GEMINI_MODEL', 'gemini-2.0-flash')
 OPENAI_API_KEY = os.getenv('OPENAI_API_KEY', '')
+
+# OpenRouter configuration (access to 200+ models)
+OPENROUTER_API_KEY = os.getenv('OPENROUTER_API_KEY', '')
+OPENROUTER_MODEL = os.getenv('OPENROUTER_MODEL', 'anthropic/claude-sonnet-4')
+OPENROUTER_API_ENDPOINT = 'https://openrouter.ai/api/v1/chat/completions'
 
 # SRT-specific configuration
 SRT_LINES_PER_BLOCK = int(os.getenv('SRT_LINES_PER_BLOCK', '5'))
@@ -137,6 +142,8 @@ if DEBUG_MODE or _debug_mode:
     _config_logger.debug(f"   REQUEST_TIMEOUT: {REQUEST_TIMEOUT}")
     _config_logger.debug(f"   GEMINI_API_KEY: {'***' + GEMINI_API_KEY[-4:] if GEMINI_API_KEY else '(not set)'}")
     _config_logger.debug(f"   OPENAI_API_KEY: {'***' + OPENAI_API_KEY[-4:] if OPENAI_API_KEY else '(not set)'}")
+    _config_logger.debug(f"   OPENROUTER_API_KEY: {'***' + OPENROUTER_API_KEY[-4:] if OPENROUTER_API_KEY else '(not set)'}")
+    _config_logger.debug(f"   OPENROUTER_MODEL: {OPENROUTER_MODEL}")
     _config_logger.debug("="*60)
 
 # Translation tags - Improved for LLM clarity and reliability
@@ -189,6 +196,7 @@ class TranslationConfig:
     llm_provider: str = LLM_PROVIDER
     gemini_api_key: str = GEMINI_API_KEY
     openai_api_key: str = OPENAI_API_KEY
+    openrouter_api_key: str = OPENROUTER_API_KEY
     
     # Translation parameters
     chunk_size: int = MAIN_LINES_PER_CHUNK
@@ -222,7 +230,8 @@ class TranslationConfig:
             enable_colors=not args.no_color,
             llm_provider=getattr(args, 'provider', LLM_PROVIDER),
             gemini_api_key=getattr(args, 'gemini_api_key', GEMINI_API_KEY),
-            openai_api_key=getattr(args, 'openai_api_key', OPENAI_API_KEY)
+            openai_api_key=getattr(args, 'openai_api_key', OPENAI_API_KEY),
+            openrouter_api_key=getattr(args, 'openrouter_api_key', OPENROUTER_API_KEY)
         )
     
     @classmethod
@@ -245,7 +254,8 @@ class TranslationConfig:
             enable_interruption=True,
             llm_provider=request_data.get('llm_provider', LLM_PROVIDER),
             gemini_api_key=request_data.get('gemini_api_key', GEMINI_API_KEY),
-            openai_api_key=request_data.get('openai_api_key', OPENAI_API_KEY)
+            openai_api_key=request_data.get('openai_api_key', OPENAI_API_KEY),
+            openrouter_api_key=request_data.get('openrouter_api_key', OPENROUTER_API_KEY)
         )
     
     def to_dict(self) -> dict:
@@ -262,5 +272,6 @@ class TranslationConfig:
             'context_window': self.context_window,
             'llm_provider': self.llm_provider,
             'gemini_api_key': self.gemini_api_key,
-            'openai_api_key': self.openai_api_key
+            'openai_api_key': self.openai_api_key,
+            'openrouter_api_key': self.openrouter_api_key
         }

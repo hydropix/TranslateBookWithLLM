@@ -26,6 +26,7 @@
                             <option value="ollama">Ollama (Local)</option>
                             <option value="gemini">Google Gemini</option>
                             <option value="openai">OpenAI</option>
+                            <option value="openrouter">OpenRouter (200+ models)</option>
                         </select>
                     </div>
 
@@ -44,6 +45,15 @@
                         <input type="text" class="form-control" id="openaiEndpoint" value="https://api.openai.com/v1/chat/completions" placeholder="OpenAI API endpoint">
                         <label style="margin-top: 10px;">OpenAI API Key</label>
                         <input type="password" class="form-control" id="openaiApiKey" placeholder="Enter your OpenAI API key">
+                    </div>
+
+                    <div class="form-group" id="openrouterSettings" style="display: none;">
+                        <label>OpenRouter API Key</label>
+                        <input type="password" class="form-control" id="openrouterApiKey" placeholder="sk-or-v1-...">
+                        <small style="display: block; margin-top: 5px; color: #6b7280;">
+                            <a href="https://openrouter.ai/keys" target="_blank" rel="noopener noreferrer">Get your API key</a> |
+                            <a href="https://openrouter.ai/models" target="_blank" rel="noopener noreferrer">Browse models</a>
+                        </small>
                     </div>
 
                     <div class="form-group">
@@ -172,6 +182,17 @@
                         <div class="stat-card"><h3 id="completedChunks">0</h3><p>Completed</p></div>
                         <div class="stat-card"><h3 id="failedChunks">0</h3><p>Failed</p></div>
                         <div class="stat-card"><h3 id="elapsedTime">0s</h3><p>Time Elapsed</p></div>
+                    </div>
+                    <!-- OpenRouter Cost Display (hidden by default, shown only for OpenRouter provider) -->
+                    <div class="stats-grid hidden" id="openrouterCostGrid" style="margin-top: 15px;">
+                        <div class="stat-card" style="background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); border: 1px solid #f59e0b;">
+                            <h3 id="openrouterCost" style="color: #92400e;">$0.0000</h3>
+                            <p style="color: #78350f;">Total Cost (USD)</p>
+                        </div>
+                        <div class="stat-card" style="background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%); border: 1px solid #3b82f6;">
+                            <h3 id="openrouterTokens" style="color: #1e40af;">0</h3>
+                            <p style="color: #1e3a8a;">Total Tokens</p>
+                        </div>
                     </div>
                     <div style="margin-top: 20px;">
                         <h4 style="margin: 0 0 10px 0;">📝 Last Translation Preview</h4>

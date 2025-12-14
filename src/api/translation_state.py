@@ -27,7 +27,11 @@ class TranslationStateManager:
                     'start_time': time.time(),
                     'total_chunks': 0,
                     'completed_chunks': 0,
-                    'failed_chunks': 0
+                    'failed_chunks': 0,
+                    # OpenRouter cost tracking
+                    'openrouter_cost': 0.0,
+                    'openrouter_prompt_tokens': 0,
+                    'openrouter_completion_tokens': 0
                 },
                 'logs': [f"[{datetime.now().strftime('%H:%M:%S')}] Translation {translation_id} queued."],
                 'result': None,

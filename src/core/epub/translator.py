@@ -44,6 +44,7 @@ async def translate_epub_file(
     llm_provider: str = "ollama",
     gemini_api_key: Optional[str] = None,
     openai_api_key: Optional[str] = None,
+    openrouter_api_key: Optional[str] = None,
     fast_mode: bool = False,
     context_window: int = 2048,
     auto_adjust_context: bool = True,
@@ -96,7 +97,7 @@ async def translate_epub_file(
             model_name, chunk_target_lines_arg, cli_api_endpoint,
             progress_callback, log_callback, stats_callback,
             check_interruption_callback,
-            llm_provider, gemini_api_key, openai_api_key,
+            llm_provider, gemini_api_key, openai_api_key, openrouter_api_key,
             context_window, auto_adjust_context, min_chunk_size,
             checkpoint_manager, translation_id, resume_from_index
         )
@@ -126,6 +127,7 @@ async def translate_epub_file(
             completed, failed = await _translate_jobs(
                 jobs, source_language, target_language, model_name,
                 cli_api_endpoint, llm_provider, gemini_api_key, openai_api_key,
+                openrouter_api_key,
                 progress_callback, log_callback, stats_callback, check_interruption_callback
             )
 
@@ -276,6 +278,7 @@ async def _translate_jobs(
     llm_provider: str,
     gemini_api_key: Optional[str],
     openai_api_key: Optional[str],
+    openrouter_api_key: Optional[str],
     progress_callback: Optional[Callable],
     log_callback: Optional[Callable],
     stats_callback: Optional[Callable],
@@ -306,7 +309,7 @@ async def _translate_jobs(
 
     # Create LLM client
     from ..llm_client import create_llm_client
-    llm_client = create_llm_client(llm_provider, gemini_api_key, cli_api_endpoint, model_name, openai_api_key)
+    llm_client = create_llm_client(llm_provider, gemini_api_key, cli_api_endpoint, model_name, openai_api_key, openrouter_api_key)
 
     last_successful_context = ""
     context_accumulator = []
@@ -744,6 +747,7 @@ async def _translate_epub_fast_mode(
     llm_provider: str,
     gemini_api_key: Optional[str],
     openai_api_key: Optional[str],
+    openrouter_api_key: Optional[str],
     context_window: int,
     auto_adjust_context: bool,
     min_chunk_size: int,
@@ -800,6 +804,7 @@ async def _translate_epub_fast_mode(
             llm_provider=llm_provider,
             gemini_api_key=gemini_api_key,
             openai_api_key=openai_api_key,
+            openrouter_api_key=openrouter_api_key,
             context_window=context_window,
             auto_adjust_context=auto_adjust_context,
             min_chunk_size=min_chunk_size,
