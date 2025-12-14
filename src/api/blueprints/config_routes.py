@@ -3,6 +3,7 @@ Configuration and health check routes
 """
 import os
 import asyncio
+import logging
 import requests
 from flask import Blueprint, request, jsonify, send_from_directory
 
@@ -15,8 +16,14 @@ from src.config import (
     MAX_TRANSLATION_ATTEMPTS,
     RETRY_DELAY_SECONDS,
     DEFAULT_SOURCE_LANGUAGE,
-    DEFAULT_TARGET_LANGUAGE
+    DEFAULT_TARGET_LANGUAGE,
+    DEBUG_MODE
 )
+
+# Setup logger for this module
+logger = logging.getLogger('config_routes')
+if DEBUG_MODE:
+    logger.setLevel(logging.DEBUG)
 
 
 def create_config_blueprint():
@@ -57,7 +64,7 @@ def create_config_blueprint():
         """Get default configuration values"""
         gemini_api_key = os.getenv('GEMINI_API_KEY', '')
 
-        return jsonify({
+        config_response = {
             "api_endpoint": DEFAULT_OLLAMA_API_ENDPOINT,
             "default_model": DEFAULT_MODEL,
             "chunk_size": MAIN_LINES_PER_CHUNK,
@@ -69,7 +76,16 @@ def create_config_blueprint():
             "gemini_api_key": gemini_api_key,
             "default_source_language": DEFAULT_SOURCE_LANGUAGE,
             "default_target_language": DEFAULT_TARGET_LANGUAGE
-        })
+        }
+
+        if DEBUG_MODE:
+            logger.debug(f"📤 /api/config response:")
+            logger.debug(f"   default_source_language: {DEFAULT_SOURCE_LANGUAGE}")
+            logger.debug(f"   default_target_language: {DEFAULT_TARGET_LANGUAGE}")
+            logger.debug(f"   api_endpoint: {DEFAULT_OLLAMA_API_ENDPOINT}")
+            logger.debug(f"   default_model: {DEFAULT_MODEL}")
+
+        return jsonify(config_response)
 
     def _get_gemini_models():
         """Get available models from Gemini API"""
@@ -124,15 +140,30 @@ def create_config_blueprint():
         """Get available models from Ollama API"""
         ollama_base_from_ui = request.args.get('api_endpoint', DEFAULT_OLLAMA_API_ENDPOINT)
 
+        if DEBUG_MODE:
+            logger.debug(f"📥 /api/models request for Ollama")
+            logger.debug(f"   api_endpoint from UI: {ollama_base_from_ui}")
+            logger.debug(f"   default endpoint: {DEFAULT_OLLAMA_API_ENDPOINT}")
+
         try:
             base_url = ollama_base_from_ui.split('/api/')[0]
             tags_url = f"{base_url}/api/tags"
-            response = requests.get(tags_url, timeout=5)
+
+            if DEBUG_MODE:
+                logger.debug(f"   Connecting to: {tags_url}")
+
+            response = requests.get(tags_url, timeout=10)  # Increased timeout from 5 to 10
+
+            if DEBUG_MODE:
+                logger.debug(f"   Response status: {response.status_code}")
 
             if response.status_code == 200:
                 data = response.json()
                 models_data = data.get('models', [])
                 model_names = [m.get('name') for m in models_data if m.get('name')]
+
+                if DEBUG_MODE:
+                    logger.debug(f"   Models found: {model_names}")
 
                 return jsonify({
                     "models": model_names,
@@ -140,9 +171,28 @@ def create_config_blueprint():
                     "status": "ollama_connected",
                     "count": len(model_names)
                 })
+            else:
+                if DEBUG_MODE:
+                    logger.debug(f"   ❌ Non-200 response: {response.status_code}")
+                    logger.debug(f"   Response body: {response.text[:500]}")
+
+        except requests.exceptions.ConnectionError as e:
+            error_msg = f"Connection refused to {tags_url}. Is Ollama running?"
+            if DEBUG_MODE:
+                logger.debug(f"   ❌ ConnectionError: {e}")
+            print(f"❌ {error_msg}")
+        except requests.exceptions.Timeout as e:
+            error_msg = f"Timeout connecting to {tags_url} (10s)"
+            if DEBUG_MODE:
+                logger.debug(f"   ❌ Timeout: {e}")
+            print(f"❌ {error_msg}")
         except requests.exceptions.RequestException as e:
+            if DEBUG_MODE:
+                logger.debug(f"   ❌ RequestException: {type(e).__name__}: {e}")
             print(f"❌ Could not connect to Ollama at {ollama_base_from_ui}: {e}")
         except Exception as e:
+            if DEBUG_MODE:
+                logger.debug(f"   ❌ Unexpected error: {type(e).__name__}: {e}")
             print(f"❌ Error retrieving models from {ollama_base_from_ui}: {e}")
 
         return jsonify({

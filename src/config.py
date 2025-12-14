@@ -3,15 +3,32 @@ Centralized configuration class
 """
 import os
 import sys
+import logging
 from pathlib import Path
 from dataclasses import dataclass
 from typing import Optional
 from dotenv import load_dotenv
 
+# Setup debug logger for configuration
+_config_logger = logging.getLogger('config')
+
+# Check for DEBUG_MODE early (before .env is loaded, check environment)
+_debug_mode = os.getenv('DEBUG_MODE', 'false').lower() == 'true'
+if _debug_mode:
+    logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    _config_logger.setLevel(logging.DEBUG)
+    _config_logger.debug("🔍 DEBUG_MODE enabled - verbose logging active")
+
 # Check if .env file exists and provide helpful guidance
 _env_file = Path('.env')
 _env_example = Path('.env.example')
 _env_exists = _env_file.exists()
+_cwd = Path.cwd()
+
+if _debug_mode:
+    _config_logger.debug(f"📁 Current working directory: {_cwd}")
+    _config_logger.debug(f"📁 Looking for .env at: {_env_file.absolute()}")
+    _config_logger.debug(f"📁 .env exists: {_env_exists}")
 
 if not _env_exists:
     print("\n" + "="*70)
@@ -51,7 +68,9 @@ if not _env_exists:
         sys.exit(0)
 
 # Load .env file if it exists
-load_dotenv()
+_dotenv_result = load_dotenv()
+if _debug_mode:
+    _config_logger.debug(f"📁 load_dotenv() returned: {_dotenv_result}")
 
 # Load from environment variables with defaults
 API_ENDPOINT = os.getenv('API_ENDPOINT', 'http://localhost:11434/api/generate')
@@ -97,6 +116,28 @@ DEFAULT_TARGET_LANGUAGE = os.getenv('DEFAULT_TARGET_LANGUAGE', 'Chinese')
 # Server configuration
 HOST = os.getenv('HOST', '127.0.0.1')
 OUTPUT_DIR = os.getenv('OUTPUT_DIR', 'translated_files')
+
+# Debug mode (reload after .env is loaded)
+DEBUG_MODE = os.getenv('DEBUG_MODE', 'false').lower() == 'true'
+
+# Log loaded configuration in debug mode
+if DEBUG_MODE or _debug_mode:
+    _config_logger.setLevel(logging.DEBUG)
+    _config_logger.debug("="*60)
+    _config_logger.debug("📋 LOADED CONFIGURATION VALUES:")
+    _config_logger.debug("="*60)
+    _config_logger.debug(f"   API_ENDPOINT: {API_ENDPOINT}")
+    _config_logger.debug(f"   DEFAULT_MODEL: {DEFAULT_MODEL}")
+    _config_logger.debug(f"   LLM_PROVIDER: {LLM_PROVIDER}")
+    _config_logger.debug(f"   PORT: {PORT}")
+    _config_logger.debug(f"   HOST: {HOST}")
+    _config_logger.debug(f"   DEFAULT_SOURCE_LANGUAGE: {DEFAULT_SOURCE_LANGUAGE}")
+    _config_logger.debug(f"   DEFAULT_TARGET_LANGUAGE: {DEFAULT_TARGET_LANGUAGE}")
+    _config_logger.debug(f"   OLLAMA_NUM_CTX: {OLLAMA_NUM_CTX}")
+    _config_logger.debug(f"   REQUEST_TIMEOUT: {REQUEST_TIMEOUT}")
+    _config_logger.debug(f"   GEMINI_API_KEY: {'***' + GEMINI_API_KEY[-4:] if GEMINI_API_KEY else '(not set)'}")
+    _config_logger.debug(f"   OPENAI_API_KEY: {'***' + OPENAI_API_KEY[-4:] if OPENAI_API_KEY else '(not set)'}")
+    _config_logger.debug("="*60)
 
 # Translation tags - Improved for LLM clarity and reliability
 TRANSLATE_TAG_IN = "<TRANSLATION>"
