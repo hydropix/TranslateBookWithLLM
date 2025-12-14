@@ -1,7 +1,7 @@
-# GitHub Actions workflow for building Windows installer
+# GitHub Actions workflow for building Windows portable executable
 # Triggers on release creation or manual dispatch
 
-name: Build Windows Installer
+name: Build Windows Executable
 
 on:
   release:
@@ -168,44 +168,6 @@ jobs:
             exit 1
           }
 
-      - name: Update Inno Setup version
-        shell: python
-        run: |
-          version = "${{ steps.version.outputs.version }}"
-          if version == "dev":
-              version = "0.0.0-dev"
-
-          with open('installer.iss', 'r', encoding='utf-8') as f:
-              content = f.read()
-
-          content = content.replace(
-              '#define MyAppVersion "1.0.0"',
-              f'#define MyAppVersion "{version}"'
-          )
-
-          with open('installer.iss', 'w', encoding='utf-8') as f:
-              f.write(content)
-
-          print(f"Updated installer.iss to version {version}")
-
-      - name: Build installer with Inno Setup
-        uses: Minionguyjpro/Inno-Setup-Action@v1.2.4
-        with:
-          path: installer.iss
-          options: /O+
-
-      - name: List output files
-        run: |
-          Write-Host "=== Installer Output ==="
-          Get-ChildItem -Path "installer_output" -Recurse | Format-Table Name, Length, LastWriteTime
-
-      - name: Upload installer artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: TranslateBookWithLLM-Installer-${{ steps.version.outputs.version }}
-          path: installer_output/*.exe
-          retention-days: 30
-
       - name: Upload portable executable artifact
         uses: actions/upload-artifact@v4
         with:
@@ -218,9 +180,7 @@ jobs:
         if: github.event_name == 'release'
         uses: softprops/action-gh-release@v1
         with:
-          files: |
-            installer_output/*.exe
-            dist/TranslateBookWithLLM.exe
+          files: dist/TranslateBookWithLLM.exe
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 

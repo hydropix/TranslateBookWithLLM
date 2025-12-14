@@ -10,3 +10,5 @@ CLAUDE.md
 /docs
 /venv
 OPENROUTER_INTEGRATION_PLAN.md
+build_installer.bat
+build/
