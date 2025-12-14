@@ -120,6 +120,31 @@ def restore_incomplete_jobs():
 
 restore_incomplete_jobs()
 
+def test_ollama_connection():
+    """Test Ollama connection at startup and log result"""
+    import requests
+    try:
+        base_url = DEFAULT_OLLAMA_API_ENDPOINT.split('/api/')[0]
+        tags_url = f"{base_url}/api/tags"
+        logger.info(f"🔍 Testing Ollama connection at {tags_url}...")
+        response = requests.get(tags_url, timeout=5)
+        if response.status_code == 200:
+            data = response.json()
+            models = [m.get('name') for m in data.get('models', [])]
+            logger.info(f"✅ Ollama connected! Found {len(models)} model(s): {models}")
+            return True
+        else:
+            logger.warning(f"⚠️ Ollama returned status {response.status_code}")
+            return False
+    except requests.exceptions.ConnectionError:
+        logger.warning(f"⚠️ Cannot connect to Ollama at {base_url}")
+        logger.warning(f"   Make sure Ollama is running ('ollama serve')")
+        return False
+    except Exception as e:
+        logger.warning(f"⚠️ Ollama connection test failed: {e}")
+        return False
+
+
 if __name__ == '__main__':
     # Validate configuration before starting
     validate_configuration()
@@ -132,6 +157,11 @@ if __name__ == '__main__':
     logger.info(f"   - API: http://{HOST}:{PORT}/api/")
     logger.info(f"   - Health Check: http://{HOST}:{PORT}/api/health")
     logger.info(f"   - Supported formats: .txt, .epub, and .srt")
+    logger.info("")
+
+    # Test Ollama connection at startup
+    test_ollama_connection()
+
     logger.info("")
     logger.info("💡 Press Ctrl+C to stop the server")
     logger.info("")
