@@ -255,13 +255,13 @@ jobs:
           # Copy executable
           Copy-Item "portable\TranslateBookWithLLM.exe" "portable-package\"
 
-          # Copy configuration and docs
+          # Copy configuration
           Copy-Item ".env.example" "portable-package\.env.example"
           Copy-Item ".env.example" "portable-package\.env"
-          Copy-Item "README.md" "portable-package\"
-          Copy-Item "LICENSE" "portable-package\"
 
           # Copy optional docs if they exist
+          if (Test-Path "README.md") { Copy-Item "README.md" "portable-package\" }
+          if (Test-Path "LICENSE") { Copy-Item "LICENSE" "portable-package\" }
           if (Test-Path "SIMPLE_MODE_README.md") { Copy-Item "SIMPLE_MODE_README.md" "portable-package\" }
           if (Test-Path "TRANSLATION_SIGNATURE.md") { Copy-Item "TRANSLATION_SIGNATURE.md" "portable-package\" }
 

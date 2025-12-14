@@ -76,13 +76,12 @@ datas = [
     ('src/web/templates', 'src/web/templates'),
     # Configuration example
     ('.env.example', '.'),
-    # Documentation
-    ('README.md', '.'),
-    ('LICENSE', '.'),
 ]
 
 # Check if optional files exist before adding
 optional_files = [
+    ('README.md', '.'),
+    ('LICENSE', '.'),
     ('SIMPLE_MODE_README.md', '.'),
     ('TRANSLATION_SIGNATURE.md', '.'),
     ('DOCKER.md', '.'),
