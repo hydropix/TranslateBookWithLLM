@@ -49,8 +49,8 @@ jobs:
           type=semver,pattern={{major}}.{{minor}}
           # Tag with major on tags (e.g., v1.2.3 -> 1)
           type=semver,pattern={{major}}
-          # Tag with commit SHA (short)
-          type=sha,prefix={{branch}}-
+          # Tag with commit SHA (short) - only on branch pushes, not tags
+          type=sha,prefix=sha-,enable=${{ github.ref_type == 'branch' }}
 
     - name: Build and push Docker image
       uses: docker/build-push-action@v5
