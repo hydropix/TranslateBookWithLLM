@@ -5,7 +5,7 @@ import os
 import argparse
 import asyncio
 
-from src.config import DEFAULT_MODEL, MAIN_LINES_PER_CHUNK, API_ENDPOINT, LLM_PROVIDER, GEMINI_API_KEY, OPENAI_API_KEY, DEFAULT_SOURCE_LANGUAGE, DEFAULT_TARGET_LANGUAGE
+from src.config import DEFAULT_MODEL, MAIN_LINES_PER_CHUNK, API_ENDPOINT, LLM_PROVIDER, GEMINI_API_KEY, OPENAI_API_KEY, OPENROUTER_API_KEY, DEFAULT_SOURCE_LANGUAGE, DEFAULT_TARGET_LANGUAGE
 from src.utils.file_utils import translate_file, get_unique_output_path
 from src.utils.unified_logger import setup_cli_logger, LogType
 
@@ -19,9 +19,10 @@ if __name__ == "__main__":
     parser.add_argument("-m", "--model", default=DEFAULT_MODEL, help=f"LLM model (default: {DEFAULT_MODEL}).")
     parser.add_argument("-cs", "--chunksize", type=int, default=MAIN_LINES_PER_CHUNK, help=f"Target lines per chunk (default: {MAIN_LINES_PER_CHUNK}).")
     parser.add_argument("--api_endpoint", default=API_ENDPOINT, help=f"API endpoint for Ollama or OpenAI compatible provider (default: {API_ENDPOINT}).")
-    parser.add_argument("--provider", default=LLM_PROVIDER, choices=["ollama", "gemini", "openai"], help=f"LLM provider to use (default: {LLM_PROVIDER}).")
+    parser.add_argument("--provider", default=LLM_PROVIDER, choices=["ollama", "gemini", "openai", "openrouter"], help=f"LLM provider to use (default: {LLM_PROVIDER}).")
     parser.add_argument("--gemini_api_key", default=GEMINI_API_KEY, help="Google Gemini API key (required if using gemini provider).")
     parser.add_argument("--openai_api_key", default=OPENAI_API_KEY, help="OpenAI API key (required if using openai provider).")
+    parser.add_argument("--openrouter_api_key", default=OPENROUTER_API_KEY, help="OpenRouter API key (required if using openrouter provider).")
     parser.add_argument("--no-color", action="store_true", help="Disable colored output.")
     parser.add_argument("--fast-mode", action="store_true", help="Use fast mode for EPUB (strips formatting, maximum compatibility).")
 
@@ -55,6 +56,8 @@ if __name__ == "__main__":
         parser.error("--gemini_api_key is required when using gemini provider")
     if args.provider == "openai" and not args.openai_api_key:
         parser.error("--openai_api_key is required when using openai provider")
+    if args.provider == "openrouter" and not args.openrouter_api_key:
+        parser.error("--openrouter_api_key is required when using openrouter provider")
 
     # Check for small models (<=12B) and recommend fast mode for EPUB
     if file_type == "EPUB" and not args.fast_mode:
@@ -132,6 +135,7 @@ if __name__ == "__main__":
             llm_provider=args.provider,
             gemini_api_key=args.gemini_api_key,
             openai_api_key=args.openai_api_key,
+            openrouter_api_key=args.openrouter_api_key,
             fast_mode=args.fast_mode
         ))
         

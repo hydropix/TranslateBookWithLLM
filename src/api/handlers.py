@@ -12,6 +12,7 @@ from pathlib import Path
 from src.core.epub import translate_epub_file
 from src.utils.unified_logger import setup_web_logger, LogType
 from src.utils.file_utils import get_unique_output_path
+from src.core.llm_providers import OpenRouterProvider
 from .websocket import emit_update
 
 
@@ -132,6 +133,23 @@ async def perform_actual_translation(translation_id, config, state_manager, outp
             state_manager.set_translation_field(translation_id, 'stats', current_stats)
             emit_update(socketio, translation_id, {'stats': current_stats}, state_manager)
 
+    def _openrouter_cost_callback(cost_data):
+        """Callback to update OpenRouter cost information in real-time"""
+        if state_manager.exists(translation_id):
+            state_manager.update_stats(translation_id, {
+                'openrouter_cost': cost_data['session_cost'],
+                'openrouter_prompt_tokens': cost_data['total_prompt_tokens'],
+                'openrouter_completion_tokens': cost_data['total_completion_tokens']
+            })
+            current_stats = state_manager.get_translation_field(translation_id, 'stats') or {}
+            current_stats['elapsed_time'] = time.time() - current_stats.get('start_time', time.time())
+            emit_update(socketio, translation_id, {'stats': current_stats}, state_manager)
+
+    # Setup OpenRouter cost callback if using OpenRouter provider
+    if config.get('llm_provider') == 'openrouter':
+        OpenRouterProvider.reset_session_cost()
+        OpenRouterProvider.set_cost_callback(_openrouter_cost_callback)
+
     # Get checkpoint manager and handle resume
     checkpoint_manager = state_manager.get_checkpoint_manager()
     resume_from_index = config.get('resume_from_index', 0)
@@ -211,6 +229,7 @@ async def perform_actual_translation(translation_id, config, state_manager, outp
                 llm_provider=config.get('llm_provider', 'ollama'),
                 gemini_api_key=config.get('gemini_api_key', ''),
                 openai_api_key=config.get('openai_api_key', ''),
+                openrouter_api_key=config.get('openrouter_api_key', ''),
                 fast_mode=config.get('fast_mode', False),
                 context_window=config.get('context_window', 2048),
                 auto_adjust_context=config.get('auto_adjust_context', True),
@@ -247,6 +266,7 @@ async def perform_actual_translation(translation_id, config, state_manager, outp
                 llm_provider=config.get('llm_provider', 'ollama'),
                 gemini_api_key=config.get('gemini_api_key', ''),
                 openai_api_key=config.get('openai_api_key', ''),
+                openrouter_api_key=config.get('openrouter_api_key', ''),
                 context_window=config.get('context_window', 2048),
                 auto_adjust_context=config.get('auto_adjust_context', True),
                 min_chunk_size=config.get('min_chunk_size', 5),
@@ -282,6 +302,7 @@ async def perform_actual_translation(translation_id, config, state_manager, outp
                 llm_provider=config.get('llm_provider', 'ollama'),
                 gemini_api_key=config.get('gemini_api_key', ''),
                 openai_api_key=config.get('openai_api_key', ''),
+                openrouter_api_key=config.get('openrouter_api_key', ''),
                 checkpoint_manager=checkpoint_manager,
                 translation_id=translation_id,
                 resume_from_block_index=resume_from_index
@@ -402,7 +423,19 @@ async def perform_actual_translation(translation_id, config, state_manager, outp
         elif config['file_type'] == 'srt' and stats.get('total_subtitles', 0) > 0:
             final_stats = stats
             _log_message_callback("summary_stats_final", f"📊 Stats: {final_stats.get('completed_subtitles', 0)} processed, {final_stats.get('failed_subtitles', 0)} failed out of {final_stats.get('total_subtitles', 0)} total subtitles.")
-        
+
+        # Log OpenRouter cost summary if applicable
+        if config.get('llm_provider') == 'openrouter':
+            cost = stats.get('openrouter_cost', 0.0)
+            prompt_tokens = stats.get('openrouter_prompt_tokens', 0)
+            completion_tokens = stats.get('openrouter_completion_tokens', 0)
+            total_tokens = prompt_tokens + completion_tokens
+            if cost > 0 or total_tokens > 0:
+                _log_message_callback("openrouter_cost_final",
+                    f"💰 OpenRouter Cost: ${cost:.4f} | Tokens: {total_tokens:,} ({prompt_tokens:,} prompt + {completion_tokens:,} completion)")
+            # Clear the callback to avoid memory leaks
+            OpenRouterProvider.set_cost_callback(None)
+
         emit_update(socketio, translation_id, final_status_payload, state_manager)
 
         # Trigger file list refresh in the frontend if a file was saved

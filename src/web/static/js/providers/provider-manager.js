@@ -23,6 +23,28 @@ const OPENAI_MODELS = [
 ];
 
 /**
+ * Fallback OpenRouter models list (used when API fetch fails)
+ * Sorted by cost: free/cheap first
+ */
+const OPENROUTER_FALLBACK_MODELS = [
+    // Free/Cheap models
+    { value: 'google/gemini-2.0-flash-exp:free', label: 'Gemini 2.0 Flash (Free)' },
+    { value: 'google/gemini-2.0-flash-001', label: 'Gemini 2.0 Flash' },
+    { value: 'meta-llama/llama-3.3-70b-instruct', label: 'Llama 3.3 70B' },
+    { value: 'qwen/qwen-2.5-72b-instruct', label: 'Qwen 2.5 72B' },
+    { value: 'mistralai/mistral-small-24b-instruct-2501', label: 'Mistral Small 24B' },
+    // Mid-tier models
+    { value: 'anthropic/claude-3-5-haiku-20241022', label: 'Claude 3.5 Haiku' },
+    { value: 'openai/gpt-4o-mini', label: 'GPT-4o Mini' },
+    { value: 'google/gemini-1.5-pro', label: 'Gemini 1.5 Pro' },
+    { value: 'deepseek/deepseek-chat', label: 'DeepSeek Chat' },
+    // Premium models
+    { value: 'anthropic/claude-sonnet-4', label: 'Claude Sonnet 4' },
+    { value: 'openai/gpt-4o', label: 'GPT-4o' },
+    { value: 'anthropic/claude-3-5-sonnet-20241022', label: 'Claude 3.5 Sonnet' }
+];
+
+/**
  * Auto-retry configuration for Ollama
  */
 const OLLAMA_RETRY_INTERVAL = 3000; // 3 seconds
@@ -31,10 +53,22 @@ let ollamaRetryTimer = null;
 let ollamaRetryCount = 0;
 
 /**
+ * Format price for display (per 1M tokens)
+ * @param {number} price - Price per 1M tokens
+ * @returns {string} Formatted price string
+ */
+function formatPrice(price) {
+    if (price === 0) return 'Free';
+    if (price < 0.01) return '<$0.01';
+    if (price < 1) return `$${price.toFixed(2)}`;
+    return `$${price.toFixed(2)}`;
+}
+
+/**
  * Populate model select with options
  * @param {Array} models - Array of model objects or strings
  * @param {string} defaultModel - Default model to select
- * @param {string} provider - Provider type ('ollama', 'gemini', 'openai')
+ * @param {string} provider - Provider type ('ollama', 'gemini', 'openai', 'openrouter')
  */
 function populateModelSelect(models, defaultModel = null, provider = 'ollama') {
     const modelSelect = DomHelpers.getElement('model');
@@ -56,6 +90,27 @@ function populateModelSelect(models, defaultModel = null, provider = 'ollama') {
             const option = document.createElement('option');
             option.value = model.value;
             option.textContent = model.label;
+            modelSelect.appendChild(option);
+        });
+    } else if (provider === 'openrouter') {
+        models.forEach(model => {
+            const option = document.createElement('option');
+            // Handle both API response format (id) and fallback format (value)
+            const modelId = model.id || model.value;
+            option.value = modelId;
+
+            // Format label with pricing info if available
+            if (model.pricing && model.pricing.prompt_per_million !== undefined) {
+                const inputPrice = formatPrice(model.pricing.prompt_per_million);
+                const outputPrice = formatPrice(model.pricing.completion_per_million);
+                option.textContent = `${model.name || modelId} (In: ${inputPrice}/M, Out: ${outputPrice}/M)`;
+                option.title = `Context: ${model.context_length || 'N/A'} tokens`;
+            } else {
+                // Fallback format
+                option.textContent = model.label || model.name || modelId;
+            }
+
+            if (modelId === defaultModel) option.selected = true;
             modelSelect.appendChild(option);
         });
     } else {
@@ -103,23 +158,33 @@ export const ProviderManager = {
         const ollamaSettings = DomHelpers.getElement('ollamaSettings');
         const geminiSettings = DomHelpers.getElement('geminiSettings');
         const openaiSettings = DomHelpers.getElement('openaiSettings');
+        const openrouterSettings = DomHelpers.getElement('openrouterSettings');
 
         // Show/hide provider-specific settings (use inline style for elements with inline display:none)
         if (provider === 'ollama') {
             DomHelpers.show('ollamaSettings');
             if (geminiSettings) geminiSettings.style.display = 'none';
             if (openaiSettings) openaiSettings.style.display = 'none';
+            if (openrouterSettings) openrouterSettings.style.display = 'none';
             if (loadModels) this.loadOllamaModels();
         } else if (provider === 'gemini') {
             DomHelpers.hide('ollamaSettings');
             if (geminiSettings) geminiSettings.style.display = 'block';
             if (openaiSettings) openaiSettings.style.display = 'none';
+            if (openrouterSettings) openrouterSettings.style.display = 'none';
             if (loadModels) this.loadGeminiModels();
         } else if (provider === 'openai') {
             DomHelpers.hide('ollamaSettings');
             if (geminiSettings) geminiSettings.style.display = 'none';
             if (openaiSettings) openaiSettings.style.display = 'block';
+            if (openrouterSettings) openrouterSettings.style.display = 'none';
             if (loadModels) this.loadOpenAIModels();
+        } else if (provider === 'openrouter') {
+            DomHelpers.hide('ollamaSettings');
+            if (geminiSettings) geminiSettings.style.display = 'none';
+            if (openaiSettings) openaiSettings.style.display = 'none';
+            if (openrouterSettings) openrouterSettings.style.display = 'block';
+            if (loadModels) this.loadOpenRouterModels();
         }
     },
 
@@ -135,6 +200,8 @@ export const ProviderManager = {
             this.loadGeminiModels();
         } else if (provider === 'openai') {
             this.loadOpenAIModels();
+        } else if (provider === 'openrouter') {
+            this.loadOpenRouterModels();
         }
     },
 
@@ -303,8 +370,51 @@ export const ProviderManager = {
     },
 
     /**
+     * Load OpenRouter models dynamically from API (text-only models, sorted by price)
+     */
+    async loadOpenRouterModels() {
+        const modelSelect = DomHelpers.getElement('model');
+        if (!modelSelect) return;
+
+        modelSelect.innerHTML = '<option value="">Loading OpenRouter models...</option>';
+
+        try {
+            const apiKey = DomHelpers.getValue('openrouterApiKey')?.trim();
+            const data = await ApiClient.getModels('openrouter', { apiKey });
+
+            if (data.models && data.models.length > 0) {
+                MessageLogger.showMessage('', '');
+                populateModelSelect(data.models, data.default, 'openrouter');
+                MessageLogger.addLog(`✅ ${data.count} OpenRouter text models loaded (sorted by price, cheapest first)`);
+                ModelDetector.checkAndShowRecommendation();
+
+                // Update available models in state
+                StateManager.setState('models.availableModels', data.models.map(m => m.id));
+            } else {
+                // Use fallback list
+                const errorMessage = data.error || 'Could not load models from OpenRouter API';
+                MessageLogger.showMessage(`⚠️ ${errorMessage}. Using fallback list.`, 'warning');
+                populateModelSelect(OPENROUTER_FALLBACK_MODELS, 'anthropic/claude-sonnet-4', 'openrouter');
+                MessageLogger.addLog(`⚠️ Using fallback OpenRouter models list`);
+
+                // Update available models in state
+                StateManager.setState('models.availableModels', OPENROUTER_FALLBACK_MODELS.map(m => m.value));
+            }
+
+        } catch (error) {
+            // Use fallback list on error
+            MessageLogger.showMessage(`⚠️ Error fetching OpenRouter models. Using fallback list.`, 'warning');
+            MessageLogger.addLog(`⚠️ OpenRouter API error: ${error.message}. Using fallback list.`);
+            populateModelSelect(OPENROUTER_FALLBACK_MODELS, 'anthropic/claude-sonnet-4', 'openrouter');
+
+            // Update available models in state
+            StateManager.setState('models.availableModels', OPENROUTER_FALLBACK_MODELS.map(m => m.value));
+        }
+    },
+
+    /**
      * Get current provider
-     * @returns {string} Current provider ('ollama', 'gemini', 'openai')
+     * @returns {string} Current provider ('ollama', 'gemini', 'openai', 'openrouter')
      */
     getCurrentProvider() {
         return StateManager.getState('ui.currentProvider') || DomHelpers.getValue('llmProvider');

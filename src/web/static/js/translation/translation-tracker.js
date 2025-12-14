@@ -105,6 +105,9 @@ export const TranslationTracker = {
             DomHelpers.show('progressSection');
             DomHelpers.setText('currentFileProgressTitle', `📊 Translating: ${currentFile.name}`);
 
+            // Reset OpenRouter cost display for new translation
+            this.resetOpenRouterCostDisplay();
+
             if (currentFile.fileType === 'epub') {
                 MessageLogger.showMessage(`Translating EPUB file: ${currentFile.name}... This may take some time.`, 'info');
                 DomHelpers.hide('statsGrid');
@@ -143,6 +146,39 @@ export const TranslationTracker = {
         if (stats.elapsed_time !== undefined) {
             DomHelpers.setText('elapsedTime', stats.elapsed_time.toFixed(1) + 's');
         }
+
+        // Update OpenRouter cost display if available
+        this.updateOpenRouterCost(stats);
+    },
+
+    /**
+     * Update OpenRouter cost display
+     * @param {Object} stats - Statistics object containing cost data
+     */
+    updateOpenRouterCost(stats) {
+        const costGrid = DomHelpers.getElement('openrouterCostGrid');
+        if (!costGrid) return;
+
+        const cost = stats.openrouter_cost || 0;
+        const promptTokens = stats.openrouter_prompt_tokens || 0;
+        const completionTokens = stats.openrouter_completion_tokens || 0;
+        const totalTokens = promptTokens + completionTokens;
+
+        // Show cost grid if there's any cost or token data
+        if (cost > 0 || totalTokens > 0) {
+            DomHelpers.show('openrouterCostGrid');
+            DomHelpers.setText('openrouterCost', '$' + cost.toFixed(4));
+            DomHelpers.setText('openrouterTokens', totalTokens.toLocaleString());
+        }
+    },
+
+    /**
+     * Reset OpenRouter cost display for a new translation
+     */
+    resetOpenRouterCostDisplay() {
+        DomHelpers.hide('openrouterCostGrid');
+        DomHelpers.setText('openrouterCost', '$0.0000');
+        DomHelpers.setText('openrouterTokens', '0');
     },
 
     /**

@@ -50,6 +50,7 @@ function getTranslationConfig(file) {
         llm_provider: provider,
         gemini_api_key: provider === 'gemini' ? DomHelpers.getValue('geminiApiKey') : '',
         openai_api_key: provider === 'openai' ? DomHelpers.getValue('openaiApiKey') : '',
+        openrouter_api_key: provider === 'openrouter' ? DomHelpers.getValue('openrouterApiKey') : '',
         chunk_size: parseInt(DomHelpers.getValue('chunkSize')),
         timeout: parseInt(DomHelpers.getValue('timeout')),
         context_window: parseInt(DomHelpers.getValue('contextWindow')),
@@ -235,6 +236,18 @@ export const BatchController = {
             if (!openaiApiKey) {
                 MessageLogger.addLog('❌ Error: OpenAI API key is required when using OpenAI provider');
                 MessageLogger.showMessage('Please enter your OpenAI API key', 'error');
+                updateFileStatusInList(fileToTranslate.name, 'Error: Missing API key');
+                StateManager.setState('translation.currentJob', null);
+                this.processNextFileInQueue();
+                return;
+            }
+        }
+
+        if (provider === 'openrouter') {
+            const openrouterApiKey = DomHelpers.getValue('openrouterApiKey').trim();
+            if (!openrouterApiKey) {
+                MessageLogger.addLog('❌ Error: OpenRouter API key is required when using OpenRouter provider');
+                MessageLogger.showMessage('Please enter your OpenRouter API key', 'error');
                 updateFileStatusInList(fileToTranslate.name, 'Error: Missing API key');
                 StateManager.setState('translation.currentJob', null);
                 this.processNextFileInQueue();
