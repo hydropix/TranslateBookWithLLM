@@ -420,7 +420,7 @@ TBL supports four types of providers:
 🔗 **Full model list with pricing**: [openrouter.ai/models](https://openrouter.ai/models)
 
 **💰 Real Example - 400-page EPUB book translation**:
-- Model: `openai/gpt-4o` (excellent quality)
+- Model: `openai/gpt-4o-mini` (excellent quality)
 - Cost: **less than €2** (~$2)
 - TBL displays the exact cost in real-time during translation, so you always know precisely what you're spending
 
