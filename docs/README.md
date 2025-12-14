@@ -27,59 +27,42 @@ TBL is an application that lets you translate large volumes of text using Langua
 
 ## 🚀 Quick Start
 
-### ⚡ Ultra-Simple Installation (Windows) - **RECOMMENDED**
+### ⚡ One-Click Installation (Windows) - **RECOMMENDED**
 
-**Just 3 steps to get started!**
+**Prerequisites** (install once):
 
-**Step 1: Install Required Software**
+| Software | Download | Note |
+|----------|----------|------|
+| **Python 3.8+** | [python.org](https://www.python.org/downloads/) | ⚠️ Check "Add Python to PATH" |
+| **Ollama** | [ollama.com](https://ollama.com/) | Runs AI models locally (free) |
+| **Git** | [git-scm.com](https://git-scm.com/download/win) | Default settings |
 
-1. **Python 3.8+** - The programming language
-   - Download: [Python for Windows](https://www.python.org/downloads/)
-   - ⚠️ **IMPORTANT**: Check "Add Python to PATH" during installation!
-
-2. **Ollama** - Runs AI models locally (free!)
-   - Download: [Ollama for Windows](https://ollama.com/)
-   - Install and it will start automatically
-
-3. **Git** - Downloads TBL
-   - Download: [Git for Windows](https://git-scm.com/download/win)
-   - Install with default settings
-
-**Step 2: Download TBL**
-
-Open **Command Prompt** or **PowerShell** and run:
+**Installation & Launch:**
 
 ```bash
-# Navigate to your preferred location
-cd %USERPROFILE%\Documents
-
-# Download TBL
+# Download TBL (one time only)
 git clone https://github.com/hydropix/TranslateBookWithLLM.git
 cd TranslateBookWithLLM
-```
 
-**Step 3: Download an AI Model & Launch!**
-
-```bash
-# Download a recommended model (choose based on your GPU)
+# Download an AI model (choose based on your GPU VRAM)
 ollama pull qwen3:30b
 
-# Launch TBL - Everything is automatic!
+# Launch TBL - EVERYTHING ELSE IS AUTOMATIC!
 start.bat
 ```
 
-🎉 **That's it!** The web interface will open automatically at **http://localhost:5000**
+🎉 **That's it!** The web interface opens automatically at **http://localhost:5000**
 
 ### What does `start.bat` do automatically?
 
-✅ Creates Python virtual environment (first time only)
+✅ Creates Python virtual environment
 ✅ Installs all dependencies
 ✅ Checks for updates from Git
 ✅ Updates dependencies if needed
 ✅ Creates configuration files
 ✅ Launches the web interface
 
-**Next time, just double-click `start.bat` and everything updates automatically!**
+**Next time, just double-click `start.bat`!**
 
 ---
 
