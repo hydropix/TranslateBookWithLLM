@@ -86,60 +86,6 @@ ollama list
 
 ---
 
-### 🐍 Advanced Installation (Anaconda/Miniconda)
-
-If you prefer using Anaconda or already have it installed:
-
-**Step 1: Install Required Software**
-
-1. **Miniconda** - Manages Python easily
-   - Download: [Miniconda Windows Installer](https://www.anaconda.com/docs/getting-started/miniconda/install#windows-installation)
-   - Install with default settings
-
-2. **Ollama** - Runs AI models locally (free!)
-   - Download: [Ollama for Windows](https://ollama.com/)
-   - Install and it will start automatically
-
-3. **Git** - Downloads TBL
-   - Download: [Git for Windows](https://git-scm.com/download/win)
-   - Install with default settings
-
-**Step 2: Install TBL**
-
-Open **Anaconda Prompt** (search in Start Menu) and run:
-
-```bash
-# Create a Python environment for TBL
-conda create -n translate_book_env python=3.9
-
-# Activate it (do this every time)
-conda activate translate_book_env
-
-# Download TBL
-cd %USERPROFILE%\Documents
-git clone https://github.com/hydropix/TranslateBookWithLLM.git
-cd TranslateBookWithLLM
-
-# Install dependencies
-pip install -r requirements.txt
-```
-
-**Step 3: Download an AI Model & Launch**
-
-```bash
-# Download a recommended model
-ollama pull qwen3:30b
-
-# Launch the web interface
-python translation_api.py
-```
-
-Open your browser and go to: **http://localhost:5000**
-
-🎉 **Ready!** You can now translate your files.
-
----
-
 ## 📖 Web Interface Guide
 
 ### Basic Configuration
@@ -524,6 +470,42 @@ TBL supports four types of providers:
 
 ---
 
+## 💾 Windows Installer
+
+For the easiest installation experience on Windows, download the pre-built installer:
+
+### Download Options
+
+Go to the [Releases page](https://github.com/hydropix/TranslateBookWithLLM/releases) and download:
+
+| File | Description |
+|------|-------------|
+| `TranslateBookWithLLM-Setup-x.x.x.exe` | **Installer** - Recommended for most users |
+| `TranslateBookWithLLM-Portable-x.x.x.zip` | **Portable** - No installation needed, just unzip and run |
+
+### Installation Steps
+
+1. **Download** the installer (`.exe`) from the Releases page
+2. **Run** the installer and follow the wizard
+3. **Configure** the `.env` file in the installation folder with your API keys
+4. **Launch** TranslateBookWithLLM from the Start Menu or Desktop shortcut
+5. **Open** your browser to `http://localhost:5000`
+
+### What's Included
+
+- ✅ Complete application (no Python installation required)
+- ✅ Web interface ready to use
+- ✅ Configuration file template (`.env.example`)
+- ✅ Documentation
+
+### Requirements
+
+- **Windows 10/11** (64-bit)
+- **Ollama** (for local translation) - [Download here](https://ollama.com/)
+- Or API keys for cloud providers (OpenRouter, OpenAI, Gemini)
+
+---
+
 ## 🐳 Docker Installation
 
 For simplified installation with Docker:
@@ -648,14 +630,9 @@ OUTPUT_DIR=translated_files
    netstat -an | find "5000"
    ```
 2. Change the port in `.env`:
-   
+
    ```bash
    PORT=8080
-   ```
-3. Check that conda environment is activated:
-   
-   ```bash
-   conda activate translate_book_env
    ```
 
 #### ❌ Ollama won't connect
