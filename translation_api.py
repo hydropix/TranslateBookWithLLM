@@ -37,9 +37,23 @@ from src.api.websocket import configure_websocket_handlers
 from src.api.handlers import start_translation_job
 from src.api.translation_state import get_state_manager
 
+
+def get_base_path():
+    """Get base path for resources, handling PyInstaller frozen executables"""
+    if getattr(sys, 'frozen', False):
+        # Running as PyInstaller bundle
+        return sys._MEIPASS
+    else:
+        # Running as normal Python script
+        return os.getcwd()
+
+
 # Initialize Flask app with static folder configuration
-app = Flask(__name__, 
-            static_folder='src/web/static',
+# Use absolute path to handle PyInstaller frozen executables
+base_path = get_base_path()
+static_folder_path = os.path.join(base_path, 'src', 'web', 'static')
+app = Flask(__name__,
+            static_folder=static_folder_path,
             static_url_path='/static')
 CORS(app)
 socketio = SocketIO(app, cors_allowed_origins="*")

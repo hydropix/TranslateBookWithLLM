@@ -2,10 +2,21 @@
 Configuration and health check routes
 """
 import os
+import sys
 import asyncio
 import logging
 import requests
 from flask import Blueprint, request, jsonify, send_from_directory
+
+
+def get_base_path():
+    """Get base path for resources, handling PyInstaller frozen executables"""
+    if getattr(sys, 'frozen', False):
+        # Running as PyInstaller bundle
+        return sys._MEIPASS
+    else:
+        # Running as normal Python script
+        return os.getcwd()
 
 from src.config import (
     API_ENDPOINT as DEFAULT_OLLAMA_API_ENDPOINT,
@@ -36,10 +47,12 @@ def create_config_blueprint():
     @bp.route('/')
     def serve_interface():
         """Serve the main translation interface"""
-        interface_path = 'src/web/templates/translation_interface.html'
+        base_path = get_base_path()
+        templates_dir = os.path.join(base_path, 'src', 'web', 'templates')
+        interface_path = os.path.join(templates_dir, 'translation_interface.html')
         if os.path.exists(interface_path):
-            return send_from_directory('src/web/templates', 'translation_interface.html')
-        return "<h1>Error: Interface not found</h1>", 404
+            return send_from_directory(templates_dir, 'translation_interface.html')
+        return f"<h1>Error: Interface not found</h1><p>Looked in: {interface_path}</p>", 404
 
     @bp.route('/api/health', methods=['GET'])
     def health_check():
