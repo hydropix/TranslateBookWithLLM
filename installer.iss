@@ -44,7 +44,7 @@ PrivilegesRequired=lowest
 PrivilegesRequiredOverridesAllowed=dialog
 
 ; License and info
-LicenseFile=LICENSE
+; LicenseFile=LICENSE  ; Uncomment if LICENSE file exists
 InfoBeforeFile=README.md
 
 [Languages]
@@ -71,7 +71,7 @@ Source: ".env.example"; DestName: ".env"; DestDir: "{app}"; Flags: onlyifdoesnte
 
 ; Documentation
 Source: "README.md"; DestDir: "{app}"; Flags: ignoreversion
-Source: "LICENSE"; DestDir: "{app}"; Flags: ignoreversion
+Source: "LICENSE"; DestDir: "{app}"; Flags: ignoreversion skipifsourcedoesntexist
 
 ; Optional documentation files
 Source: "SIMPLE_MODE_README.md"; DestDir: "{app}"; Flags: ignoreversion skipifsourcedoesntexist
