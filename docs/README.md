@@ -162,8 +162,9 @@ Open your browser and go to: **http://localhost:5000**
 ### Basic Configuration
 
 1. **Choose your LLM Provider**:
-   
+
    - **Ollama** (recommended): Free, private, works offline
+   - **OpenRouter** (recommended cloud): Access to 200+ models (Claude, GPT-4, Llama, Mistral...) with unified billing
    - **OpenAI**: Paid, requires API key, high quality (GPT-4, etc.)
    - **Google Gemini**: Paid, requires API key, fast and efficient
 
@@ -303,8 +304,9 @@ python translate.py -i input_file.txt -o output_file.txt
 | `-tl, --target_lang` | 🌍 Target language                 | Chinese                             |
 | `-m, --model`        | 🤖 LLM model to use                | mistral-small:24b                   |
 | `-cs, --chunksize`   | 📏 Lines per chunk                 | 25                                  |
-| `--provider`         | 🏢 Provider (ollama/gemini/openai) | ollama                              |
+| `--provider`         | 🏢 Provider (ollama/openrouter/gemini/openai) | ollama                              |
 | `--api_endpoint`     | 🔗 API URL                         | http://localhost:11434/api/generate |
+| `--openrouter_api_key` | 🔑 OpenRouter API key            | -                                   |
 | `--gemini_api_key`   | 🔑 Gemini API key                  | -                                   |
 | `--openai_api_key`   | 🔑 OpenAI API key                  | -                                   |
 | `--fast-mode`        | 📚 Fast Mode for EPUB              | Disabled                            |
@@ -316,6 +318,16 @@ python translate.py -i input_file.txt -o output_file.txt
 
 ```bash
 python translate.py -i book.epub -o book_zh.epub -sl English -tl Chinese --fast-mode
+```
+
+**Translate with OpenRouter (access to Claude, GPT-4, Llama, etc.)**
+
+```bash
+python translate.py -i book.txt -o book_fr.txt \
+    --provider openrouter \
+    --openrouter_api_key sk-or-v1-your-key \
+    -m anthropic/claude-sonnet-4 \
+    -sl English -tl French
 ```
 
 **Translate with OpenAI GPT-4**
@@ -355,7 +367,7 @@ python translate.py -i novel.txt -o novel_zh.txt -cs 50
 
 ## 🔌 LLM Providers (AI Models)
 
-TBL supports three types of providers:
+TBL supports four types of providers:
 
 ### 1. 🏠 Ollama (Local - Free)
 
@@ -372,7 +384,71 @@ TBL supports three types of providers:
 - ⚠️ Slower than cloud APIs
 - ⚠️ Quality varies by model
 
-### 2. ☁️ OpenAI (Cloud - Paid)
+### 2. 🌐 OpenRouter (Cloud - Recommended)
+
+**The best of all worlds**: Access 200+ models from multiple providers (Anthropic, OpenAI, Google, Meta, Mistral...) through a single API key and unified billing.
+
+**Advantages**:
+
+- ✅ **200+ models** in one place (Claude, GPT-4, Llama, Gemini, Mistral...)
+- ✅ **Free models available** (Gemini Flash, Llama 70B, etc.)
+- ✅ **Real-time cost tracking** displayed in TBL interface
+- ✅ **Single API key** for all providers
+- ✅ **No commitment** - pay only for what you use
+- ✅ **Models sorted by price** in TBL (cheapest first)
+- ✅ Easy to compare models and find the best value
+
+**Disadvantages**:
+
+- ⚠️ Requires internet connection
+- ⚠️ Your texts are sent to model providers
+
+**Popular models** (sorted by cost):
+
+| Model | Quality | Cost (per 1M tokens) |
+|-------|---------|---------------------|
+| `google/gemini-2.0-flash-exp:free` | Good | **Free** |
+| `meta-llama/llama-3.3-70b-instruct` | Very Good | ~$0.10 |
+| `google/gemini-2.0-flash-001` | Good | ~$0.10 |
+| `anthropic/claude-3-5-haiku-20241022` | Very Good | ~$1.00 |
+| `openai/gpt-4o-mini` | Very Good | ~$0.60 |
+| `anthropic/claude-sonnet-4` | Excellent | ~$3.00 |
+| `openai/gpt-4o` | Excellent | ~$5.00 |
+
+**Setup**:
+
+1. Get an API key at [openrouter.ai/keys](https://openrouter.ai/keys)
+
+2. **Web Interface**:
+
+   - Select "OpenRouter (200+ models)"
+   - Enter your API key
+   - Models load automatically (sorted by price, text-only models filtered)
+   - Cost is displayed in real-time during translation 💰
+
+3. **Command Line**:
+
+   ```bash
+   python translate.py -i book.txt -o book_zh.txt \
+       --provider openrouter \
+       --openrouter_api_key sk-or-v1-your-key \
+       -m anthropic/claude-sonnet-4 \
+       -sl English -tl Chinese
+   ```
+
+4. **Environment Variable** (recommended):
+
+   ```bash
+   # In .env file
+   OPENROUTER_API_KEY=sk-or-v1-your-key
+   OPENROUTER_MODEL=anthropic/claude-sonnet-4
+   ```
+
+💡 **Tip**: Start with free models like `google/gemini-2.0-flash-exp:free` to test, then upgrade to premium models for better quality!
+
+💰 **Cost tracking**: TBL displays real-time cost and token usage when using OpenRouter, so you always know exactly what you're spending.
+
+### 3. ☁️ OpenAI (Cloud - Paid)
 
 **Advantages**:
 
@@ -416,7 +492,7 @@ TBL supports three types of providers:
 
 💰 **Estimated cost**: About $0.50 - $2.00 for a 300-page book with GPT-4o-mini.
 
-### 3. 🌐 Google Gemini (Cloud - Paid)
+### 4. 🌐 Google Gemini (Cloud - Paid)
 
 **Advantages**:
 
@@ -528,12 +604,16 @@ cp .env.example .env
 
 ```bash
 # Default LLM provider
-LLM_PROVIDER=ollama  # or gemini, openai
+LLM_PROVIDER=ollama  # or openrouter, gemini, openai
 
 # Ollama configuration
 API_ENDPOINT=http://localhost:11434/api/generate
 DEFAULT_MODEL=mistral-small:24b
 OLLAMA_NUM_CTX=8192  # Context window size
+
+# OpenRouter configuration (recommended for cloud)
+OPENROUTER_API_KEY=sk-or-v1-your-key
+OPENROUTER_MODEL=anthropic/claude-sonnet-4
 
 # OpenAI configuration
 OPENAI_API_KEY=sk-your-key
@@ -729,16 +809,16 @@ OUTPUT_DIR=translated_files
 ### General
 
 **Q: Is it really free?**
-A: With Ollama, yes! You only pay if you use OpenAI or Gemini.
+A: With Ollama, yes! OpenRouter also offers free models (Gemini Flash, Llama 70B). You only pay for premium models.
 
 **Q: Are my texts sent to the internet?**
-A: With Ollama, no. With OpenAI/Gemini, yes (sent to respective servers).
+A: With Ollama, no. With OpenRouter/OpenAI/Gemini, yes (sent to respective servers).
 
 **Q: How long does it take?**
 A: Very variable depending on length, model, and your machine. A 300-page book takes between 30 minutes (cloud) and 3 hours (Ollama with small model).
 
 **Q: What's the translation quality?**
-A: Depends on the model. GPT-4o is excellent, mistral-small:24b is very good, small models (7B) are decent for simple text.
+A: Depends on the model. Claude Sonnet 4 and GPT-4o are excellent, mistral-small:24b is very good, small models (7B) are decent for simple text.
 
 ### EPUB
 
@@ -759,7 +839,7 @@ A: Your model has ≤12 billion parameters. Small models struggle with the place
 **Q: How to speed up translation?**
 A:
 
-1. Use a cloud model (OpenAI/Gemini)
+1. Use a cloud model (OpenRouter/OpenAI/Gemini)
 2. Reduce chunk size (`-cs 15`)
 3. Use a smaller model (qwen2:7b)
 4. With Ollama: use a GPU
@@ -767,7 +847,7 @@ A:
 **Q: How to improve quality?**
 A:
 
-1. Use a better model (gpt-4o, mistral-small:24b)
+1. Use a better model (claude-sonnet-4 via OpenRouter, gpt-4o, mistral-small:24b)
 2. Increase chunk size (`-cs 40`)
 3. Increase context window (`OLLAMA_NUM_CTX=16384`)
 
@@ -776,7 +856,7 @@ A: For Ollama:
 
 - Minimum: 16 GB RAM, recent CPU (7B models)
 - Recommended: 32 GB RAM, NVIDIA GPU (24B models)
-- Alternative: Use OpenAI/Gemini (cloud)
+- Alternative: Use OpenRouter (cloud) - works on any computer!
 
 ### Technical
 
@@ -792,12 +872,12 @@ A: Yes, edit `prompts.py`, but it's technical.
 ### Security & Privacy
 
 **Q: Are my files stored on your servers?**
-A: No, TBL runs on YOUR machine. Nothing is sent elsewhere (except if you use OpenAI/Gemini).
+A: No, TBL runs on YOUR machine. Nothing is sent elsewhere (except if you use OpenRouter/OpenAI/Gemini).
 
 **Q: What happens to my files during translation?**
 A: TBL runs entirely on your local machine. Your files are processed locally by the web server running on your computer:
 - **With Ollama**: 100% local - nothing leaves your machine
-- **With OpenAI/Gemini**: Only the text content is sent to their APIs for translation (consult their data policies)
+- **With OpenRouter/OpenAI/Gemini**: Only the text content is sent to their APIs for translation (consult their data policies)
 - Source files are deleted after translation. Translated files remain in `translated_files/` until you delete them.
 
 **Q: Are there file size limits?**
