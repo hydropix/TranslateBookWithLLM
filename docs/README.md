@@ -388,11 +388,13 @@ TBL supports four types of providers:
 
 **The best of all worlds**: Access 200+ models from multiple providers (Anthropic, OpenAI, Google, Meta, Mistral...) through a single API key and unified billing.
 
+🔗 **Browse all available models**: [openrouter.ai/models](https://openrouter.ai/models)
+
 **Advantages**:
 
 - ✅ **200+ models** in one place (Claude, GPT-4, Llama, Gemini, Mistral...)
 - ✅ **Free models available** (Gemini Flash, Llama 70B, etc.)
-- ✅ **Real-time cost tracking** displayed in TBL interface
+- ✅ **Precise real-time cost tracking** displayed in TBL interface
 - ✅ **Single API key** for all providers
 - ✅ **No commitment** - pay only for what you use
 - ✅ **Models sorted by price** in TBL (cheapest first)
@@ -410,10 +412,17 @@ TBL supports four types of providers:
 | `google/gemini-2.0-flash-exp:free` | Good | **Free** |
 | `meta-llama/llama-3.3-70b-instruct` | Very Good | ~$0.10 |
 | `google/gemini-2.0-flash-001` | Good | ~$0.10 |
-| `anthropic/claude-3-5-haiku-20241022` | Very Good | ~$1.00 |
 | `openai/gpt-4o-mini` | Very Good | ~$0.60 |
+| `anthropic/claude-3-5-haiku-20241022` | Very Good | ~$1.00 |
 | `anthropic/claude-sonnet-4` | Excellent | ~$3.00 |
 | `openai/gpt-4o` | Excellent | ~$5.00 |
+
+🔗 **Full model list with pricing**: [openrouter.ai/models](https://openrouter.ai/models)
+
+**💰 Real Example - 400-page EPUB book translation**:
+- Model: `openai/gpt-4o` (excellent quality)
+- Cost: **less than €2** (~$2)
+- TBL displays the exact cost in real-time during translation, so you always know precisely what you're spending
 
 **Setup**:
 
@@ -424,7 +433,7 @@ TBL supports four types of providers:
    - Select "OpenRouter (200+ models)"
    - Enter your API key
    - Models load automatically (sorted by price, text-only models filtered)
-   - Cost is displayed in real-time during translation 💰
+   - 💰 **Cost is displayed precisely in real-time** during translation
 
 3. **Command Line**:
 
@@ -445,8 +454,6 @@ TBL supports four types of providers:
    ```
 
 💡 **Tip**: Start with free models like `google/gemini-2.0-flash-exp:free` to test, then upgrade to premium models for better quality!
-
-💰 **Cost tracking**: TBL displays real-time cost and token usage when using OpenRouter, so you always know exactly what you're spending.
 
 ### 3. ☁️ OpenAI (Cloud - Paid)
 
