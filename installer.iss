@@ -45,7 +45,7 @@ PrivilegesRequiredOverridesAllowed=dialog
 
 ; License and info
 LicenseFile=LICENSE
-InfoBeforeFile=README.md
+InfoBeforeFile=INSTALLER_INFO.txt
 
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"
@@ -70,6 +70,7 @@ Source: ".env.example"; DestName: ".env"; DestDir: "{app}"; Flags: onlyifdoesnte
 ; Documentation
 Source: "README.md"; DestDir: "{app}"; Flags: ignoreversion
 Source: "LICENSE"; DestDir: "{app}"; Flags: ignoreversion
+Source: "INSTALLER_INFO.txt"; DestDir: "{app}"; Flags: ignoreversion
 
 ; Optional documentation files
 Source: "SIMPLE_MODE_README.md"; DestDir: "{app}"; Flags: ignoreversion skipifsourcedoesntexist

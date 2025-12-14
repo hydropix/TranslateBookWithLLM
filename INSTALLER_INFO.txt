@@ -1,0 +1,73 @@
+TranslateBookWithLLM (TBL)
+==========================
+
+Translate entire books, subtitles, and large texts with AI - simply and efficiently.
+
+TBL is an application that lets you translate large volumes of text using Language Models (LLMs). Whether you want to translate an ebook, movie subtitles, or long documents, TBL does it automatically while preserving formatting.
+
+
+WHY USE TBL?
+------------
+
+* Easy to use: Intuitive web interface, no technical skills required
+* Private & Local: Use Ollama to translate without sending your texts to the internet
+* Cost-effective: Free with Ollama, controlled costs with cloud APIs
+* Preserves formatting: EPUB files keep their structure, subtitles keep their timings
+* Batch translation: Translate multiple files at once
+* Multi-language: Translate between any languages
+
+
+SUPPORTED FORMATS
+-----------------
+
+* EPUB files (ebooks)
+* SRT files (subtitles)
+* TXT files (plain text documents)
+
+
+LLM PROVIDERS
+-------------
+
+TBL supports multiple AI providers:
+
+* Ollama (Local - Free): Run AI models on your own computer, 100% private
+* OpenRouter (Cloud): Access 200+ models (Claude, GPT-4, Llama, Mistral...) with unified billing
+* OpenAI (Cloud): GPT-4, GPT-4o, GPT-3.5-turbo
+* Google Gemini (Cloud): Fast and efficient cloud translation
+
+
+GETTING STARTED
+---------------
+
+1. Launch TranslateBookWithLLM from Start Menu or Desktop
+2. Open your browser to http://localhost:5000
+3. Configure your LLM provider (Ollama, OpenRouter, OpenAI, or Gemini)
+4. Select source and target languages
+5. Add your files and start translating!
+
+
+CONFIGURATION
+-------------
+
+Edit the .env file in the installation folder to configure:
+
+* API keys for cloud providers
+* Default model and provider
+* Translation parameters (chunk size, timeout, etc.)
+* Output directory
+
+
+REQUIREMENTS
+------------
+
+* Windows 10/11 (64-bit)
+* For local translation: Ollama (https://ollama.com/)
+* For cloud translation: API key from your chosen provider
+
+
+MORE INFORMATION
+----------------
+
+Documentation: See README.md in the installation folder
+GitHub: https://github.com/hydropix/TranslateBookWithLLM
+Issues: https://github.com/hydropix/TranslateBookWithLLM/issues
