@@ -470,6 +470,42 @@ TBL supports four types of providers:
 
 ---
 
+## 💾 Windows Installer
+
+For the easiest installation experience on Windows, download the pre-built installer:
+
+### Download Options
+
+Go to the [Releases page](https://github.com/hydropix/TranslateBookWithLLM/releases) and download:
+
+| File | Description |
+|------|-------------|
+| `TranslateBookWithLLM-Setup-x.x.x.exe` | **Installer** - Recommended for most users |
+| `TranslateBookWithLLM-Portable-x.x.x.zip` | **Portable** - No installation needed, just unzip and run |
+
+### Installation Steps
+
+1. **Download** the installer (`.exe`) from the Releases page
+2. **Run** the installer and follow the wizard
+3. **Configure** the `.env` file in the installation folder with your API keys
+4. **Launch** TranslateBookWithLLM from the Start Menu or Desktop shortcut
+5. **Open** your browser to `http://localhost:5000`
+
+### What's Included
+
+- ✅ Complete application (no Python installation required)
+- ✅ Web interface ready to use
+- ✅ Configuration file template (`.env.example`)
+- ✅ Documentation
+
+### Requirements
+
+- **Windows 10/11** (64-bit)
+- **Ollama** (for local translation) - [Download here](https://ollama.com/)
+- Or API keys for cloud providers (OpenRouter, OpenAI, Gemini)
+
+---
+
 ## 🐳 Docker Installation
 
 For simplified installation with Docker:
