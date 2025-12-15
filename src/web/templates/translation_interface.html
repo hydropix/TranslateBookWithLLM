@@ -19,87 +19,95 @@
             </div>
 
             <div class="card-body">
-                <div class="config-grid">
-                    <div class="form-group">
-                        <label>LLM Provider</label>
+                <!-- Row 1: Provider + API Key/Endpoint + Model + Refresh -->
+                <div style="display: grid; grid-template-columns: 1fr 2fr 2fr auto; gap: 15px; margin-bottom: 15px; align-items: end;">
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label>Provider</label>
                         <select class="form-control" id="llmProvider">
-                            <option value="ollama">Ollama (Local)</option>
-                            <option value="gemini">Google Gemini</option>
+                            <option value="ollama">Ollama</option>
+                            <option value="gemini">Gemini</option>
                             <option value="openai">OpenAI</option>
-                            <option value="openrouter">OpenRouter (200+ models)</option>
+                            <option value="openrouter">OpenRouter</option>
                         </select>
                     </div>
 
-                    <div class="form-group" id="ollamaSettings">
-                        <label>Ollama API Endpoint</label>
+                    <div class="form-group" id="ollamaSettings" style="margin-bottom: 0;">
+                        <label>API Endpoint</label>
                         <input type="text" class="form-control" id="apiEndpoint" value="http://localhost:11434/api/generate">
                     </div>
 
-                    <div class="form-group" id="geminiSettings" style="display: none;">
-                        <label>Gemini API Key</label>
-                        <input type="password" class="form-control" id="geminiApiKey" placeholder="Enter your Gemini API key" autocomplete="off">
+                    <div class="form-group" id="geminiSettings" style="display: none; margin-bottom: 0;">
+                        <label>API Key <span id="geminiKeyStatus" class="key-status"></span></label>
+                        <input type="password" class="form-control" id="geminiApiKey" placeholder="Enter Gemini API key" autocomplete="new-password" data-lpignore="true" data-form-type="other">
                     </div>
 
-                    <div class="form-group" id="openaiSettings" style="display: none;">
-                        <label>OpenAI API Endpoint</label>
-                        <input type="text" class="form-control" id="openaiEndpoint" value="https://api.openai.com/v1/chat/completions" placeholder="OpenAI API endpoint">
-                        <label style="margin-top: 10px;">OpenAI API Key</label>
-                        <input type="password" class="form-control" id="openaiApiKey" placeholder="Enter your OpenAI API key" autocomplete="off">
+                    <div class="form-group" id="openaiSettings" style="display: none; margin-bottom: 0;">
+                        <label>API Key <span id="openaiKeyStatus" class="key-status"></span></label>
+                        <input type="password" class="form-control" id="openaiApiKey" placeholder="Enter OpenAI API key" autocomplete="new-password" data-lpignore="true" data-form-type="other">
                     </div>
 
-                    <div class="form-group" id="openrouterSettings" style="display: none;">
-                        <label>OpenRouter API Key</label>
-                        <input type="password" class="form-control" id="openrouterApiKey" placeholder="sk-or-v1-..." autocomplete="off">
-                        <small style="display: block; margin-top: 5px; color: #6b7280;">
-                            <a href="https://openrouter.ai/keys" target="_blank" rel="noopener noreferrer">Get your API key</a> |
-                            <a href="https://openrouter.ai/models" target="_blank" rel="noopener noreferrer">Browse models</a>
-                        </small>
+                    <div class="form-group" id="openrouterSettings" style="display: none; margin-bottom: 0;">
+                        <label>API Key <span id="openrouterKeyStatus" class="key-status"></span></label>
+                        <input type="password" class="form-control" id="openrouterApiKey" placeholder="sk-or-v1-..." autocomplete="new-password" data-lpignore="true" data-form-type="other">
                     </div>
 
-                    <div class="form-group">
-                        <label>LLM Model</label>
-                        <div class="model-select-container">
-                            <select class="form-control" id="model">
-                                <option value="">Loading models...</option>
-                            </select>
-                            <button class="btn btn-secondary" onclick="refreshModels()" title="Refresh model list">🔄</button>
-                        </div>
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label>Model</label>
+                        <select class="form-control" id="model">
+                            <option value="">Loading...</option>
+                        </select>
                     </div>
 
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
-                        <div class="form-group">
-                            <label>Source Language</label>
-                            <select class="form-control" id="sourceLang">
-                                <option value="English">English</option>
-                                <option value="Chinese">Chinese</option>
-                                <option value="Spanish">Spanish</option>
-                                <option value="French">French</option>
-                                <option value="German">German</option>
-                                <option value="Italian">Italian</option>
-                                <option value="Other">Other (Specify)</option>
-                            </select>
-                            <input type="text" class="form-control" id="customSourceLang" placeholder="Enter custom source language" style="margin-top: 10px; display: none;">
-                        </div>
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label>&nbsp;</label>
+                        <button class="btn btn-secondary" onclick="refreshModels()" title="Refresh model list" style="width: 100%; height: 38px;">🔄</button>
+                    </div>
+                </div>
 
-                        <div class="form-group">
-                            <label>Target Language</label>
-                            <select class="form-control" id="targetLang">
-                                <option value="Chinese">Chinese</option>
-                                <option value="English">English</option>
-                                <option value="French">French</option>
-                                <option value="Spanish">Spanish</option>
-                                <option value="German">German</option>
-                                <option value="Italian">Italian</option>
-                                <option value="Other">Other (Specify)</option>
-                            </select>
-                            <input type="text" class="form-control" id="customTargetLang" placeholder="Enter custom target language (e.g., Portuguese)" style="margin-top: 10px; display: none;">
-                        </div>
+                <!-- Row 2: Source Language + Target Language -->
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label>Source Language</label>
+                        <select class="form-control" id="sourceLang">
+                            <option value="English">English</option>
+                            <option value="Chinese">Chinese</option>
+                            <option value="Spanish">Spanish</option>
+                            <option value="French">French</option>
+                            <option value="German">German</option>
+                            <option value="Italian">Italian</option>
+                            <option value="Other">Other (Specify)</option>
+                        </select>
+                        <input type="text" class="form-control" id="customSourceLang" placeholder="Enter custom source language" style="margin-top: 10px; display: none;">
                     </div>
-                     <div class="form-group">
-                        <label>Output Filename Pattern</label>
-                        <input type="text" class="form-control" id="outputFilenamePattern" value="translated_{originalName}.{ext}" title="Use {originalName} as placeholder for original filename without extension and {ext} for the file extension.">
-                        <small>Example: `translated_{originalName}_to_FR.{ext}`</small>
+
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label>Target Language</label>
+                        <select class="form-control" id="targetLang">
+                            <option value="Chinese">Chinese</option>
+                            <option value="English">English</option>
+                            <option value="French">French</option>
+                            <option value="Spanish">Spanish</option>
+                            <option value="German">German</option>
+                            <option value="Italian">Italian</option>
+                            <option value="Other">Other (Specify)</option>
+                        </select>
+                        <input type="text" class="form-control" id="customTargetLang" placeholder="Enter custom target language" style="margin-top: 10px; display: none;">
                     </div>
+                </div>
+
+                <!-- Row 3: Output Filename Pattern -->
+                <div class="form-group">
+                    <label>Output Filename Pattern</label>
+                    <input type="text" class="form-control" id="outputFilenamePattern" value="translated_{originalName}.{ext}" title="Use {originalName} as placeholder for original filename without extension and {ext} for the file extension.">
+                    <small>Example: `translated_{originalName}_to_FR.{ext}`</small>
+                </div>
+
+                <!-- Save Settings Button -->
+                <div style="text-align: center; margin: 20px 0;">
+                    <button type="button" class="btn btn-secondary" id="saveSettingsBtn" onclick="saveSettings()" style="padding: 8px 20px; font-size: 14px;" title="Save current settings (API keys, model, languages) to .env file for next session">
+                        💾 Save Settings
+                    </button>
+                    <span id="saveSettingsStatus" style="margin-left: 10px; font-size: 14px;"></span>
                 </div>
 
                 <div class="form-group" style="margin-bottom: 30px;">

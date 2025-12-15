@@ -23,6 +23,31 @@ function earlyValidationFail(message) {
 }
 
 /**
+ * Get API key value from field, handling .env configured keys
+ * If field is empty but configured in .env, returns special marker for backend
+ * @param {string} fieldId - Field ID
+ * @returns {string} API key value or '__USE_ENV__' marker
+ */
+function getApiKeyValue(fieldId) {
+    const field = DomHelpers.getElement(fieldId);
+    if (!field) return '';
+
+    const value = field.value.trim();
+
+    // If user entered a value, use it
+    if (value) {
+        return value;
+    }
+
+    // If field is empty but .env has a key configured, tell backend to use .env key
+    if (field.dataset.envConfigured === 'true') {
+        return '__USE_ENV__';
+    }
+
+    return '';
+}
+
+/**
  * Get translation configuration from form
  * @param {Object} file - File to translate
  * @returns {Object} Translation configuration
@@ -48,9 +73,9 @@ function getTranslationConfig(file) {
                          DomHelpers.getValue('openaiEndpoint') :
                          DomHelpers.getValue('apiEndpoint'),
         llm_provider: provider,
-        gemini_api_key: provider === 'gemini' ? DomHelpers.getValue('geminiApiKey') : '',
-        openai_api_key: provider === 'openai' ? DomHelpers.getValue('openaiApiKey') : '',
-        openrouter_api_key: provider === 'openrouter' ? DomHelpers.getValue('openrouterApiKey') : '',
+        gemini_api_key: provider === 'gemini' ? getApiKeyValue('geminiApiKey') : '',
+        openai_api_key: provider === 'openai' ? getApiKeyValue('openaiApiKey') : '',
+        openrouter_api_key: provider === 'openrouter' ? getApiKeyValue('openrouterApiKey') : '',
         chunk_size: parseInt(DomHelpers.getValue('chunkSize')),
         timeout: parseInt(DomHelpers.getValue('timeout')),
         context_window: parseInt(DomHelpers.getValue('contextWindow')),
@@ -217,11 +242,12 @@ export const BatchController = {
         updateFileStatusInList(fileToTranslate.name, 'Preparing...');
 
         // Validate API keys for cloud providers
+        // Key is valid if: user entered a value OR key is configured in .env
         const provider = DomHelpers.getValue('llmProvider');
 
         if (provider === 'gemini') {
-            const geminiApiKey = DomHelpers.getValue('geminiApiKey').trim();
-            if (!geminiApiKey) {
+            const apiKeyValue = getApiKeyValue('geminiApiKey');
+            if (!apiKeyValue) {
                 MessageLogger.addLog('❌ Error: Gemini API key is required when using Gemini provider');
                 MessageLogger.showMessage('Please enter your Gemini API key', 'error');
                 updateFileStatusInList(fileToTranslate.name, 'Error: Missing API key');
@@ -232,8 +258,8 @@ export const BatchController = {
         }
 
         if (provider === 'openai') {
-            const openaiApiKey = DomHelpers.getValue('openaiApiKey').trim();
-            if (!openaiApiKey) {
+            const apiKeyValue = getApiKeyValue('openaiApiKey');
+            if (!apiKeyValue) {
                 MessageLogger.addLog('❌ Error: OpenAI API key is required when using OpenAI provider');
                 MessageLogger.showMessage('Please enter your OpenAI API key', 'error');
                 updateFileStatusInList(fileToTranslate.name, 'Error: Missing API key');
@@ -244,8 +270,8 @@ export const BatchController = {
         }
 
         if (provider === 'openrouter') {
-            const openrouterApiKey = DomHelpers.getValue('openrouterApiKey').trim();
-            if (!openrouterApiKey) {
+            const apiKeyValue = getApiKeyValue('openrouterApiKey');
+            if (!apiKeyValue) {
                 MessageLogger.addLog('❌ Error: OpenRouter API key is required when using OpenRouter provider');
                 MessageLogger.showMessage('Please enter your OpenRouter API key', 'error');
                 updateFileStatusInList(fileToTranslate.name, 'Error: Missing API key');

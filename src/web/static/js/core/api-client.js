@@ -248,26 +248,23 @@ export const ApiClient = {
      * @returns {Promise<Object>} Models list
      */
     async getModels(provider, options = {}) {
-        const params = new URLSearchParams();
-
-        if (provider === 'gemini' && options.apiKey) {
-            params.append('provider', 'gemini');
-            params.append('api_key', options.apiKey);
-        } else if (provider === 'openai') {
-            params.append('provider', 'openai');
-        } else if (provider === 'openrouter') {
-            params.append('provider', 'openrouter');
-            if (options.apiKey) {
-                params.append('api_key', options.apiKey);
-            }
-        } else {
-            // Ollama
+        if (provider === 'ollama') {
+            // Ollama: GET request (no API key needed)
+            const params = new URLSearchParams();
             if (options.apiEndpoint) {
                 params.append('api_endpoint', options.apiEndpoint);
             }
+            return await apiRequest(`/api/models?${params.toString()}`);
         }
 
-        return await apiRequest(`/api/models?${params.toString()}`);
+        // Gemini/OpenRouter/OpenAI: POST request (API key in body - more secure)
+        return await apiRequest('/api/models', {
+            method: 'POST',
+            body: JSON.stringify({
+                provider: provider,
+                api_key: options.apiKey || '__USE_ENV__'
+            })
+        });
     },
 
     // ========================================
@@ -301,6 +298,30 @@ export const ApiClient = {
     async deleteCheckpoint(translationId) {
         return await apiRequest(`/api/checkpoint/${translationId}`, {
             method: 'DELETE'
+        });
+    },
+
+    // ========================================
+    // Settings Management
+    // ========================================
+
+    /**
+     * Get current user settings
+     * @returns {Promise<Object>} Current settings
+     */
+    async getSettings() {
+        return await apiRequest('/api/settings');
+    },
+
+    /**
+     * Save user settings to .env file
+     * @param {Object} settings - Settings to save
+     * @returns {Promise<Object>} Save result
+     */
+    async saveSettings(settings) {
+        return await apiRequest('/api/settings', {
+            method: 'POST',
+            body: JSON.stringify(settings)
         });
     }
 };

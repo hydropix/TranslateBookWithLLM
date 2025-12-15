@@ -11,6 +11,7 @@
 import { StateManager } from './core/state-manager.js';
 import { ApiClient } from './core/api-client.js';
 import { WebSocketManager } from './core/websocket-manager.js';
+import { SettingsManager } from './core/settings-manager.js';
 
 // ========================================
 // UI Modules
@@ -175,6 +176,7 @@ function initializeModules() {
     // 1. Core infrastructure
     initializeState();
     WebSocketManager.connect();
+    SettingsManager.initialize();
 
     // 2. UI modules
     FormManager.initialize();
@@ -269,6 +271,42 @@ window.loadResumableJobs = ResumeManager.loadResumableJobs.bind(ResumeManager);
 // Provider Manager
 window.refreshModels = ProviderManager.refreshModels.bind(ProviderManager);
 
+// Settings Manager
+window.saveSettings = async () => {
+    const saveBtn = DomHelpers.getElement('saveSettingsBtn');
+    const statusSpan = DomHelpers.getElement('saveSettingsStatus');
+
+    if (saveBtn) {
+        saveBtn.disabled = true;
+        DomHelpers.setText(saveBtn, '💾 Saving...');
+    }
+
+    try {
+        const result = await SettingsManager.saveAllSettings(true);
+        if (result.success) {
+            if (statusSpan) {
+                statusSpan.textContent = '✅ Settings saved!';
+                statusSpan.style.color = '#059669';
+                setTimeout(() => { statusSpan.textContent = ''; }, 3000);
+            }
+            MessageLogger.addLog(`Settings saved: ${result.savedToEnv?.join(', ') || 'local preferences'}`);
+        } else {
+            throw new Error(result.error || 'Unknown error');
+        }
+    } catch (error) {
+        if (statusSpan) {
+            statusSpan.textContent = `❌ ${error.message}`;
+            statusSpan.style.color = '#dc2626';
+        }
+        MessageLogger.addLog(`Failed to save settings: ${error.message}`, 'error');
+    } finally {
+        if (saveBtn) {
+            saveBtn.disabled = false;
+            DomHelpers.setText(saveBtn, '💾 Save Settings');
+        }
+    }
+};
+
 // Message Logger
 window.clearActivityLog = MessageLogger.clearLog.bind(MessageLogger);
 
@@ -312,6 +350,7 @@ export {
     StateManager,
     ApiClient,
     WebSocketManager,
+    SettingsManager,
     DomHelpers,
     MessageLogger,
     FormManager,

@@ -4,6 +4,8 @@ Flask web server for translation API with WebSocket support
 import os
 import sys
 import logging
+import webbrowser
+import threading
 from datetime import datetime
 from flask import Flask
 from flask_cors import CORS
@@ -38,19 +40,8 @@ from src.api.handlers import start_translation_job
 from src.api.translation_state import get_state_manager
 
 
-def get_base_path():
-    """Get base path for resources, handling PyInstaller frozen executables"""
-    if getattr(sys, 'frozen', False):
-        # Running as PyInstaller bundle
-        return sys._MEIPASS
-    else:
-        # Running as normal Python script
-        return os.getcwd()
-
-
 # Initialize Flask app with static folder configuration
-# Use absolute path to handle PyInstaller frozen executables
-base_path = get_base_path()
+base_path = os.getcwd()
 static_folder_path = os.path.join(base_path, 'src', 'web', 'static')
 app = Flask(__name__,
             static_folder=static_folder_path,
@@ -134,6 +125,21 @@ def restore_incomplete_jobs():
 
 restore_incomplete_jobs()
 
+def open_browser(host, port):
+    """Open the web interface in the default browser after a short delay"""
+    def _open():
+        # Small delay to ensure server is ready
+        import time
+        time.sleep(1.5)
+        url = f"http://{'localhost' if host == '0.0.0.0' else host}:{port}"
+        logger.info(f"🌐 Opening browser at {url}")
+        webbrowser.open(url)
+
+    # Run in background thread to not block server startup
+    thread = threading.Thread(target=_open, daemon=True)
+    thread.start()
+
+
 def test_ollama_connection():
     """Test Ollama connection at startup and log result"""
     import requests
@@ -186,5 +192,8 @@ if __name__ == '__main__':
         logger.warning("   For production, use a proper WSGI server like gunicorn:")
         logger.warning("   gunicorn --worker-class eventlet -w 1 --bind 0.0.0.0:5000 translation_api:app")
         logger.info("")
+
+    # Auto-open browser (especially useful for portable executable)
+    open_browser(HOST, PORT)
 
     socketio.run(app, debug=False, host=HOST, port=PORT, allow_unsafe_werkzeug=True)

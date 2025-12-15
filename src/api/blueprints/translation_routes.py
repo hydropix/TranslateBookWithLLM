@@ -13,6 +13,23 @@ from src.config import (
 )
 
 
+def _resolve_api_key(value, env_var_name):
+    """
+    Resolve API key value from request or environment.
+
+    Args:
+        value: Value from request (can be actual key, '__USE_ENV__', or empty)
+        env_var_name: Name of environment variable to fall back to
+
+    Returns:
+        Resolved API key string
+    """
+    if value == '__USE_ENV__' or not value:
+        # Use environment variable
+        return os.getenv(env_var_name, '')
+    return value
+
+
 def create_translation_blueprint(state_manager, start_translation_job):
     """
     Create and configure the translation blueprint
@@ -59,7 +76,9 @@ def create_translation_blueprint(state_manager, start_translation_job):
             'retry_delay': int(data.get('retry_delay', 2)),
             'output_filename': data['output_filename'],
             'llm_provider': data.get('llm_provider', 'ollama'),
-            'gemini_api_key': data.get('gemini_api_key') or os.getenv('GEMINI_API_KEY', ''),
+            'gemini_api_key': _resolve_api_key(data.get('gemini_api_key'), 'GEMINI_API_KEY'),
+            'openai_api_key': _resolve_api_key(data.get('openai_api_key'), 'OPENAI_API_KEY'),
+            'openrouter_api_key': _resolve_api_key(data.get('openrouter_api_key'), 'OPENROUTER_API_KEY'),
             'fast_mode': data.get('fast_mode', False)
         }
 

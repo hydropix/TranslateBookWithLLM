@@ -2,21 +2,22 @@
 Configuration and health check routes
 """
 import os
-import sys
 import asyncio
 import logging
 import requests
+import re
 from flask import Blueprint, request, jsonify, send_from_directory
+from pathlib import Path
 
 
 def get_base_path():
-    """Get base path for resources, handling PyInstaller frozen executables"""
-    if getattr(sys, 'frozen', False):
-        # Running as PyInstaller bundle
-        return sys._MEIPASS
-    else:
-        # Running as normal Python script
-        return os.getcwd()
+    """Get base path for resources (templates, static files)"""
+    return os.getcwd()
+
+
+def get_config_path():
+    """Get base path for configuration files (.env)"""
+    return os.getcwd()
 
 from src.config import (
     API_ENDPOINT as DEFAULT_OLLAMA_API_ENDPOINT,
@@ -30,8 +31,10 @@ from src.config import (
     DEFAULT_TARGET_LANGUAGE,
     DEBUG_MODE,
     GEMINI_API_KEY,
+    GEMINI_MODEL,
     OPENAI_API_KEY,
-    OPENROUTER_API_KEY
+    OPENROUTER_API_KEY,
+    OPENROUTER_MODEL
 )
 
 # Setup logger for this module
@@ -65,21 +68,41 @@ def create_config_blueprint():
             "supported_formats": ["txt", "epub", "srt"]
         })
 
-    @bp.route('/api/models', methods=['GET'])
+    @bp.route('/api/models', methods=['GET', 'POST'])
     def get_available_models():
-        """Get available models from Ollama, Gemini, or OpenRouter"""
-        provider = request.args.get('provider', 'ollama')
+        """Get available models from Ollama, Gemini, or OpenRouter
+
+        Supports both GET and POST methods:
+        - GET: For Ollama (no API key needed) or legacy calls
+        - POST: For providers requiring API keys (Gemini, OpenRouter) - more secure
+        """
+        if request.method == 'POST':
+            data = request.get_json() or {}
+            provider = data.get('provider', 'ollama')
+            api_key = data.get('api_key')
+        else:
+            # GET method - for Ollama or legacy compatibility
+            provider = request.args.get('provider', 'ollama')
+            api_key = request.args.get('api_key')
 
         if provider == 'gemini':
-            return _get_gemini_models()
+            return _get_gemini_models(api_key)
         elif provider == 'openrouter':
-            return _get_openrouter_models()
+            return _get_openrouter_models(api_key)
         else:
             return _get_ollama_models()
 
     @bp.route('/api/config', methods=['GET'])
     def get_default_config():
         """Get default configuration values"""
+        # For API keys, send a masked indicator if configured, empty string if not
+        # This prevents browser autocomplete from filling in random values
+        def mask_api_key(key):
+            """Return masked indicator if key exists, empty string otherwise"""
+            if key and len(key) > 4:
+                return "***" + key[-4:]  # Show last 4 chars as indicator
+            return ""  # Empty = not configured
+
         config_response = {
             "api_endpoint": DEFAULT_OLLAMA_API_ENDPOINT,
             "default_model": DEFAULT_MODEL,
@@ -89,9 +112,12 @@ def create_config_blueprint():
             "max_attempts": MAX_TRANSLATION_ATTEMPTS,
             "retry_delay": RETRY_DELAY_SECONDS,
             "supported_formats": ["txt", "epub", "srt"],
-            "gemini_api_key": GEMINI_API_KEY,
-            "openai_api_key": OPENAI_API_KEY,
-            "openrouter_api_key": OPENROUTER_API_KEY,
+            "gemini_api_key": mask_api_key(GEMINI_API_KEY),
+            "openai_api_key": mask_api_key(OPENAI_API_KEY),
+            "openrouter_api_key": mask_api_key(OPENROUTER_API_KEY),
+            "gemini_api_key_configured": bool(GEMINI_API_KEY),
+            "openai_api_key_configured": bool(OPENAI_API_KEY),
+            "openrouter_api_key_configured": bool(OPENROUTER_API_KEY),
             "default_source_language": DEFAULT_SOURCE_LANGUAGE,
             "default_target_language": DEFAULT_TARGET_LANGUAGE
         }
@@ -105,17 +131,34 @@ def create_config_blueprint():
 
         return jsonify(config_response)
 
-    def _get_openrouter_models():
+    def _resolve_api_key(provided_key, env_var_name, config_default):
+        """Resolve API key from provided value, .env marker, or config default
+
+        Args:
+            provided_key: Key from request (could be actual key or '__USE_ENV__')
+            env_var_name: Environment variable name to check
+            config_default: Default value from config
+
+        Returns:
+            Resolved API key or None
+        """
+        if provided_key and provided_key != '__USE_ENV__':
+            return provided_key
+        # Use .env value if marker provided or no key given
+        return os.getenv(env_var_name, config_default)
+
+    def _get_openrouter_models(provided_api_key=None):
         """Get available text-only models from OpenRouter API"""
-        api_key = request.args.get('api_key')
-        if not api_key:
-            api_key = os.getenv('OPENROUTER_API_KEY', OPENROUTER_API_KEY)
+        api_key = _resolve_api_key(provided_api_key, 'OPENROUTER_API_KEY', OPENROUTER_API_KEY)
+
+        # Use OPENROUTER_MODEL from .env, fallback to claude-sonnet-4
+        default_model = OPENROUTER_MODEL if OPENROUTER_MODEL else "anthropic/claude-sonnet-4"
 
         if not api_key:
             return jsonify({
                 "models": [],
                 "model_names": [],
-                "default": "anthropic/claude-sonnet-4",
+                "default": default_model,
                 "status": "api_key_missing",
                 "count": 0,
                 "error": "OpenRouter API key is required. Set OPENROUTER_API_KEY environment variable or pass api_key parameter."
@@ -129,10 +172,13 @@ def create_config_blueprint():
 
             if models:
                 model_names = [m['id'] for m in models]
+                # Check if default model exists in available models
+                if default_model not in model_names and model_names:
+                    default_model = model_names[0]
                 return jsonify({
                     "models": models,
                     "model_names": model_names,
-                    "default": "anthropic/claude-sonnet-4",
+                    "default": default_model,
                     "status": "openrouter_connected",
                     "count": len(models)
                 })
@@ -140,7 +186,7 @@ def create_config_blueprint():
                 return jsonify({
                     "models": [],
                     "model_names": [],
-                    "default": "anthropic/claude-sonnet-4",
+                    "default": default_model,
                     "status": "openrouter_error",
                     "count": 0,
                     "error": "Failed to retrieve OpenRouter models"
@@ -151,22 +197,23 @@ def create_config_blueprint():
             return jsonify({
                 "models": [],
                 "model_names": [],
-                "default": "anthropic/claude-sonnet-4",
+                "default": default_model,
                 "status": "openrouter_error",
                 "count": 0,
                 "error": f"Error connecting to OpenRouter API: {str(e)}"
             })
 
-    def _get_gemini_models():
+    def _get_gemini_models(provided_api_key=None):
         """Get available models from Gemini API"""
-        api_key = request.args.get('api_key')
-        if not api_key:
-            api_key = os.getenv('GEMINI_API_KEY')
+        api_key = _resolve_api_key(provided_api_key, 'GEMINI_API_KEY', GEMINI_API_KEY)
+
+        # Use GEMINI_MODEL from .env, fallback to gemini-2.0-flash
+        default_model = GEMINI_MODEL if GEMINI_MODEL else "gemini-2.0-flash"
 
         if not api_key:
             return jsonify({
                 "models": [],
-                "default": "gemini-2.0-flash",
+                "default": default_model,
                 "status": "api_key_missing",
                 "count": 0,
                 "error": "Gemini API key is required. Set GEMINI_API_KEY environment variable or pass api_key parameter."
@@ -180,17 +227,20 @@ def create_config_blueprint():
 
             if models:
                 model_names = [m['name'] for m in models]
+                # Check if default model exists in available models
+                if default_model not in model_names and model_names:
+                    default_model = model_names[0]
                 return jsonify({
                     "models": models,
                     "model_names": model_names,
-                    "default": "gemini-2.0-flash",
+                    "default": default_model,
                     "status": "gemini_connected",
                     "count": len(models)
                 })
             else:
                 return jsonify({
                     "models": [],
-                    "default": "gemini-2.0-flash",
+                    "default": default_model,
                     "status": "gemini_error",
                     "count": 0,
                     "error": "Failed to retrieve Gemini models"
@@ -200,7 +250,7 @@ def create_config_blueprint():
             print(f"❌ Error retrieving Gemini models: {e}")
             return jsonify({
                 "models": [],
-                "default": "gemini-2.0-flash",
+                "default": default_model,
                 "status": "gemini_error",
                 "count": 0,
                 "error": f"Error connecting to Gemini API: {str(e)}"
@@ -271,6 +321,146 @@ def create_config_blueprint():
             "status": "ollama_offline_or_error",
             "count": 0,
             "error": f"Ollama is not accessible at {ollama_base_from_ui} or an error occurred. Verify that Ollama is running ('ollama serve') and the endpoint is correct."
+        })
+
+    def _get_env_file_path():
+        """Get the path to the .env file"""
+        config_path = get_config_path()
+        return Path(config_path) / '.env'
+
+    def _update_env_file(updates: dict) -> bool:
+        """
+        Update specific keys in the .env file.
+        Creates the file if it doesn't exist.
+
+        Args:
+            updates: Dictionary of key-value pairs to update
+
+        Returns:
+            True if successful, False otherwise
+        """
+        env_path = _get_env_file_path()
+
+        # Read existing content or start fresh
+        existing_lines = []
+        file_is_new = not env_path.exists()
+
+        if env_path.exists():
+            with open(env_path, 'r', encoding='utf-8') as f:
+                existing_lines = f.readlines()
+        else:
+            # Create file with header if it doesn't exist
+            existing_lines = [
+                "# Translation API Configuration\n",
+                "# This file was automatically created by the web interface\n",
+                "# You can edit these values manually or via the web UI\n",
+                "\n"
+            ]
+
+        # Track which keys we've updated
+        updated_keys = set()
+        new_lines = []
+
+        for line in existing_lines:
+            stripped = line.strip()
+
+            # Skip empty lines and comments, keep them as-is
+            if not stripped or stripped.startswith('#'):
+                new_lines.append(line)
+                continue
+
+            # Check if this line has a key we want to update
+            match = re.match(r'^([A-Z_][A-Z0-9_]*)=', stripped)
+            if match:
+                key = match.group(1)
+                if key in updates:
+                    # Replace this line with new value
+                    new_lines.append(f"{key}={updates[key]}\n")
+                    updated_keys.add(key)
+                else:
+                    new_lines.append(line)
+            else:
+                new_lines.append(line)
+
+        # Add any keys that weren't in the file
+        for key, value in updates.items():
+            if key not in updated_keys:
+                new_lines.append(f"{key}={value}\n")
+
+        # Write back
+        with open(env_path, 'w', encoding='utf-8') as f:
+            f.writelines(new_lines)
+
+        return True
+
+    @bp.route('/api/settings', methods=['POST'])
+    def save_settings():
+        """
+        Save user settings to .env file.
+
+        Accepts JSON with settings to save. Only specific keys are allowed
+        for security reasons.
+        """
+        allowed_keys = {
+            'GEMINI_API_KEY',
+            'GEMINI_MODEL',
+            'OPENAI_API_KEY',
+            'OPENROUTER_API_KEY',
+            'OPENROUTER_MODEL',
+            'DEFAULT_MODEL',
+            'LLM_PROVIDER',
+            'DEFAULT_SOURCE_LANGUAGE',
+            'DEFAULT_TARGET_LANGUAGE',
+            'API_ENDPOINT'
+        }
+
+        try:
+            data = request.get_json()
+            if not data:
+                return jsonify({"error": "No data provided"}), 400
+
+            # Filter to only allowed keys
+            updates = {}
+            for key, value in data.items():
+                if key in allowed_keys:
+                    # Sanitize value - remove newlines and dangerous characters
+                    safe_value = str(value).replace('\n', '').replace('\r', '')
+                    updates[key] = safe_value
+
+            if not updates:
+                return jsonify({"error": "No valid settings to save"}), 400
+
+            # Update the .env file
+            _update_env_file(updates)
+
+            logger.info(f"Settings saved: {list(updates.keys())}")
+
+            return jsonify({
+                "success": True,
+                "message": f"Saved {len(updates)} setting(s)",
+                "saved_keys": list(updates.keys())
+            })
+
+        except Exception as e:
+            logger.error(f"Error saving settings: {e}")
+            return jsonify({"error": f"Failed to save settings: {str(e)}"}), 500
+
+    @bp.route('/api/settings', methods=['GET'])
+    def get_settings():
+        """
+        Get current settings that can be modified via the UI.
+        Returns only the keys that are user-configurable.
+        API keys are masked for security - only indicates if configured.
+        """
+        return jsonify({
+            "gemini_api_key_configured": bool(GEMINI_API_KEY),
+            "openai_api_key_configured": bool(OPENAI_API_KEY),
+            "openrouter_api_key_configured": bool(OPENROUTER_API_KEY),
+            "default_model": DEFAULT_MODEL or "",
+            "llm_provider": os.getenv('LLM_PROVIDER', 'ollama'),
+            "default_source_language": DEFAULT_SOURCE_LANGUAGE or "English",
+            "default_target_language": DEFAULT_TARGET_LANGUAGE or "Chinese",
+            "api_endpoint": DEFAULT_OLLAMA_API_ENDPOINT or ""
         })
 
     return bp

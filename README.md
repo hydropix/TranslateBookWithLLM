@@ -334,7 +334,6 @@ TBL supports four types of providers:
 **Advantages**:
 
 - ✅ **200+ models** in one place (Claude, GPT-4, Llama, Gemini, Mistral...)
-- ✅ **Free models available** (Gemini Flash, Llama 70B, etc.)
 - ✅ **Precise real-time cost tracking** displayed in TBL interface
 - ✅ **Single API key** for all providers
 - ✅ **No commitment** - pay only for what you use
@@ -350,7 +349,6 @@ TBL supports four types of providers:
 
 | Model | Quality | Cost (per 1M tokens) |
 |-------|---------|---------------------|
-| `google/gemini-2.0-flash-exp:free` | Good | **Free** |
 | `meta-llama/llama-3.3-70b-instruct` | Very Good | ~$0.10 |
 | `google/gemini-2.0-flash-001` | Good | ~$0.10 |
 | `openai/gpt-4o-mini` | Very Good | ~$0.60 |
@@ -394,7 +392,7 @@ TBL supports four types of providers:
    OPENROUTER_MODEL=anthropic/claude-sonnet-4
    ```
 
-💡 **Tip**: Start with free models like `google/gemini-2.0-flash-exp:free` to test, then upgrade to premium models for better quality!
+💡 **Tip**: Start with cheap models like `google/gemini-2.0-flash-001` to test, then upgrade to premium models for better quality!
 
 ### 3. ☁️ OpenAI (Cloud - Paid)
 
@@ -479,42 +477,6 @@ TBL supports four types of providers:
    ```
 
 💡 **Tip**: Gemini offers a generous monthly free quota, perfect for testing!
-
----
-
-## 💾 Windows Installer
-
-For the easiest installation experience on Windows, download the pre-built installer:
-
-### Download Options
-
-Go to the [Releases page](https://github.com/hydropix/TranslateBookWithLLM/releases) and download:
-
-| File | Description |
-|------|-------------|
-| `TranslateBookWithLLM-Setup-x.x.x.exe` | **Installer** - Recommended for most users |
-| `TranslateBookWithLLM-Portable-x.x.x.zip` | **Portable** - No installation needed, just unzip and run |
-
-### Installation Steps
-
-1. **Download** the installer (`.exe`) from the Releases page
-2. **Run** the installer and follow the wizard
-3. **Configure** the `.env` file in the installation folder with your API keys
-4. **Launch** TranslateBookWithLLM from the Start Menu or Desktop shortcut
-5. **Open** your browser to `http://localhost:5000`
-
-### What's Included
-
-- ✅ Complete application (no Python installation required)
-- ✅ Web interface ready to use
-- ✅ Configuration file template (`.env.example`)
-- ✅ Documentation
-
-### Requirements
-
-- **Windows 10/11** (64-bit)
-- **Ollama** (for local translation) - [Download here](https://ollama.com/)
-- Or API keys for cloud providers (OpenRouter, OpenAI, Gemini)
 
 ---
 
@@ -788,7 +750,7 @@ OUTPUT_DIR=translated_files
 ### General
 
 **Q: Is it really free?**
-A: With Ollama, yes! OpenRouter also offers free models (Gemini Flash, Llama 70B). You only pay for premium models.
+A: With Ollama, yes! OpenRouter offers very cheap models (Gemini Flash, Llama 70B at ~$0.10/1M tokens). You only pay for what you use.
 
 **Q: Are my texts sent to the internet?**
 A: With Ollama, no. With OpenRouter/OpenAI/Gemini, yes (sent to respective servers).

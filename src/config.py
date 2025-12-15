@@ -19,9 +19,12 @@ if _debug_mode:
     _config_logger.setLevel(logging.DEBUG)
     _config_logger.debug("🔍 DEBUG_MODE enabled - verbose logging active")
 
+# Get config directory (current working directory)
+_config_dir = Path.cwd()
+
 # Check if .env file exists and provide helpful guidance
-_env_file = Path('.env')
-_env_example = Path('.env.example')
+_env_file = _config_dir / '.env'
+_env_example = _config_dir / '.env.example'
 _env_exists = _env_file.exists()
 _cwd = Path.cwd()
 
@@ -68,9 +71,10 @@ if not _env_exists:
         sys.exit(0)
 
 # Load .env file if it exists
-_dotenv_result = load_dotenv()
+_dotenv_result = load_dotenv(_env_file)
 if _debug_mode:
     _config_logger.debug(f"📁 load_dotenv() returned: {_dotenv_result}")
+    _config_logger.debug(f"📁 Loaded .env from: {_env_file.absolute()}")
 
 # Load from environment variables with defaults
 API_ENDPOINT = os.getenv('API_ENDPOINT', 'http://localhost:11434/api/generate')

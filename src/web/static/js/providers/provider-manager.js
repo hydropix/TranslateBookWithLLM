@@ -10,6 +10,8 @@ import { ApiClient } from '../core/api-client.js';
 import { MessageLogger } from '../ui/message-logger.js';
 import { DomHelpers } from '../ui/dom-helpers.js';
 import { ModelDetector } from './model-detector.js';
+import { SettingsManager } from '../core/settings-manager.js';
+import { FormManager } from '../ui/form-manager.js';
 
 /**
  * Common OpenAI models list
@@ -24,11 +26,10 @@ const OPENAI_MODELS = [
 
 /**
  * Fallback OpenRouter models list (used when API fetch fails)
- * Sorted by cost: free/cheap first
+ * Sorted by cost: cheap first
  */
 const OPENROUTER_FALLBACK_MODELS = [
-    // Free/Cheap models
-    { value: 'google/gemini-2.0-flash-exp:free', label: 'Gemini 2.0 Flash (Free)' },
+    // Cheap models
     { value: 'google/gemini-2.0-flash-001', label: 'Gemini 2.0 Flash' },
     { value: 'meta-llama/llama-3.3-70b-instruct', label: 'Llama 3.3 70B' },
     { value: 'qwen/qwen-2.5-72b-instruct', label: 'Qwen 2.5 72B' },
@@ -67,14 +68,16 @@ function formatPrice(price) {
 /**
  * Populate model select with options
  * @param {Array} models - Array of model objects or strings
- * @param {string} defaultModel - Default model to select
+ * @param {string} defaultModel - Default model to select (from .env)
  * @param {string} provider - Provider type ('ollama', 'gemini', 'openai', 'openrouter')
+ * @returns {boolean} True if defaultModel was found and selected
  */
 function populateModelSelect(models, defaultModel = null, provider = 'ollama') {
     const modelSelect = DomHelpers.getElement('model');
-    if (!modelSelect) return;
+    if (!modelSelect) return false;
 
     modelSelect.innerHTML = '';
+    let defaultModelFound = false;
 
     if (provider === 'gemini') {
         models.forEach(model => {
@@ -82,7 +85,10 @@ function populateModelSelect(models, defaultModel = null, provider = 'ollama') {
             option.value = model.name;
             option.textContent = `${model.displayName || model.name} - ${model.description || ''}`;
             option.title = `Input: ${model.inputTokenLimit || 'N/A'} tokens, Output: ${model.outputTokenLimit || 'N/A'} tokens`;
-            if (model.name === defaultModel) option.selected = true;
+            if (model.name === defaultModel) {
+                option.selected = true;
+                defaultModelFound = true;
+            }
             modelSelect.appendChild(option);
         });
     } else if (provider === 'openai') {
@@ -90,6 +96,10 @@ function populateModelSelect(models, defaultModel = null, provider = 'ollama') {
             const option = document.createElement('option');
             option.value = model.value;
             option.textContent = model.label;
+            if (model.value === defaultModel) {
+                option.selected = true;
+                defaultModelFound = true;
+            }
             modelSelect.appendChild(option);
         });
     } else if (provider === 'openrouter') {
@@ -110,7 +120,10 @@ function populateModelSelect(models, defaultModel = null, provider = 'ollama') {
                 option.textContent = model.label || model.name || modelId;
             }
 
-            if (modelId === defaultModel) option.selected = true;
+            if (modelId === defaultModel) {
+                option.selected = true;
+                defaultModelFound = true;
+            }
             modelSelect.appendChild(option);
         });
     } else {
@@ -119,10 +132,15 @@ function populateModelSelect(models, defaultModel = null, provider = 'ollama') {
             const option = document.createElement('option');
             option.value = modelName;
             option.textContent = modelName;
-            if (modelName === defaultModel) option.selected = true;
+            if (modelName === defaultModel) {
+                option.selected = true;
+                defaultModelFound = true;
+            }
             modelSelect.appendChild(option);
         });
     }
+
+    return defaultModelFound;
 }
 
 export const ProviderManager = {
@@ -246,8 +264,17 @@ export const ProviderManager = {
                 this.stopOllamaAutoRetry();
 
                 MessageLogger.showMessage('', '');
-                populateModelSelect(data.models, data.default, 'ollama');
+                const envModelApplied = populateModelSelect(data.models, data.default, 'ollama');
                 MessageLogger.addLog(`✅ ${data.count} LLM model(s) loaded. Default: ${data.default}`);
+
+                // If .env model was found and applied, lock it in
+                if (envModelApplied && data.default) {
+                    SettingsManager.markEnvModelApplied();
+                }
+
+                // Apply saved model preference if any (will be skipped if .env model was applied)
+                SettingsManager.applyPendingModelSelection();
+
                 ModelDetector.checkAndShowRecommendation();
 
                 // Update available models in state
@@ -329,13 +356,23 @@ export const ProviderManager = {
         modelSelect.innerHTML = '<option value="">Loading Gemini models...</option>';
 
         try {
-            const apiKey = DomHelpers.getValue('geminiApiKey').trim();
+            // Use FormManager to get API key (returns '__USE_ENV__' if configured in .env)
+            const apiKey = FormManager._getApiKeyValue('geminiApiKey');
             const data = await ApiClient.getModels('gemini', { apiKey });
 
             if (data.models && data.models.length > 0) {
                 MessageLogger.showMessage('', '');
-                populateModelSelect(data.models, data.default, 'gemini');
+                const envModelApplied = populateModelSelect(data.models, data.default, 'gemini');
                 MessageLogger.addLog(`✅ ${data.count} Gemini model(s) loaded (excluding thinking models)`);
+
+                // If .env model was found and applied, lock it in
+                if (envModelApplied && data.default) {
+                    SettingsManager.markEnvModelApplied();
+                }
+
+                // Apply saved model preference if any (will be skipped if .env model was applied)
+                SettingsManager.applyPendingModelSelection();
+
                 ModelDetector.checkAndShowRecommendation();
 
                 // Update available models in state
@@ -361,8 +398,13 @@ export const ProviderManager = {
         const modelSelect = DomHelpers.getElement('model');
         if (!modelSelect) return;
 
+        // OpenAI uses a static list, no .env default model for this provider
         populateModelSelect(OPENAI_MODELS, null, 'openai');
         MessageLogger.addLog(`✅ OpenAI models loaded (common models)`);
+
+        // Apply saved model preference if any
+        SettingsManager.applyPendingModelSelection();
+
         ModelDetector.checkAndShowRecommendation();
 
         // Update available models in state
@@ -379,13 +421,23 @@ export const ProviderManager = {
         modelSelect.innerHTML = '<option value="">Loading OpenRouter models...</option>';
 
         try {
-            const apiKey = DomHelpers.getValue('openrouterApiKey')?.trim();
+            // Use FormManager to get API key (returns '__USE_ENV__' if configured in .env)
+            const apiKey = FormManager._getApiKeyValue('openrouterApiKey');
             const data = await ApiClient.getModels('openrouter', { apiKey });
 
             if (data.models && data.models.length > 0) {
                 MessageLogger.showMessage('', '');
-                populateModelSelect(data.models, data.default, 'openrouter');
+                const envModelApplied = populateModelSelect(data.models, data.default, 'openrouter');
                 MessageLogger.addLog(`✅ ${data.count} OpenRouter text models loaded (sorted by price, cheapest first)`);
+
+                // If .env model was found and applied, lock it in
+                if (envModelApplied && data.default) {
+                    SettingsManager.markEnvModelApplied();
+                }
+
+                // Apply saved model preference if any (will be skipped if .env model was applied)
+                SettingsManager.applyPendingModelSelection();
+
                 ModelDetector.checkAndShowRecommendation();
 
                 // Update available models in state

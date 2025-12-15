@@ -190,16 +190,7 @@ echo Press Ctrl+C to stop the server
 echo ============================================
 echo.
 
-REM Read port from .env file if it exists
-set SERVER_PORT=5000
-if exist ".env" (
-    for /f "tokens=1,2 delims==" %%a in ('type .env ^| findstr /i "^PORT="') do set SERVER_PORT=%%b
-)
-
-REM Open browser after a short delay (in background)
-start "" timeout /t 3 /nobreak >nul && start http://localhost:%SERVER_PORT%
-
-REM Start the Flask application
+REM Start the Flask application (browser auto-opens from Python code)
 python translation_api.py
 
 REM If server stops

@@ -2,8 +2,14 @@
 Utility to help users configure .env file
 """
 import os
+import sys
 import shutil
 from pathlib import Path
+
+
+def _get_config_dir():
+    """Get directory for configuration files"""
+    return Path.cwd()
 
 
 def create_env_from_template(force: bool = False) -> bool:
@@ -16,8 +22,9 @@ def create_env_from_template(force: bool = False) -> bool:
     Returns:
         bool: True if file was created, False otherwise
     """
-    env_file = Path('.env')
-    env_example = Path('.env.example')
+    config_dir = _get_config_dir()
+    env_file = config_dir / '.env'
+    env_example = config_dir / '.env.example'
 
     if env_file.exists() and not force:
         print(f"❌ .env file already exists at: {env_file.absolute()}")
@@ -51,8 +58,9 @@ def validate_env_config(verbose: bool = True) -> dict:
     from dotenv import load_dotenv
     load_dotenv()
 
+    config_dir = _get_config_dir()
     status = {
-        'env_exists': Path('.env').exists(),
+        'env_exists': (config_dir / '.env').exists(),
         'issues': [],
         'warnings': [],
         'config': {}
@@ -123,7 +131,8 @@ def interactive_env_setup():
     print("🛠️  INTERACTIVE .ENV SETUP WIZARD")
     print("="*70)
 
-    env_file = Path('.env')
+    config_dir = _get_config_dir()
+    env_file = config_dir / '.env'
 
     if env_file.exists():
         response = input("\n.env file already exists. Overwrite? (yes/no): ").strip().lower()

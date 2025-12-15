@@ -664,3 +664,25 @@ input[type="range"]::-moz-range-thumb {
     10%, 30% { transform: scale(1.1); }
     20%, 40% { transform: scale(1); }
 }
+
+/* API Key Status Indicators */
+.key-status {
+    font-size: 12px;
+    font-weight: normal;
+    margin-left: 8px;
+    padding: 2px 8px;
+    border-radius: 4px;
+    vertical-align: middle;
+}
+
+.key-status.configured {
+    background: rgba(74, 222, 128, 0.2);
+    color: #4ADE80;
+    border: 1px solid rgba(74, 222, 128, 0.4);
+}
+
+.key-status.not-configured {
+    background: rgba(251, 191, 36, 0.2);
+    color: #FBBF24;
+    border: 1px solid rgba(251, 191, 36, 0.4);
+}

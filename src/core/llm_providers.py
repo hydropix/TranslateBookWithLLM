@@ -375,8 +375,7 @@ class OpenRouterProvider(LLMProvider):
 
     # Fallback text-only models (sorted by cost, cheapest first)
     FALLBACK_MODELS = [
-        # === FREE/CHEAP MODELS ===
-        "google/gemini-2.0-flash-exp:free",
+        # === CHEAP MODELS ===
         "google/gemini-2.0-flash-001",
         "meta-llama/llama-3.3-70b-instruct",
         "qwen/qwen-2.5-72b-instruct",
@@ -457,6 +456,10 @@ class OpenRouterProvider(LLMProvider):
                 architecture = model.get("architecture", {})
                 modality = architecture.get("modality", "")
 
+                # Skip free models (they don't work reliably)
+                if ":free" in model_id:
+                    continue
+
                 # Filter logic for text-only models
                 if text_only:
                     # Skip multimodal/vision models
@@ -490,7 +493,7 @@ class OpenRouterProvider(LLMProvider):
                     "total_price": prompt_price + completion_price,  # For sorting
                 })
 
-            # Sort by total price (cheapest first), free models at top
+            # Sort by total price (cheapest first)
             filtered_models.sort(key=lambda x: x["total_price"])
 
             if len(filtered_models) < 5:
