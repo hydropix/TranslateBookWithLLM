@@ -2,17 +2,6 @@
     <img src="https://github.com/hydropix/TranslateBookWithLLM/blob/main/src/web/static/TBL-Logo.png?raw=true" alt="Application Logo">
 </p>
 
-<p align="center">
-    <a href="https://github.com/hydropix/TranslateBookWithLLM/releases/latest">
-        <img src="https://img.shields.io/github/v/release/hydropix/TranslateBookWithLLM?label=Download&style=for-the-badge&logo=windows&logoColor=white&color=0078D4" alt="Download Latest Release">
-    </a>
-    <a href="https://github.com/hydropix/TranslateBookWithLLM/releases/latest">
-        <img src="https://img.shields.io/github/downloads/hydropix/TranslateBookWithLLM/total?style=for-the-badge&logo=github&color=success" alt="Total Downloads">
-    </a>
-    <a href="https://github.com/hydropix/TranslateBookWithLLM/pkgs/container/translatebookwithllm">
-        <img src="https://img.shields.io/badge/Docker-ghcr.io-2496ED?style=for-the-badge&logo=docker&logoColor=white" alt="Docker Image">
-    </a>
-</p>
 
 # 📚 TranslateBook with LLM (TBL)
 
