@@ -4,7 +4,10 @@ Centralized LLM client for all API communication
 from typing import Optional, Dict, Any
 
 from src.config import API_ENDPOINT, DEFAULT_MODEL
-from src.core.llm_providers import create_llm_provider, LLMProvider
+from src.core.llm_providers import create_llm_provider, LLMProvider, ContextOverflowError
+
+# Re-export for convenience
+__all__ = ['LLMClient', 'default_client', 'create_llm_client', 'ContextOverflowError']
 
 
 class LLMClient:

@@ -7,10 +7,11 @@ import re
 from tqdm.auto import tqdm
 
 from src.config import (
-    DEFAULT_MODEL, TRANSLATE_TAG_IN, TRANSLATE_TAG_OUT
+    DEFAULT_MODEL, TRANSLATE_TAG_IN, TRANSLATE_TAG_OUT, SENTENCE_TERMINATORS
 )
 from prompts.prompts import generate_translation_prompt, generate_subtitle_block_prompt
 from .llm_client import default_client, LLMClient, create_llm_client
+from .llm_providers import ContextOverflowError
 from .post_processor import clean_translated_text
 from .context_optimizer import (
     estimate_tokens_with_margin,
@@ -21,13 +22,266 @@ from .context_optimizer import (
 from typing import List, Dict, Tuple, Optional
 
 
+# Configuration for context overflow recovery
+MAX_CHUNK_REDUCTION_ATTEMPTS = 3
+CHUNK_REDUCTION_FACTOR = 0.6  # Reduce to 60% of original size each attempt
+MIN_CHUNK_CHARACTERS = 200  # Minimum chunk size to attempt translation
+
+
+def split_chunk_for_retry(main_content: str, target_ratio: float = 0.5) -> Tuple[str, str]:
+    """
+    Split a chunk into two parts for retry after context overflow.
+
+    Tries to split at a sentence boundary near the target ratio.
+
+    Args:
+        main_content: The text content to split
+        target_ratio: Target position for split (0.5 = middle)
+
+    Returns:
+        Tuple of (first_half, second_half)
+    """
+    if not main_content.strip():
+        return main_content, ""
+
+    lines = main_content.split('\n')
+    if len(lines) <= 1:
+        # For single line, split at sentence boundary or middle
+        target_pos = int(len(main_content) * target_ratio)
+
+        # Look for sentence terminators near target position
+        best_split = target_pos
+        for terminator in SENTENCE_TERMINATORS:
+            # Search in a window around target position
+            search_start = max(0, target_pos - 100)
+            search_end = min(len(main_content), target_pos + 100)
+            search_area = main_content[search_start:search_end]
+
+            term_pos = search_area.rfind(terminator)
+            if term_pos != -1:
+                actual_pos = search_start + term_pos + len(terminator)
+                if abs(actual_pos - target_pos) < abs(best_split - target_pos):
+                    best_split = actual_pos
+
+        return main_content[:best_split].strip(), main_content[best_split:].strip()
+
+    # For multi-line content, split at line boundaries
+    target_line = int(len(lines) * target_ratio)
+
+    # Look for a sentence-ending line near target
+    best_line = target_line
+    for i in range(max(0, target_line - 5), min(len(lines), target_line + 5)):
+        line_stripped = lines[i].strip()
+        if line_stripped and line_stripped.endswith(SENTENCE_TERMINATORS):
+            best_line = i + 1
+            break
+
+    first_half = '\n'.join(lines[:best_line])
+    second_half = '\n'.join(lines[best_line:])
+
+    return first_half.strip(), second_half.strip()
+
+
+def reduce_chunk_content(main_content: str, reduction_factor: float = CHUNK_REDUCTION_FACTOR) -> str:
+    """
+    Reduce chunk content size while preserving sentence boundaries.
+
+    Args:
+        main_content: The text content to reduce
+        reduction_factor: Target size as fraction of original (e.g., 0.6 = 60%)
+
+    Returns:
+        Reduced content string
+    """
+    if not main_content.strip():
+        return main_content
+
+    target_length = int(len(main_content) * reduction_factor)
+
+    if target_length < MIN_CHUNK_CHARACTERS:
+        # Content is already small, just return first part
+        first_half, _ = split_chunk_for_retry(main_content, reduction_factor)
+        return first_half
+
+    lines = main_content.split('\n')
+    if len(lines) <= 1:
+        # Single line - truncate at sentence boundary
+        first_half, _ = split_chunk_for_retry(main_content, reduction_factor)
+        return first_half
+
+    # Multi-line content - take first N lines that fit
+    target_lines = max(1, int(len(lines) * reduction_factor))
+
+    # Adjust to sentence boundary
+    for i in range(target_lines - 1, min(len(lines), target_lines + 3)):
+        line_stripped = lines[i].strip()
+        if line_stripped and line_stripped.endswith(SENTENCE_TERMINATORS):
+            target_lines = i + 1
+            break
+
+    return '\n'.join(lines[:target_lines]).strip()
+
+
+
+
+async def _make_llm_request_with_overflow_handling(
+    main_content: str,
+    context_before: str,
+    context_after: str,
+    previous_translation_context: str,
+    source_language: str,
+    target_language: str,
+    model: str,
+    llm_client,
+    log_callback,
+    fast_mode: bool
+) -> Tuple[Optional[str], str]:
+    """
+    Make LLM request with automatic chunk reduction on context overflow.
+
+    This function handles ContextOverflowError by progressively reducing
+    the chunk size and retrying the translation.
+
+    Args:
+        main_content: Text to translate
+        context_before: Context before main content
+        context_after: Context after main content
+        previous_translation_context: Previous translation for consistency
+        source_language: Source language
+        target_language: Target language
+        model: LLM model name
+        llm_client: LLM client instance
+        log_callback: Logging callback function
+        fast_mode: If True, uses simplified prompts
+
+    Returns:
+        Tuple of (translated_text or None, actual_content_translated)
+        The second element indicates what content was actually translated
+        (may be reduced from original on overflow recovery)
+    """
+    current_content = main_content
+    remaining_content = ""
+    all_translations = []
+    reduction_attempt = 0
+
+    while current_content.strip():
+        try:
+            # Generate prompts
+            prompt_pair = generate_translation_prompt(
+                current_content,
+                context_before,
+                context_after,
+                previous_translation_context,
+                source_language,
+                target_language,
+                fast_mode=fast_mode
+            )
+
+            # Log the request
+            if log_callback and reduction_attempt == 0:
+                log_callback("llm_request", "Sending request to LLM", data={
+                    'type': 'llm_request',
+                    'system_prompt': prompt_pair.system,
+                    'user_prompt': prompt_pair.user,
+                    'model': model
+                })
+
+            start_time = time.time()
+            client = llm_client or default_client
+            full_raw_response = await client.make_request(
+                prompt_pair.user, model, system_prompt=prompt_pair.system
+            )
+            execution_time = time.time() - start_time
+
+            if not full_raw_response:
+                return None, main_content
+
+            # Log the response
+            if log_callback:
+                log_callback("llm_response", "LLM Response received", data={
+                    'type': 'llm_response',
+                    'response': full_raw_response,
+                    'execution_time': execution_time,
+                    'model': model
+                })
+
+            # Extract translation
+            translated_text = client.extract_translation(full_raw_response)
+
+            if translated_text:
+                all_translations.append(translated_text)
+            else:
+                # Fallback to raw response if no tags found
+                if current_content not in full_raw_response:
+                    all_translations.append(full_raw_response.strip())
+                else:
+                    # Response contains input - this is an error
+                    if log_callback:
+                        log_callback("llm_prompt_in_response_warning",
+                            "WARNING: LLM response seems to contain input. Discarded.")
+                    return None, main_content
+
+            # If we had remaining content from a previous split, translate it
+            if remaining_content.strip():
+                current_content = remaining_content
+                remaining_content = ""
+                # Update context for continuity
+                if all_translations:
+                    words = all_translations[-1].split()
+                    previous_translation_context = " ".join(words[-25:]) if len(words) > 25 else all_translations[-1]
+                reduction_attempt = 0  # Reset for new content
+                continue
+
+            # Success - combine all translations
+            combined = "\n".join(all_translations) if all_translations else None
+            return combined, main_content
+
+        except ContextOverflowError as e:
+            reduction_attempt += 1
+
+            if reduction_attempt > MAX_CHUNK_REDUCTION_ATTEMPTS:
+                if log_callback:
+                    log_callback("context_overflow_fatal",
+                        f"⚠️ Context overflow: Max reduction attempts ({MAX_CHUNK_REDUCTION_ATTEMPTS}) "
+                        f"exceeded. Original error: {e}")
+                else:
+                    tqdm.write(f"\n⚠️ Context overflow after {MAX_CHUNK_REDUCTION_ATTEMPTS} reduction attempts")
+                return None, main_content
+
+            # Calculate new reduction factor
+            reduction_factor = CHUNK_REDUCTION_FACTOR ** reduction_attempt
+
+            if log_callback:
+                log_callback("context_overflow_retry",
+                    f"⚠️ Context overflow detected! Reducing chunk to {reduction_factor*100:.0f}% "
+                    f"(attempt {reduction_attempt}/{MAX_CHUNK_REDUCTION_ATTEMPTS})")
+            else:
+                tqdm.write(f"\n⚠️ Context overflow - reducing chunk (attempt {reduction_attempt})")
+
+            # Split the content
+            first_part, second_part = split_chunk_for_retry(current_content, reduction_factor)
+
+            if len(first_part) < MIN_CHUNK_CHARACTERS and not all_translations:
+                # Can't reduce further without losing too much content
+                if log_callback:
+                    log_callback("context_overflow_fatal",
+                        f"⚠️ Cannot reduce chunk further (min size: {MIN_CHUNK_CHARACTERS} chars)")
+                return None, main_content
+
+            current_content = first_part
+            # Accumulate remaining content for later
+            if second_part.strip():
+                remaining_content = second_part + ("\n" + remaining_content if remaining_content else "")
+
+    # Shouldn't reach here normally
+    return "\n".join(all_translations) if all_translations else None, main_content
 
 
 async def generate_translation_request(main_content, context_before, context_after, previous_translation_context,
                                        source_language="English", target_language="Chinese", model=DEFAULT_MODEL,
                                        llm_client=None, log_callback=None, fast_mode=False):
     """
-    Generate translation request to LLM API
+    Generate translation request to LLM API with automatic context overflow handling.
 
     Args:
         main_content (str): Text to translate
@@ -50,74 +304,29 @@ async def generate_translation_request(main_content, context_before, context_aft
             log_callback("skip_translation", f"Skipping LLM for single/empty character: '{main_content}'")
         return main_content
 
-    # Generate system and user prompts separately
-    prompt_pair = generate_translation_prompt(
-        main_content,
-        context_before,
-        context_after,
-        previous_translation_context,
-        source_language,
-        target_language,
+    # Use the overflow-handling wrapper
+    translated_text, _ = await _make_llm_request_with_overflow_handling(
+        main_content=main_content,
+        context_before=context_before,
+        context_after=context_after,
+        previous_translation_context=previous_translation_context,
+        source_language=source_language,
+        target_language=target_language,
+        model=model,
+        llm_client=llm_client,
+        log_callback=log_callback,
         fast_mode=fast_mode
     )
 
-    # Log the LLM request with structured data for web interface
-    if log_callback:
-        log_callback("llm_request", "Sending request to LLM", data={
-            'type': 'llm_request',
-            'system_prompt': prompt_pair.system,
-            'user_prompt': prompt_pair.user,
-            'model': model
-        })
-
-    start_time = time.time()
-
-    # Use provided client or default - pass system and user prompts separately
-    client = llm_client or default_client
-    full_raw_response = await client.make_request(
-        prompt_pair.user, model, system_prompt=prompt_pair.system
-    )
-    execution_time = time.time() - start_time
-
-    if not full_raw_response:
+    if translated_text:
+        return translated_text
+    else:
         err_msg = "ERROR: LLM API request failed"
-        if log_callback: 
+        if log_callback:
             log_callback("llm_api_error", err_msg)
-        else: 
+        else:
             tqdm.write(f"\n{err_msg}")
         return None
-
-    # Log the LLM response with structured data for web interface
-    if log_callback:
-        log_callback("llm_response", "LLM Response received", data={
-            'type': 'llm_response',
-            'response': full_raw_response,
-            'execution_time': execution_time,
-            'model': model
-        })
-
-    translated_text = client.extract_translation(full_raw_response)
-    
-    if translated_text:
-        # Apply post-processor cleaning
-        return clean_translated_text(translated_text)
-    else:
-        warn_msg = f"WARNING: Translation tags missing in LLM response."
-        if log_callback:
-            log_callback("llm_tag_warning", warn_msg)
-            log_callback("llm_raw_response_preview", f"LLM raw response: {full_raw_response[:500]}...")
-        else:
-            tqdm.write(f"\n{warn_msg} Excerpt: {full_raw_response[:100]}...")
-
-        if main_content in full_raw_response:
-            discard_msg = "WARNING: LLM response seems to contain input. Discarded."
-            if log_callback: 
-                log_callback("llm_prompt_in_response_warning", discard_msg)
-            else: 
-                tqdm.write(discard_msg)
-            return None
-        # Apply post-processor cleaning even in the fallback case
-        return clean_translated_text(full_raw_response.strip())
 
 
 async def translate_chunks(chunks, source_language, target_language, model_name,
@@ -320,7 +529,8 @@ async def translate_chunks(chunks, source_language, target_language, model_name,
             )
 
             if translated_chunk_text is not None:
-                # Always apply basic cleaning
+                # Single point of cleaning - applies HTML entity cleanup and whitespace normalization
+                # Note: Does NOT remove TAG placeholders (⟦TAG0⟧) - those are handled by EPUB processor
                 translated_chunk_text = clean_translated_text(translated_chunk_text)
                 
                 full_translation_parts.append(translated_chunk_text)

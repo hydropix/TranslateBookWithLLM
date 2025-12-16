@@ -97,7 +97,8 @@ async def translate_subtitles(subtitles: List[Dict[str, str]], source_language: 
             )
             
             if translated_text is not None:
-                translations[idx] = translated_text
+                # Single point of cleaning for subtitles
+                translations[idx] = clean_translated_text(translated_text)
                 completed_count += 1
             else:
                 # Keep original text if translation fails

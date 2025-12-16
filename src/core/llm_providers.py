@@ -338,9 +338,22 @@ class OpenAICompatibleProvider(LLMProvider):
                         continue
                     return None
             except httpx.HTTPStatusError as e:
-                    print(f"OpenAI API HTTP Error (attempt {attempt + 1}/{MAX_TRANSLATION_ATTEMPTS}): {e}")
+                    error_message = str(e)
+                    error_body = ""
                     if hasattr(e, 'response') and hasattr(e.response, 'text'):
-                        print(f"Response details: Status {e.response.status_code}, Body: {e.response.text[:500]}...")
+                        error_body = e.response.text[:500]
+                        error_message = f"{e} - {error_body}"
+
+                    print(f"OpenAI API HTTP Error (attempt {attempt + 1}/{MAX_TRANSLATION_ATTEMPTS}): {e}")
+                    if error_body:
+                        print(f"Response details: Status {e.response.status_code}, Body: {error_body}...")
+
+                    # Detect context overflow errors (OpenAI uses "context_length_exceeded" or similar)
+                    context_overflow_keywords = ["context_length", "maximum context", "token limit",
+                                                  "too many tokens", "reduce the length", "max_tokens"]
+                    if any(keyword in error_message.lower() for keyword in context_overflow_keywords):
+                        raise ContextOverflowError(f"OpenAI context overflow: {error_message}")
+
                     if attempt < MAX_TRANSLATION_ATTEMPTS - 1:
                         await asyncio.sleep(RETRY_DELAY_SECONDS)
                         continue
@@ -606,8 +619,10 @@ class OpenRouterProvider(LLMProvider):
                 return None
             except httpx.HTTPStatusError as e:
                 error_body = ""
+                error_message = str(e)
                 if hasattr(e, 'response') and hasattr(e.response, 'text'):
                     error_body = e.response.text[:500]
+                    error_message = f"{e} - {error_body}"
 
                 # Parse OpenRouter specific error messages
                 if e.response.status_code == 404:
@@ -621,6 +636,13 @@ class OpenRouterProvider(LLMProvider):
                 else:
                     print(f"OpenRouter API HTTP Error (attempt {attempt + 1}/{MAX_TRANSLATION_ATTEMPTS}): {e}")
                     print(f"Response details: Status {e.response.status_code}, Body: {error_body}...")
+
+                # Detect context overflow errors
+                context_overflow_keywords = ["context_length", "maximum context", "token limit",
+                                              "too many tokens", "reduce the length", "max_tokens",
+                                              "context window", "exceeds"]
+                if any(keyword in error_message.lower() for keyword in context_overflow_keywords):
+                    raise ContextOverflowError(f"OpenRouter context overflow: {error_message}")
 
                 if attempt < MAX_TRANSLATION_ATTEMPTS - 1:
                     await asyncio.sleep(RETRY_DELAY_SECONDS)
@@ -771,9 +793,22 @@ class GeminiProvider(LLMProvider):
                         continue
                     return None
             except httpx.HTTPStatusError as e:
-                    print(f"Gemini API HTTP Error (attempt {attempt + 1}/{MAX_TRANSLATION_ATTEMPTS}): {e}")
+                    error_message = str(e)
+                    error_body = ""
                     if hasattr(e, 'response') and hasattr(e.response, 'text'):
-                        print(f"Response details: Status {e.response.status_code}, Body: {e.response.text[:200]}...")
+                        error_body = e.response.text[:500]
+                        error_message = f"{e} - {error_body}"
+
+                    print(f"Gemini API HTTP Error (attempt {attempt + 1}/{MAX_TRANSLATION_ATTEMPTS}): {e}")
+                    if error_body:
+                        print(f"Response details: Status {e.response.status_code}, Body: {error_body[:200]}...")
+
+                    # Detect context overflow errors (Gemini uses "RESOURCE_EXHAUSTED" or token limits)
+                    context_overflow_keywords = ["resource_exhausted", "token limit", "input too long",
+                                                  "maximum input", "context length", "too many tokens"]
+                    if any(keyword in error_message.lower() for keyword in context_overflow_keywords):
+                        raise ContextOverflowError(f"Gemini context overflow: {error_message}")
+
                     if attempt < MAX_TRANSLATION_ATTEMPTS - 1:
                         await asyncio.sleep(RETRY_DELAY_SECONDS)
                         continue
