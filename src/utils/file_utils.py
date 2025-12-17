@@ -4,7 +4,11 @@ File utilities for translation operations
 import os
 import asyncio
 import aiofiles
+import re
+import zipfile
 from pathlib import Path
+from typing import Optional, Callable, Tuple
+
 from src.core.text_processor import split_text_into_chunks_with_context
 from src.core.translator import translate_chunks
 from src.core.subtitle_translator import translate_subtitles, translate_subtitles_in_blocks
@@ -411,3 +415,197 @@ async def translate_file(input_filepath, output_filepath,
             min_chunk_size=min_chunk_size,
             fast_mode=True
         )
+
+
+def _extract_text_from_txt(filepath: str) -> str:
+    """Extract text from a plain text file"""
+    with open(filepath, 'r', encoding='utf-8') as f:
+        return f.read()
+
+
+def _extract_text_from_epub(filepath: str) -> str:
+    """
+    Extract readable text from an EPUB file.
+
+    Parses all HTML/XHTML content files and extracts text,
+    removing HTML tags and keeping only readable content.
+    """
+    text_parts = []
+
+    with zipfile.ZipFile(filepath, 'r') as epub:
+        for name in epub.namelist():
+            if name.endswith(('.html', '.xhtml', '.htm')):
+                try:
+                    content = epub.read(name).decode('utf-8')
+                    # Remove HTML tags
+                    clean_text = re.sub(r'<script[^>]*>.*?</script>', '', content, flags=re.DOTALL | re.IGNORECASE)
+                    clean_text = re.sub(r'<style[^>]*>.*?</style>', '', clean_text, flags=re.DOTALL | re.IGNORECASE)
+                    clean_text = re.sub(r'<[^>]+>', ' ', clean_text)
+                    # Clean up whitespace
+                    clean_text = re.sub(r'\s+', ' ', clean_text).strip()
+                    # Decode HTML entities
+                    clean_text = clean_text.replace('&nbsp;', ' ')
+                    clean_text = clean_text.replace('&amp;', '&')
+                    clean_text = clean_text.replace('&lt;', '<')
+                    clean_text = clean_text.replace('&gt;', '>')
+                    clean_text = clean_text.replace('&quot;', '"')
+                    clean_text = clean_text.replace('&#39;', "'")
+
+                    if clean_text:
+                        text_parts.append(clean_text)
+                except Exception:
+                    continue
+
+    return '\n\n'.join(text_parts)
+
+
+def _extract_text_from_srt(filepath: str) -> str:
+    """
+    Extract readable text from an SRT subtitle file.
+
+    Extracts only the subtitle text, removing timing information
+    and index numbers.
+    """
+    srt_processor = SRTProcessor()
+
+    with open(filepath, 'r', encoding='utf-8') as f:
+        content = f.read()
+
+    subtitles = srt_processor.parse_srt(content)
+
+    # Extract just the text from each subtitle
+    text_parts = [sub.get('text', '') for sub in subtitles if sub.get('text')]
+
+    return ' '.join(text_parts)
+
+
+def extract_text_from_file(filepath: str) -> str:
+    """
+    Extract readable text from a translated file.
+
+    Supports txt, epub, and srt files. Used for TTS generation
+    after translation is complete.
+
+    Args:
+        filepath: Path to the translated file
+
+    Returns:
+        Extracted text content
+
+    Raises:
+        ValueError: If file type is not supported
+        FileNotFoundError: If file doesn't exist
+    """
+    if not os.path.exists(filepath):
+        raise FileNotFoundError(f"File not found: {filepath}")
+
+    _, ext = os.path.splitext(filepath.lower())
+
+    if ext == '.txt':
+        return _extract_text_from_txt(filepath)
+    elif ext == '.epub':
+        return _extract_text_from_epub(filepath)
+    elif ext == '.srt':
+        return _extract_text_from_srt(filepath)
+    else:
+        raise ValueError(f"Unsupported file type for TTS: {ext}")
+
+
+async def generate_tts_for_translation(
+    translated_filepath: str,
+    target_language: str,
+    tts_config: 'TTSConfig',
+    log_callback: Optional[Callable] = None,
+    progress_callback: Optional[Callable] = None
+) -> Tuple[bool, str, Optional[str]]:
+    """
+    Generate TTS audio from a translated file.
+
+    Extracts text from the translated file (txt, epub, or srt),
+    then generates audio using the configured TTS provider.
+
+    Args:
+        translated_filepath: Path to the translated file
+        target_language: Target language (for voice selection)
+        tts_config: TTS configuration object
+        log_callback: Optional logging callback
+        progress_callback: Optional progress callback
+
+    Returns:
+        Tuple of (success: bool, message: str, audio_path: Optional[str])
+    """
+    from src.tts.tts_config import TTSConfig
+    from src.tts.audio_processor import generate_tts_for_text
+
+    if log_callback:
+        log_callback("tts_start", f"Starting TTS generation for: {translated_filepath}")
+
+    # Generate output audio path
+    base, _ = os.path.splitext(translated_filepath)
+    audio_extension = tts_config.get_output_extension()
+    audio_path = f"{base}_audio{audio_extension}"
+
+    # Ensure unique path
+    audio_path = get_unique_output_path(audio_path)
+
+    try:
+        # Extract text from translated file
+        if log_callback:
+            log_callback("tts_extract", "Extracting text from translated file...")
+
+        text = extract_text_from_file(translated_filepath)
+
+        if not text.strip():
+            return False, "No text found in translated file", None
+
+        text_length = len(text)
+        if log_callback:
+            log_callback("tts_text_extracted", f"Extracted {text_length:,} characters for TTS")
+
+        # Set target language in config
+        tts_config.target_language = target_language
+
+        # Create progress wrapper for TTS
+        def tts_progress(current, total, message):
+            if log_callback:
+                log_callback("tts_progress", f"TTS: {message} ({current}/{total})")
+            if progress_callback:
+                # Pass all arguments to the callback
+                progress_callback(current, total, message)
+
+        # Generate audio
+        if log_callback:
+            log_callback("tts_synthesize", f"Synthesizing audio with voice: {tts_config.get_effective_voice(target_language)}")
+
+        success, message = await generate_tts_for_text(
+            text=text,
+            output_path=audio_path,
+            config=tts_config,
+            language=target_language,
+            progress_callback=tts_progress
+        )
+
+        if success:
+            if log_callback:
+                log_callback("tts_complete", f"TTS audio saved: {audio_path}")
+            return True, message, audio_path
+        else:
+            if log_callback:
+                log_callback("tts_error", f"TTS generation failed: {message}")
+            return False, message, None
+
+    except FileNotFoundError as e:
+        error_msg = f"Translated file not found: {e}"
+        if log_callback:
+            log_callback("tts_error", error_msg)
+        return False, error_msg, None
+    except ValueError as e:
+        error_msg = f"Unsupported file type: {e}"
+        if log_callback:
+            log_callback("tts_error", error_msg)
+        return False, error_msg, None
+    except Exception as e:
+        error_msg = f"TTS generation error: {e}"
+        if log_callback:
+            log_callback("tts_error", error_msg)
+        return False, error_msg, None

@@ -11,6 +11,7 @@ from src.config import (
     REQUEST_TIMEOUT,
     OLLAMA_NUM_CTX
 )
+from src.tts.tts_config import TTSConfig
 
 
 def _resolve_api_key(value, env_var_name):
@@ -79,7 +80,10 @@ def create_translation_blueprint(state_manager, start_translation_job):
             'gemini_api_key': _resolve_api_key(data.get('gemini_api_key'), 'GEMINI_API_KEY'),
             'openai_api_key': _resolve_api_key(data.get('openai_api_key'), 'OPENAI_API_KEY'),
             'openrouter_api_key': _resolve_api_key(data.get('openrouter_api_key'), 'OPENROUTER_API_KEY'),
-            'fast_mode': data.get('fast_mode', False)
+            'fast_mode': data.get('fast_mode', False),
+            # TTS configuration
+            'tts_enabled': data.get('tts_enabled', False),
+            'tts_config': TTSConfig.from_web_request(data).to_dict() if data.get('tts_enabled') else None
         }
 
         # Add file-specific or text-specific configuration

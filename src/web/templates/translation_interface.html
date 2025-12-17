@@ -129,6 +129,54 @@
                     </div>
                 </div>
 
+                <!-- TTS (Text-to-Speech) Options -->
+                <div class="form-group" style="margin-bottom: 30px;">
+                    <label style="display: flex; align-items: center; gap: 10px;">
+                        <input type="checkbox" id="ttsEnabled" style="width: auto;">
+                        🔊 Generate Audio (TTS) - Create audio narration after translation
+                    </label>
+                    <div id="ttsOptions" style="display: none; margin-top: 15px; padding: 15px; background: #f0fdf4; border-left: 3px solid #22c55e; border-radius: 4px;">
+                        <p style="margin: 0 0 15px 0; font-size: 14px; color: #166534;">
+                            <strong>🎙️ Text-to-Speech:</strong> Generates audio narration using Microsoft Edge TTS voices (free, high quality).
+                            <br><strong>⚠️ Requires:</strong> ffmpeg installed on the system for audio encoding.
+                        </p>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                            <div class="form-group" style="margin-bottom: 0;">
+                                <label style="font-size: 13px;">Voice (auto-select if empty)</label>
+                                <input type="text" class="form-control" id="ttsVoice" placeholder="e.g., zh-CN-XiaoxiaoNeural" style="font-size: 13px;">
+                                <small style="color: #6b7280;">Leave empty for auto-selection based on target language</small>
+                            </div>
+                            <div class="form-group" style="margin-bottom: 0;">
+                                <label style="font-size: 13px;">Speech Rate</label>
+                                <select class="form-control" id="ttsRate" style="font-size: 13px;">
+                                    <option value="-20%">Slower (-20%)</option>
+                                    <option value="-10%">Slightly slower (-10%)</option>
+                                    <option value="+0%" selected>Normal</option>
+                                    <option value="+10%">Slightly faster (+10%)</option>
+                                    <option value="+20%">Faster (+20%)</option>
+                                    <option value="+30%">Much faster (+30%)</option>
+                                </select>
+                            </div>
+                            <div class="form-group" style="margin-bottom: 0;">
+                                <label style="font-size: 13px;">Audio Format</label>
+                                <select class="form-control" id="ttsFormat" style="font-size: 13px;">
+                                    <option value="opus" selected>Opus (compact, recommended)</option>
+                                    <option value="mp3">MP3 (compatible)</option>
+                                </select>
+                            </div>
+                            <div class="form-group" style="margin-bottom: 0;">
+                                <label style="font-size: 13px;">Audio Bitrate</label>
+                                <select class="form-control" id="ttsBitrate" style="font-size: 13px;">
+                                    <option value="48k">48k (smaller file)</option>
+                                    <option value="64k" selected>64k (balanced)</option>
+                                    <option value="96k">96k (higher quality)</option>
+                                    <option value="128k">128k (best quality)</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 <div class="advanced-toggle" onclick="toggleAdvanced()">
                     <span>🔧 Advanced Settings</span>
                     <span id="advancedIcon">▼</span>
@@ -208,6 +256,15 @@
                             <div style="color: #6b7280; font-style: italic; padding: 10px;">No translation yet...</div>
                         </div>
                     </div>
+                </div>
+
+                <!-- TTS Progress Section (shown when TTS is generating) -->
+                <div id="ttsProgressSection" style="display: none; margin-top: 20px; padding: 15px; background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%); border: 1px solid #22c55e; border-radius: 8px;">
+                    <h3 style="margin: 0 0 10px 0; color: #166534;">🔊 Audio Generation</h3>
+                    <div class="progress-bar-container" style="margin-bottom: 10px;">
+                        <div class="progress-bar" id="ttsProgressBar" style="width: 0%; background: linear-gradient(90deg, #22c55e 0%, #16a34a 100%);">0%</div>
+                    </div>
+                    <p id="ttsStatusText" style="margin: 0; font-size: 14px; color: #166534;">Waiting to start...</p>
                 </div>
 
                 <!-- Activity Log - Always visible -->

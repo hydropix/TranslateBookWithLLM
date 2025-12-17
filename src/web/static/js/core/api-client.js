@@ -323,6 +323,45 @@ export const ApiClient = {
             method: 'POST',
             body: JSON.stringify(settings)
         });
+    },
+
+    // ========================================
+    // TTS (Text-to-Speech) Operations
+    // ========================================
+
+    /**
+     * Generate TTS audio from an existing file
+     * @param {Object} config - TTS configuration
+     * @param {string} config.filename - File to generate audio from
+     * @param {string} config.target_language - Target language for voice selection
+     * @param {string} [config.tts_voice] - Specific voice (auto-select if empty)
+     * @param {string} [config.tts_rate] - Speech rate (default: +0%)
+     * @param {string} [config.tts_format] - Output format (opus/mp3)
+     * @param {string} [config.tts_bitrate] - Audio bitrate
+     * @returns {Promise<Object>} TTS job info
+     */
+    async generateTTS(config) {
+        return await apiRequest('/api/tts/generate', {
+            method: 'POST',
+            body: JSON.stringify(config)
+        });
+    },
+
+    /**
+     * Get TTS job status
+     * @param {string} jobId - TTS job ID
+     * @returns {Promise<Object>} Job status
+     */
+    async getTTSStatus(jobId) {
+        return await apiRequest(`/api/tts/status/${jobId}`);
+    },
+
+    /**
+     * Get available TTS voices
+     * @returns {Promise<Object>} Available voices by language
+     */
+    async getTTSVoices() {
+        return await apiRequest('/api/tts/voices');
     }
 };
 

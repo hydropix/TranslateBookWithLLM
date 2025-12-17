@@ -51,6 +51,12 @@ export const WebSocketManager = {
             MessageLogger.addLog(`⏸️ ${data.message || 'Checkpoint created'}`);
             this.emit('checkpoint_created', data);
         });
+
+        // TTS events
+        socket.on('tts_update', (data) => {
+            console.log('TTS update:', data.status, '-', data.message);
+            this.emit('tts_update', data);
+        });
     },
 
     /**

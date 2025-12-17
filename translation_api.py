@@ -97,7 +97,7 @@ def start_job_wrapper(translation_id, config):
     start_translation_job(translation_id, config, state_manager, OUTPUT_DIR, socketio)
 
 # Configure routes and WebSocket handlers
-configure_routes(app, state_manager, OUTPUT_DIR, start_job_wrapper)
+configure_routes(app, state_manager, OUTPUT_DIR, start_job_wrapper, socketio)
 configure_websocket_handlers(socketio, state_manager)
 
 # Restore incomplete jobs from database on startup

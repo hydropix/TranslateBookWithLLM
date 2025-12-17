@@ -137,10 +137,11 @@ export const FileManager = {
         // Determine file icon
         const fileIcon = file.file_type === 'epub' ? '📚' :
                         file.file_type === 'srt' ? '🎬' :
-                        file.file_type === 'txt' ? '📄' : '📎';
+                        file.file_type === 'txt' ? '📄' :
+                        file.file_type === 'opus' || file.file_type === 'mp3' ? '🎵' : '📎';
 
-        // Check if file is a translated file (for audiobook generation)
-        const isTranslatedFile = file.filename.includes('translated_') || file.filename.includes('_to_');
+        // Check if file supports TTS (text-based files only, not audio files)
+        const supportsTTS = ['epub', 'txt', 'srt'].includes(file.file_type);
 
         row.innerHTML = `
             <td>
@@ -155,7 +156,7 @@ export const FileManager = {
             <td>${file.size_mb} MB</td>
             <td>${formattedDate}</td>
             <td style="text-align: center;">
-                ${isTranslatedFile ? `<button class="file-action-btn audiobook" data-filename="${DomHelpers.escapeHtml(file.filename)}" data-filepath="${DomHelpers.escapeHtml(file.file_path)}" data-action="audiobook" title="Create Audiobook">
+                ${supportsTTS ? `<button class="file-action-btn audiobook" data-filename="${DomHelpers.escapeHtml(file.filename)}" data-filepath="${DomHelpers.escapeHtml(file.file_path)}" data-action="audiobook" title="Generate Audiobook (TTS)">
                     🎧
                 </button>` : ''}
                 <button class="file-action-btn download" data-filename="${DomHelpers.escapeHtml(file.filename)}" data-action="download" title="Download">

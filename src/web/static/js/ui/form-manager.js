@@ -86,6 +86,14 @@ export const FormManager = {
             });
         }
 
+        // TTS enabled checkbox
+        const ttsEnabled = DomHelpers.getElement('ttsEnabled');
+        if (ttsEnabled) {
+            ttsEnabled.addEventListener('change', (e) => {
+                this.handleTtsToggle(e.target.checked);
+            });
+        }
+
         // Reset button
         const resetBtn = DomHelpers.getElement('resetBtn');
         if (resetBtn) {
@@ -237,6 +245,25 @@ export const FormManager = {
         // Re-check model size when fast mode changes
         // This will be handled by model-detector.js when it's created
         window.dispatchEvent(new CustomEvent('fastModeChanged', { detail: { enabled: isChecked } }));
+    },
+
+    /**
+     * Handle TTS toggle
+     * @param {boolean} isChecked - Whether TTS is enabled
+     */
+    handleTtsToggle(isChecked) {
+        const ttsOptions = DomHelpers.getElement('ttsOptions');
+
+        if (ttsOptions) {
+            if (isChecked) {
+                ttsOptions.style.display = 'block';
+            } else {
+                ttsOptions.style.display = 'none';
+            }
+        }
+
+        // Dispatch event for other components
+        window.dispatchEvent(new CustomEvent('ttsChanged', { detail: { enabled: isChecked } }));
     },
 
     /**
@@ -407,6 +434,9 @@ export const FormManager = {
         const openaiApiKey = provider === 'openai' ? this._getApiKeyValue('openaiApiKey') : '';
         const openrouterApiKey = provider === 'openrouter' ? this._getApiKeyValue('openrouterApiKey') : '';
 
+        // Get TTS configuration
+        const ttsEnabled = DomHelpers.getElement('ttsEnabled')?.checked || false;
+
         return {
             source_language: sourceLanguageVal,
             target_language: targetLanguageVal,
@@ -421,7 +451,13 @@ export const FormManager = {
             context_window: parseInt(DomHelpers.getValue('contextWindow')),
             max_attempts: parseInt(DomHelpers.getValue('maxAttempts')),
             retry_delay: parseInt(DomHelpers.getValue('retryDelay')),
-            fast_mode: DomHelpers.getElement('fastMode')?.checked || false
+            fast_mode: DomHelpers.getElement('fastMode')?.checked || false,
+            // TTS configuration
+            tts_enabled: ttsEnabled,
+            tts_voice: ttsEnabled ? (DomHelpers.getValue('ttsVoice') || '') : '',
+            tts_rate: ttsEnabled ? (DomHelpers.getValue('ttsRate') || '+0%') : '+0%',
+            tts_format: ttsEnabled ? (DomHelpers.getValue('ttsFormat') || 'opus') : 'opus',
+            tts_bitrate: ttsEnabled ? (DomHelpers.getValue('ttsBitrate') || '64k') : '64k'
         };
     },
 

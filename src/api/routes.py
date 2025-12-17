@@ -9,6 +9,7 @@ into separate modules for better maintainability:
 - blueprints/translation_routes.py: Translation job management
 - blueprints/file_routes.py: File listing, download, delete operations
 - blueprints/security_routes.py: File upload and security endpoints
+- blueprints/tts_routes.py: TTS audio generation from existing files
 """
 from flask import jsonify
 
@@ -16,11 +17,12 @@ from .blueprints import (
     create_config_blueprint,
     create_translation_blueprint,
     create_file_blueprint,
-    create_security_blueprint
+    create_security_blueprint,
+    create_tts_blueprint
 )
 
 
-def configure_routes(app, state_manager, output_dir, start_translation_job):
+def configure_routes(app, state_manager, output_dir, start_translation_job, socketio=None):
     """
     Configure Flask routes by registering all blueprints
 
@@ -29,6 +31,7 @@ def configure_routes(app, state_manager, output_dir, start_translation_job):
         state_manager: Translation state manager
         output_dir: Base directory for file operations
         start_translation_job: Function to start translation jobs
+        socketio: SocketIO instance for real-time updates (optional)
     """
 
     # Register config and health check routes
@@ -46,6 +49,11 @@ def configure_routes(app, state_manager, output_dir, start_translation_job):
     # Register security and upload routes
     security_bp = create_security_blueprint(output_dir)
     app.register_blueprint(security_bp)
+
+    # Register TTS routes (requires socketio for progress updates)
+    if socketio:
+        tts_bp = create_tts_blueprint(output_dir, socketio)
+        app.register_blueprint(tts_bp)
 
     # Register error handlers
     _register_error_handlers(app)

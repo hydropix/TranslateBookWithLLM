@@ -9,3 +9,4 @@ lxml
 python-dotenv
 aiofiles
 tiktoken>=0.5.0
+edge-tts>=6.1.9

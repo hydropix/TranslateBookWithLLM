@@ -6,8 +6,9 @@ import argparse
 import asyncio
 
 from src.config import DEFAULT_MODEL, MAIN_LINES_PER_CHUNK, API_ENDPOINT, LLM_PROVIDER, GEMINI_API_KEY, OPENAI_API_KEY, OPENROUTER_API_KEY, DEFAULT_SOURCE_LANGUAGE, DEFAULT_TARGET_LANGUAGE
-from src.utils.file_utils import translate_file, get_unique_output_path
+from src.utils.file_utils import translate_file, get_unique_output_path, generate_tts_for_translation
 from src.utils.unified_logger import setup_cli_logger, LogType
+from src.tts.tts_config import TTSConfig, TTS_ENABLED, TTS_VOICE, TTS_RATE, TTS_BITRATE, TTS_OUTPUT_FORMAT
 
 
 if __name__ == "__main__":
@@ -26,6 +27,14 @@ if __name__ == "__main__":
     parser.add_argument("--no-color", action="store_true", help="Disable colored output.")
     parser.add_argument("--fast-mode", action="store_true", help="Use fast mode for EPUB (strips formatting, maximum compatibility).")
     parser.add_argument("--no-images", action="store_true", help="Disable image preservation in fast mode (images will be stripped).")
+
+    # TTS (Text-to-Speech) arguments
+    tts_group = parser.add_argument_group('TTS Options', 'Text-to-Speech audio generation')
+    tts_group.add_argument("--tts", action="store_true", default=TTS_ENABLED, help="Generate audio from translated text using Edge-TTS.")
+    tts_group.add_argument("--tts-voice", default=TTS_VOICE, help="TTS voice name (auto-selected based on target language if not specified).")
+    tts_group.add_argument("--tts-rate", default=TTS_RATE, help="TTS speech rate adjustment, e.g. '+10%%' or '-20%%' (default: %(default)s).")
+    tts_group.add_argument("--tts-bitrate", default=TTS_BITRATE, help="Audio bitrate for encoding, e.g. '64k', '96k' (default: %(default)s).")
+    tts_group.add_argument("--tts-format", default=TTS_OUTPUT_FORMAT, choices=["opus", "mp3"], help="Audio output format (default: %(default)s).")
 
     args = parser.parse_args()
 
@@ -145,12 +154,40 @@ if __name__ == "__main__":
             openrouter_api_key=args.openrouter_api_key,
             fast_mode=args.fast_mode
         ))
-        
+
         # Log successful completion
         logger.info("Translation Completed Successfully", LogType.TRANSLATION_END, {
             'output_file': args.output
         })
-        
+
+        # TTS Generation (if enabled)
+        if args.tts:
+            logger.info("Starting TTS Generation", LogType.INFO, {
+                'voice': args.tts_voice or 'auto',
+                'rate': args.tts_rate,
+                'format': args.tts_format
+            })
+
+            # Create TTS config from CLI arguments
+            tts_config = TTSConfig.from_cli_args(args)
+
+            # Generate audio from translated file
+            success, message, audio_path = asyncio.run(generate_tts_for_translation(
+                translated_filepath=args.output,
+                target_language=args.target_lang,
+                tts_config=tts_config,
+                log_callback=log_callback
+            ))
+
+            if success:
+                logger.info("TTS Generation Completed", LogType.INFO, {
+                    'audio_file': audio_path
+                })
+            else:
+                logger.error(f"TTS generation failed: {message}", LogType.ERROR_DETAIL, {
+                    'details': message
+                })
+
     except Exception as e:
         logger.error(f"Translation failed: {str(e)}", LogType.ERROR_DETAIL, {
             'details': str(e),
