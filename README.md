@@ -334,17 +334,6 @@ TBL supports four types of providers:
 - ⚠️ Requires internet connection
 - ⚠️ Your texts are sent to model providers
 
-**Popular models** (sorted by cost):
-
-| Model | Quality | Cost (per 1M tokens) |
-|-------|---------|---------------------|
-| `meta-llama/llama-3.3-70b-instruct` | Very Good | ~$0.10 |
-| `google/gemini-2.0-flash-001` | Good | ~$0.10 |
-| `openai/gpt-4o-mini` | Very Good | ~$0.60 |
-| `anthropic/claude-3-5-haiku-20241022` | Very Good | ~$1.00 |
-| `anthropic/claude-sonnet-4` | Excellent | ~$3.00 |
-| `openai/gpt-4o` | Excellent | ~$5.00 |
-
 🔗 **Full model list with pricing**: [openrouter.ai/models](https://openrouter.ai/models)
 
 **💰 Real Example - 400-page EPUB book translation**:
