@@ -1,5 +1,8 @@
 from typing import List, Tuple, NamedTuple
-from src.config import TRANSLATE_TAG_IN, TRANSLATE_TAG_OUT, INPUT_TAG_IN, INPUT_TAG_OUT
+from src.config import (
+    TRANSLATE_TAG_IN, TRANSLATE_TAG_OUT, INPUT_TAG_IN, INPUT_TAG_OUT,
+    IMAGE_MARKER_PREFIX, IMAGE_MARKER_SUFFIX
+)
 
 
 class PromptPair(NamedTuple):
@@ -30,6 +33,43 @@ English: "This is ⟦TAG0⟧very important⟦TAG1⟧ information"
 ✅ CORRECT: "这是⟦TAG0⟧非常重要的⟦TAG1⟧信息"
 ❌ WRONG: "这是非常重要的信息" (placeholders removed)
 ❌ WRONG: "这是 ⟦ TAG0 ⟧非常重要的⟦ TAG1 ⟧ 信息" (spaces added)
+"""
+
+# Image marker example for fast mode prompt
+_IMAGE_MARKER_EXAMPLE = f"{IMAGE_MARKER_PREFIX}001{IMAGE_MARKER_SUFFIX}"
+
+IMAGE_PLACEHOLDER_PRESERVATION_SECTION = f"""# IMAGE PLACEHOLDER PRESERVATION (CRITICAL)
+
+You will encounter image placeholders like: {_IMAGE_MARKER_EXAMPLE}, {IMAGE_MARKER_PREFIX}002{IMAGE_MARKER_SUFFIX}, etc.
+These represent images that must stay at their EXACT position in the text.
+
+**MANDATORY RULES:**
+1. Keep ALL image placeholders EXACTLY as they appear
+2. Do NOT translate, modify, remove, or explain them
+3. Maintain their EXACT position relative to surrounding text
+4. Image placeholders usually appear on their own line between paragraphs
+
+**Examples:**
+
+English → Chinese:
+Source:
+The beautiful landscape stretched before us.
+
+{_IMAGE_MARKER_EXAMPLE}
+
+We continued our journey through the valley.
+
+✅ CORRECT:
+美丽的风景在我们面前展开。
+
+{_IMAGE_MARKER_EXAMPLE}
+
+我们继续穿越山谷的旅程。
+
+❌ WRONG: (placeholder removed or moved)
+美丽的风景在我们面前展开。
+我们继续穿越山谷的旅程。
+{_IMAGE_MARKER_EXAMPLE}
 """
 
 
@@ -93,7 +133,8 @@ def generate_translation_prompt(
     target_language: str = "Chinese",
     translate_tag_in: str = TRANSLATE_TAG_IN,
     translate_tag_out: str = TRANSLATE_TAG_OUT,
-    fast_mode: bool = False
+    fast_mode: bool = False,
+    has_images: bool = False
 ) -> PromptPair:
     """
     Generate the translation prompt with all contextual elements.
@@ -107,7 +148,8 @@ def generate_translation_prompt(
         target_language: Target language name
         translate_tag_in: Opening tag for translation output
         translate_tag_out: Closing tag for translation output
-        fast_mode: If True, excludes placeholder preservation instructions (for pure text translation)
+        fast_mode: If True, excludes HTML/XML placeholder instructions (for pure text translation)
+        has_images: If True (with fast_mode), includes image placeholder preservation instructions
 
     Returns:
         PromptPair: A named tuple with 'system' and 'user' prompts
@@ -167,7 +209,7 @@ Your output must be in {target_language} ONLY - do NOT use any other language.
 - URLs: `https://example.com`, `www.site.org`
 - Programming identifiers, API names, and technical terms
 
-{'' if fast_mode else PLACEHOLDER_PRESERVATION_SECTION}
+{IMAGE_PLACEHOLDER_PRESERVATION_SECTION if (fast_mode and has_images) else ('' if fast_mode else PLACEHOLDER_PRESERVATION_SECTION)}
 
 # FINAL REMINDER: YOUR OUTPUT LANGUAGE
 

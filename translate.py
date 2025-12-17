@@ -25,6 +25,7 @@ if __name__ == "__main__":
     parser.add_argument("--openrouter_api_key", default=OPENROUTER_API_KEY, help="OpenRouter API key (required if using openrouter provider).")
     parser.add_argument("--no-color", action="store_true", help="Disable colored output.")
     parser.add_argument("--fast-mode", action="store_true", help="Use fast mode for EPUB (strips formatting, maximum compatibility).")
+    parser.add_argument("--no-images", action="store_true", help="Disable image preservation in fast mode (images will be stripped).")
 
     args = parser.parse_args()
 
@@ -118,6 +119,12 @@ if __name__ == "__main__":
 
     # Create legacy callback for backward compatibility
     log_callback = logger.create_legacy_callback()
+
+    # Handle --no-images flag by modifying the config
+    if args.no_images:
+        import src.config as config_module
+        config_module.FAST_MODE_PRESERVE_IMAGES = False
+        logger.info("Image preservation disabled", LogType.INFO, {'preserve_images': False})
 
     try:
         asyncio.run(translate_file(

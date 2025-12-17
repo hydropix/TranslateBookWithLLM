@@ -768,12 +768,26 @@ async def _translate_epub_fast_mode(
     from .epub_fast_processor import (
         extract_pure_text_from_epub,
         translate_text_as_string,
-        create_simple_epub
+        create_simple_epub,
+        has_image_markers
     )
+    from src.config import FAST_MODE_PRESERVE_IMAGES
+    import base64
 
     try:
-        # Phase 1: Extract pure text
-        pure_text, metadata = await extract_pure_text_from_epub(input_filepath, log_callback)
+        # Phase 1: Extract pure text (with optional images)
+        # Image markers like [[IMG:001]] are embedded in the text at their original positions
+        pure_text, metadata, images = await extract_pure_text_from_epub(
+            input_filepath,
+            log_callback,
+            preserve_images=FAST_MODE_PRESERVE_IMAGES
+        )
+
+        # Check if text contains image markers (to enable image preservation instructions in prompt)
+        text_has_images = has_image_markers(pure_text) if images else False
+
+        if log_callback and images:
+            log_callback("epub_images_extracted", f"Extracted {len(images)} images from EPUB")
 
         # Save EPUB metadata in checkpoint for reconstruction
         if checkpoint_manager and translation_id:
@@ -784,6 +798,20 @@ async def _translate_epub_fast_mode(
                     config['epub_metadata'] = metadata
                     config['epub_fast_mode'] = True
                     config['target_language'] = target_language
+                    config['has_images'] = text_has_images
+                    # Save images as base64 for checkpoint (excluding large data for now)
+                    # Note: For large EPUBs with many images, consider storing images separately
+                    if images:
+                        config['epub_images'] = [
+                            {
+                                'id': img['id'],
+                                'filename': img['filename'],
+                                'media_type': img['media_type'],
+                                'alt': img.get('alt', ''),
+                                'data_b64': base64.b64encode(img['data']).decode('utf-8')
+                            }
+                            for img in images
+                        ]
                     # Update the job with metadata
                     checkpoint_manager.update_job_config(translation_id, config)
                     if log_callback:
@@ -793,7 +821,8 @@ async def _translate_epub_fast_mode(
                 if log_callback:
                     log_callback("epub_metadata_save_error", f"Warning: Could not save EPUB metadata: {str(e)}")
 
-        # Phase 2: Translate
+        # Phase 2: Translate text (with image markers preserved by LLM)
+        # Image markers like [[IMG:001]] are kept in the text - the LLM is instructed to preserve them
         translated_text = await translate_text_as_string(
             pure_text, source_language, target_language, model_name,
             cli_api_endpoint, chunk_target_lines_arg,
@@ -810,17 +839,25 @@ async def _translate_epub_fast_mode(
             min_chunk_size=min_chunk_size,
             checkpoint_manager=checkpoint_manager,
             translation_id=translation_id,
-            resume_from_index=resume_from_index
+            resume_from_index=resume_from_index,
+            has_images=text_has_images  # Enable image marker preservation instructions in prompt
         )
 
-        # Phase 3: Rebuild EPUB
+        # Phase 3: Rebuild EPUB with images (markers in translated text will be converted to img tags)
         await create_simple_epub(
-            translated_text, output_filepath, metadata, target_language, log_callback
+            translated_text,
+            output_filepath,
+            metadata,
+            target_language,
+            log_callback,
+            images=images
         )
 
         if log_callback:
-            log_callback("epub_fast_mode_complete",
-                       f"Fast mode: EPUB translation complete - {output_filepath}")
+            msg = f"Fast mode: EPUB translation complete - {output_filepath}"
+            if images:
+                msg = f"Fast mode: EPUB translation complete with {len(images)} images - {output_filepath}"
+            log_callback("epub_fast_mode_complete", msg)
 
     except Exception as e:
         _log_fast_mode_error(e, log_callback)

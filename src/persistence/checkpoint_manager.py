@@ -440,7 +440,8 @@ class CheckpointManager:
             import uuid
             import tempfile
             import asyncio
-            from src.core.epub.epub_fast_processor import create_simple_epub
+            import base64
+            from src.core.epub.epub_fast_processor import create_simple_epub, reinsert_image_markers
 
             epub_metadata = config.get('epub_metadata', {
                 'title': 'Untitled',
@@ -449,6 +450,21 @@ class CheckpointManager:
                 'identifier': str(uuid.uuid4())
             })
             target_language = config.get('target_language', 'en')
+
+            # Restore image markers info
+            image_markers_info = config.get('image_markers_info', [])
+
+            # Restore images from base64
+            epub_images_b64 = config.get('epub_images', [])
+            images = []
+            for img_data in epub_images_b64:
+                images.append({
+                    'id': img_data['id'],
+                    'filename': img_data['filename'],
+                    'media_type': img_data['media_type'],
+                    'alt': img_data.get('alt', ''),
+                    'data': base64.b64decode(img_data['data_b64'])
+                })
 
             # Rebuild translated text from chunks (same as TXT)
             translated_parts = []
@@ -460,6 +476,10 @@ class CheckpointManager:
                     translated_parts.append(chunk['original_text'])
 
             translated_text = '\n'.join(translated_parts)
+
+            # Reinsert image markers into translated text
+            if image_markers_info:
+                translated_text = reinsert_image_markers(translated_text, image_markers_info)
 
             # Rebuild EPUB using fast mode logic
             # Create EPUB in temp location
@@ -489,7 +509,8 @@ class CheckpointManager:
                                 temp_path,
                                 epub_metadata,
                                 target_language,
-                                log_callback=None
+                                log_callback=None,
+                                images=images
                             ))
                         )
                         future.result()
@@ -500,7 +521,8 @@ class CheckpointManager:
                         temp_path,
                         epub_metadata,
                         target_language,
-                        log_callback=None
+                        log_callback=None,
+                        images=images
                     ))
 
                 # Read EPUB for download

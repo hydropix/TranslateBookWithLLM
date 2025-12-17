@@ -134,7 +134,8 @@ async def _make_llm_request_with_overflow_handling(
     model: str,
     llm_client,
     log_callback,
-    fast_mode: bool
+    fast_mode: bool,
+    has_images: bool = False
 ) -> Tuple[Optional[str], str]:
     """
     Make LLM request with automatic chunk reduction on context overflow.
@@ -153,6 +154,7 @@ async def _make_llm_request_with_overflow_handling(
         llm_client: LLM client instance
         log_callback: Logging callback function
         fast_mode: If True, uses simplified prompts
+        has_images: If True (with fast_mode), includes image placeholder preservation instructions
 
     Returns:
         Tuple of (translated_text or None, actual_content_translated)
@@ -174,7 +176,8 @@ async def _make_llm_request_with_overflow_handling(
                 previous_translation_context,
                 source_language,
                 target_language,
-                fast_mode=fast_mode
+                fast_mode=fast_mode,
+                has_images=has_images
             )
 
             # Log the request
@@ -279,7 +282,7 @@ async def _make_llm_request_with_overflow_handling(
 
 async def generate_translation_request(main_content, context_before, context_after, previous_translation_context,
                                        source_language="English", target_language="Chinese", model=DEFAULT_MODEL,
-                                       llm_client=None, log_callback=None, fast_mode=False):
+                                       llm_client=None, log_callback=None, fast_mode=False, has_images=False):
     """
     Generate translation request to LLM API with automatic context overflow handling.
 
@@ -294,6 +297,7 @@ async def generate_translation_request(main_content, context_before, context_aft
         llm_client: LLM client instance
         log_callback (callable): Logging callback function
         fast_mode (bool): If True, uses simplified prompts without placeholder instructions
+        has_images (bool): If True (with fast_mode), includes image placeholder preservation instructions
 
     Returns:
         str: Translated text or None if failed
@@ -315,7 +319,8 @@ async def generate_translation_request(main_content, context_before, context_aft
         model=model,
         llm_client=llm_client,
         log_callback=log_callback,
-        fast_mode=fast_mode
+        fast_mode=fast_mode,
+        has_images=has_images
     )
 
     if translated_text:
@@ -335,7 +340,8 @@ async def translate_chunks(chunks, source_language, target_language, model_name,
                           llm_provider="ollama", gemini_api_key=None, openai_api_key=None,
                           openrouter_api_key=None,
                           context_window=2048, auto_adjust_context=True, min_chunk_size=5, fast_mode=False,
-                          checkpoint_manager=None, translation_id=None, resume_from_index=0):
+                          checkpoint_manager=None, translation_id=None, resume_from_index=0,
+                          has_images=False):
     """
     Translate a list of text chunks
 
@@ -356,6 +362,7 @@ async def translate_chunks(chunks, source_language, target_language, model_name,
         checkpoint_manager: CheckpointManager instance for saving progress
         translation_id: Job ID for checkpoint saving
         resume_from_index: Index to resume from (for resumed jobs)
+        has_images (bool): If True (with fast_mode), includes image placeholder preservation instructions
 
     Returns:
         list: List of translated chunks
@@ -525,7 +532,7 @@ async def translate_chunks(chunks, source_language, target_language, model_name,
                 main_content_to_translate, context_before_text, context_after_text,
                 last_successful_llm_context, source_language, target_language,
                 model_name, llm_client=llm_client, log_callback=log_callback,
-                fast_mode=fast_mode
+                fast_mode=fast_mode, has_images=has_images
             )
 
             if translated_chunk_text is not None:

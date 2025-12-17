@@ -118,6 +118,14 @@ PROJECT_NAME = "TranslateBook with LLM (TBL)"
 PROJECT_GITHUB = "https://github.com/hydropix/TranslateBookWithLLM"
 SIGNATURE_VERSION = "1.0"
 
+# Fast Mode Image Preservation
+# When enabled, images from the original EPUB are preserved in fast mode output
+FAST_MODE_PRESERVE_IMAGES = os.getenv('FAST_MODE_PRESERVE_IMAGES', 'true').lower() == 'true'
+# Marker used to track image positions in text (sent to LLM, must be preserved)
+# Format: [IMG001] - minimal format for maximum LLM reliability
+IMAGE_MARKER_PREFIX = "[IMG"
+IMAGE_MARKER_SUFFIX = "]"
+
 # Default languages from environment
 DEFAULT_SOURCE_LANGUAGE = os.getenv('DEFAULT_SOURCE_LANGUAGE', 'English')
 DEFAULT_TARGET_LANGUAGE = os.getenv('DEFAULT_TARGET_LANGUAGE', 'Chinese')
