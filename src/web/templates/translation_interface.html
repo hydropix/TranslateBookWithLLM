@@ -135,43 +135,158 @@
                         <input type="checkbox" id="ttsEnabled" style="width: auto;">
                         🔊 Generate Audio (TTS) - Create audio narration after translation
                     </label>
-                    <div id="ttsOptions" style="display: none; margin-top: 15px; padding: 15px; background: #f0fdf4; border-left: 3px solid #22c55e; border-radius: 4px;">
-                        <p style="margin: 0 0 15px 0; font-size: 14px; color: #166534;">
-                            <strong>🎙️ Text-to-Speech:</strong> Generates audio narration using Microsoft Edge TTS voices (free, high quality).
-                            <br><strong>⚠️ Requires:</strong> ffmpeg installed on the system for audio encoding.
-                        </p>
-                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                    <div id="ttsOptions" style="display: none; margin-top: 15px; padding: 15px; background: linear-gradient(135deg, #1a2e1a 0%, #0d1f0d 100%); border-left: 3px solid #22c55e; border-radius: 8px;">
+
+                        <!-- TTS Provider Selection -->
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px;">
                             <div class="form-group" style="margin-bottom: 0;">
-                                <label style="font-size: 13px;">Voice (auto-select if empty)</label>
-                                <input type="text" class="form-control" id="ttsVoice" placeholder="e.g., zh-CN-XiaoxiaoNeural" style="font-size: 13px;">
-                                <small style="color: #6b7280;">Leave empty for auto-selection based on target language</small>
-                            </div>
-                            <div class="form-group" style="margin-bottom: 0;">
-                                <label style="font-size: 13px;">Speech Rate</label>
-                                <select class="form-control" id="ttsRate" style="font-size: 13px;">
-                                    <option value="-20%">Slower (-20%)</option>
-                                    <option value="-10%">Slightly slower (-10%)</option>
-                                    <option value="+0%" selected>Normal</option>
-                                    <option value="+10%">Slightly faster (+10%)</option>
-                                    <option value="+20%">Faster (+20%)</option>
-                                    <option value="+30%">Much faster (+30%)</option>
+                                <label style="font-size: 13px; color: #a3adb3;">TTS Provider</label>
+                                <select class="form-control" id="ttsProvider" style="font-size: 13px;">
+                                    <option value="edge-tts" selected>Edge TTS (Cloud)</option>
+                                    <option value="chatterbox">Chatterbox TTS (Local GPU)</option>
                                 </select>
                             </div>
-                            <div class="form-group" style="margin-bottom: 0;">
-                                <label style="font-size: 13px;">Audio Format</label>
-                                <select class="form-control" id="ttsFormat" style="font-size: 13px;">
-                                    <option value="opus" selected>Opus (compact, recommended)</option>
-                                    <option value="mp3">MP3 (compatible)</option>
-                                </select>
+
+                            <!-- GPU Status Indicator (shown for Chatterbox) -->
+                            <div id="gpuStatusSection" class="form-group" style="margin-bottom: 0; display: none;">
+                                <label style="font-size: 13px; color: #a3adb3;">GPU Status</label>
+                                <div id="gpuStatusIndicator" class="gpu-status gpu-checking">
+                                    <span id="gpuStatusDot" class="status-dot checking"></span>
+                                    <span id="gpuName">Checking...</span>
+                                    <span id="gpuVram" class="gpu-vram"></span>
+                                </div>
                             </div>
-                            <div class="form-group" style="margin-bottom: 0;">
-                                <label style="font-size: 13px;">Audio Bitrate</label>
-                                <select class="form-control" id="ttsBitrate" style="font-size: 13px;">
-                                    <option value="48k">48k (smaller file)</option>
-                                    <option value="64k" selected>64k (balanced)</option>
-                                    <option value="96k">96k (higher quality)</option>
-                                    <option value="128k">128k (best quality)</option>
-                                </select>
+                        </div>
+
+                        <!-- Edge TTS Options -->
+                        <div id="edgeTTSOptions">
+                            <p style="margin: 0 0 15px 0; font-size: 14px; color: #22c55e;">
+                                <strong>🎙️ Edge TTS:</strong> Microsoft Edge neural voices (cloud-based, free).
+                                <br><span style="color: #a3adb3;">⚠️ Requires: ffmpeg installed on the system.</span>
+                            </p>
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                                <div class="form-group" style="margin-bottom: 0;">
+                                    <label for="ttsVoice" style="font-size: 13px; color: #a3adb3;">Voice (auto-select if empty)</label>
+                                    <input type="text" class="form-control" id="ttsVoice" placeholder="e.g., zh-CN-XiaoxiaoNeural" style="font-size: 13px;">
+                                    <small id="ttsVoiceHelp" style="color: #6b7280;">Leave empty for auto-selection based on target language</small>
+                                </div>
+                                <div class="form-group" style="margin-bottom: 0;">
+                                    <label style="font-size: 13px; color: #a3adb3;">Speech Rate</label>
+                                    <select class="form-control" id="ttsRate" style="font-size: 13px;">
+                                        <option value="-20%">Slower (-20%)</option>
+                                        <option value="-10%">Slightly slower (-10%)</option>
+                                        <option value="+0%" selected>Normal</option>
+                                        <option value="+10%">Slightly faster (+10%)</option>
+                                        <option value="+20%">Faster (+20%)</option>
+                                        <option value="+30%">Much faster (+30%)</option>
+                                    </select>
+                                </div>
+                                <div class="form-group" style="margin-bottom: 0;">
+                                    <label style="font-size: 13px; color: #a3adb3;">Audio Format</label>
+                                    <select class="form-control" id="ttsFormat" style="font-size: 13px;">
+                                        <option value="opus" selected>Opus (compact, recommended)</option>
+                                        <option value="mp3">MP3 (compatible)</option>
+                                    </select>
+                                </div>
+                                <div class="form-group" style="margin-bottom: 0;">
+                                    <label style="font-size: 13px; color: #a3adb3;">Audio Bitrate</label>
+                                    <select class="form-control" id="ttsBitrate" style="font-size: 13px;">
+                                        <option value="48k">48k (smaller file)</option>
+                                        <option value="64k" selected>64k (balanced)</option>
+                                        <option value="96k">96k (higher quality)</option>
+                                        <option value="128k">128k (best quality)</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Chatterbox TTS Options (hidden by default) -->
+                        <div id="chatterboxOptions" style="display: none;">
+                            <p style="margin: 0 0 15px 0; font-size: 14px; color: #fbbf24;">
+                                <strong>🔥 Chatterbox TTS:</strong> Local GPU-accelerated TTS with voice cloning.
+                                <br><span style="color: #a3adb3;">Supports 23 languages. Upload a voice sample to clone any voice.</span>
+                            </p>
+
+                            <!-- Voice Cloning Section -->
+                            <div style="background: #2a2a2a; border-radius: 8px; padding: 15px; margin-bottom: 15px; border: 1px solid #333;">
+                                <h4 style="margin: 0 0 12px 0; font-size: 14px; color: #fbbf24;">🎤 Voice Cloning</h4>
+                                <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 15px; align-items: end;">
+                                    <div class="form-group" style="margin-bottom: 0;">
+                                        <label style="font-size: 13px; color: #a3adb3;">Voice Prompt</label>
+                                        <select class="form-control" id="voicePromptSelect" style="font-size: 13px;">
+                                            <option value="">Default voice (no cloning)</option>
+                                        </select>
+                                        <small style="color: #6b7280;">Select a voice sample or upload a new one</small>
+                                    </div>
+                                    <div class="form-group" style="margin-bottom: 0;">
+                                        <label style="font-size: 13px; color: #a3adb3;">Upload Voice Sample</label>
+                                        <div style="display: flex; gap: 8px; align-items: center;">
+                                            <input type="file" id="voicePromptInput" accept=".wav,.mp3,.flac,.ogg,.m4a" style="display: none;">
+                                            <button type="button" id="uploadVoicePromptBtn" class="btn btn-secondary" onclick="document.getElementById('voicePromptInput').click()" style="font-size: 12px; padding: 8px 12px;">
+                                                📁 Upload
+                                            </button>
+                                            <span id="voicePromptUploadStatus" style="font-size: 12px;"></span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Emotion Control -->
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                                <div class="form-group" style="margin-bottom: 0;">
+                                    <label style="font-size: 13px; color: #a3adb3;">
+                                        Exaggeration (Emotion) <span id="exaggerationValue" style="color: #fbbf24;">0.50</span>
+                                    </label>
+                                    <input type="range" id="ttsExaggeration" min="0" max="1" step="0.05" value="0.5" class="tts-slider">
+                                    <small style="color: #6b7280;">Higher = more expressive, Lower = more neutral</small>
+                                </div>
+                                <div class="form-group" style="margin-bottom: 0;">
+                                    <label style="font-size: 13px; color: #a3adb3;">
+                                        CFG Weight <span id="cfgWeightValue" style="color: #fbbf24;">0.50</span>
+                                    </label>
+                                    <input type="range" id="ttsCfgWeight" min="0" max="1" step="0.05" value="0.5" class="tts-slider">
+                                    <small style="color: #6b7280;">Controls how closely output matches the prompt</small>
+                                </div>
+                            </div>
+
+                            <!-- Output Format (shared) -->
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 15px;">
+                                <div class="form-group" style="margin-bottom: 0;">
+                                    <label style="font-size: 13px; color: #a3adb3;">Audio Format</label>
+                                    <select class="form-control" id="chatterboxFormat" style="font-size: 13px;">
+                                        <option value="wav">WAV (lossless)</option>
+                                        <option value="mp3" selected>MP3 (compatible)</option>
+                                        <option value="opus">Opus (compact)</option>
+                                    </select>
+                                </div>
+                                <div class="form-group" style="margin-bottom: 0;">
+                                    <label style="font-size: 13px; color: #a3adb3;">Target Language</label>
+                                    <select class="form-control" id="chatterboxLanguage" style="font-size: 13px;">
+                                        <option value="en">English</option>
+                                        <option value="zh">Chinese</option>
+                                        <option value="es">Spanish</option>
+                                        <option value="fr">French</option>
+                                        <option value="de">German</option>
+                                        <option value="it">Italian</option>
+                                        <option value="ja">Japanese</option>
+                                        <option value="ko">Korean</option>
+                                        <option value="pt">Portuguese</option>
+                                        <option value="ru">Russian</option>
+                                        <option value="ar">Arabic</option>
+                                        <option value="hi">Hindi</option>
+                                        <option value="nl">Dutch</option>
+                                        <option value="pl">Polish</option>
+                                        <option value="tr">Turkish</option>
+                                        <option value="vi">Vietnamese</option>
+                                        <option value="th">Thai</option>
+                                        <option value="cs">Czech</option>
+                                        <option value="ro">Romanian</option>
+                                        <option value="hu">Hungarian</option>
+                                        <option value="el">Greek</option>
+                                        <option value="da">Danish</option>
+                                        <option value="fi">Finnish</option>
+                                    </select>
+                                </div>
                             </div>
                         </div>
                     </div>

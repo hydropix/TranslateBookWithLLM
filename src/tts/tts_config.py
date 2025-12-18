@@ -68,7 +68,7 @@ DEFAULT_VOICES: Dict[str, str] = {
 
 # Load TTS settings from environment
 TTS_ENABLED = os.getenv('TTS_ENABLED', 'false').lower() == 'true'
-TTS_PROVIDER = os.getenv('TTS_PROVIDER', 'edge-tts')
+TTS_PROVIDER = os.getenv('TTS_PROVIDER', 'edge-tts')  # edge-tts or chatterbox
 TTS_VOICE = os.getenv('TTS_VOICE', '')  # Empty = auto-select based on language
 TTS_RATE = os.getenv('TTS_RATE', '+0%')  # Speed adjustment: -50% to +100%
 TTS_VOLUME = os.getenv('TTS_VOLUME', '+0%')  # Volume adjustment: -50% to +50%
@@ -82,6 +82,38 @@ TTS_SAMPLE_RATE = int(os.getenv('TTS_SAMPLE_RATE', '24000'))  # Hz
 # Chunking settings for TTS
 TTS_CHUNK_SIZE = int(os.getenv('TTS_CHUNK_SIZE', '5000'))  # Max chars per TTS chunk
 TTS_PAUSE_BETWEEN_CHUNKS = float(os.getenv('TTS_PAUSE_BETWEEN_CHUNKS', '0.5'))  # Seconds
+
+# Chatterbox-specific settings (GPU local TTS)
+TTS_VOICE_PROMPT_PATH = os.getenv('TTS_VOICE_PROMPT_PATH', '')  # Audio file for voice cloning
+TTS_EXAGGERATION = float(os.getenv('TTS_EXAGGERATION', '0.5'))  # Emotion level 0.0-1.0
+TTS_CFG_WEIGHT = float(os.getenv('TTS_CFG_WEIGHT', '0.5'))  # Classifier-free guidance weight
+
+# Chatterbox supported languages (23 languages)
+CHATTERBOX_VOICES: Dict[str, str] = {
+    "en": "English",
+    "es": "Spanish",
+    "fr": "French",
+    "de": "German",
+    "it": "Italian",
+    "pt": "Portuguese",
+    "pl": "Polish",
+    "tr": "Turkish",
+    "ru": "Russian",
+    "nl": "Dutch",
+    "cs": "Czech",
+    "ar": "Arabic",
+    "zh": "Chinese",
+    "ja": "Japanese",
+    "hu": "Hungarian",
+    "ko": "Korean",
+    "hi": "Hindi",
+    "vi": "Vietnamese",
+    "sv": "Swedish",
+    "da": "Danish",
+    "fi": "Finnish",
+    "id": "Indonesian",
+    "el": "Greek",
+}
 
 
 def get_voice_for_language(language: str) -> str:
@@ -121,6 +153,11 @@ class TTSConfig:
     chunk_size: int = TTS_CHUNK_SIZE
     pause_between_chunks: float = TTS_PAUSE_BETWEEN_CHUNKS
 
+    # Chatterbox-specific settings
+    voice_prompt_path: str = TTS_VOICE_PROMPT_PATH
+    exaggeration: float = TTS_EXAGGERATION
+    cfg_weight: float = TTS_CFG_WEIGHT
+
     # Runtime settings (set during execution)
     target_language: str = ''
     output_path: Optional[str] = None
@@ -130,10 +167,15 @@ class TTSConfig:
         """Create config from CLI arguments"""
         config = cls(
             enabled=getattr(args, 'tts', False),
+            provider=getattr(args, 'tts_provider', None) or TTS_PROVIDER,
             voice=getattr(args, 'tts_voice', '') or TTS_VOICE,
             rate=getattr(args, 'tts_rate', None) or TTS_RATE,
             bitrate=getattr(args, 'tts_bitrate', None) or TTS_BITRATE,
             output_format=getattr(args, 'tts_format', None) or TTS_OUTPUT_FORMAT,
+            # Chatterbox-specific
+            voice_prompt_path=getattr(args, 'tts_voice_prompt', '') or TTS_VOICE_PROMPT_PATH,
+            exaggeration=getattr(args, 'tts_exaggeration', None) or TTS_EXAGGERATION,
+            cfg_weight=getattr(args, 'tts_cfg_weight', None) or TTS_CFG_WEIGHT,
         )
         return config
 
@@ -147,11 +189,16 @@ class TTSConfig:
         """Create config from web request data"""
         return cls(
             enabled=request_data.get('tts_enabled', False),
+            provider=request_data.get('tts_provider', TTS_PROVIDER),
             voice=request_data.get('tts_voice', '') or TTS_VOICE,
             rate=request_data.get('tts_rate', TTS_RATE),
             volume=request_data.get('tts_volume', TTS_VOLUME),
             bitrate=request_data.get('tts_bitrate', TTS_BITRATE),
             output_format=request_data.get('tts_format', TTS_OUTPUT_FORMAT),
+            # Chatterbox-specific
+            voice_prompt_path=request_data.get('tts_voice_prompt_path', '') or TTS_VOICE_PROMPT_PATH,
+            exaggeration=float(request_data.get('tts_exaggeration', TTS_EXAGGERATION)),
+            cfg_weight=float(request_data.get('tts_cfg_weight', TTS_CFG_WEIGHT)),
         )
 
     def get_effective_voice(self, language: str = '') -> str:
@@ -201,4 +248,32 @@ class TTSConfig:
             'chunk_size': self.chunk_size,
             'pause_between_chunks': self.pause_between_chunks,
             'target_language': self.target_language,
+            # Chatterbox-specific
+            'voice_prompt_path': self.voice_prompt_path,
+            'exaggeration': self.exaggeration,
+            'cfg_weight': self.cfg_weight,
         }
+
+    def get_chatterbox_voice(self, language: str = '') -> str:
+        """
+        Get the language code for Chatterbox TTS.
+
+        Args:
+            language: Target language name or code
+
+        Returns:
+            Language code for Chatterbox (e.g., 'en', 'fr', 'zh')
+        """
+        lang = language.lower().strip() if language else self.target_language.lower().strip()
+
+        # Direct match
+        if lang in CHATTERBOX_VOICES:
+            return lang
+
+        # Try to match by full name
+        for code, name in CHATTERBOX_VOICES.items():
+            if name.lower() == lang:
+                return code
+
+        # Fallback to English
+        return 'en'

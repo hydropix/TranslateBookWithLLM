@@ -1,5 +1,9 @@
 """
 TTS (Text-to-Speech) routes for generating audio from existing files
+
+Supports multiple TTS providers:
+- edge-tts: Microsoft Edge neural voices (cloud-based)
+- chatterbox: ResembleAI's local GPU-accelerated TTS with voice cloning
 """
 import os
 import asyncio
@@ -7,12 +11,21 @@ import logging
 import threading
 import uuid
 from flask import Blueprint, request, jsonify, current_app
+from werkzeug.utils import secure_filename
 
-from src.tts.tts_config import TTSConfig
+from src.tts.tts_config import TTSConfig, CHATTERBOX_VOICES, DEFAULT_VOICES
+from src.tts.providers import (
+    is_chatterbox_available,
+    get_gpu_status,
+    CHATTERBOX_LANGUAGES,
+)
 from src.utils.file_utils import generate_tts_for_translation
 from src.api.services import FileService
 
 logger = logging.getLogger(__name__)
+
+# Allowed audio extensions for voice prompt upload
+ALLOWED_VOICE_PROMPT_EXTENSIONS = {'.wav', '.mp3', '.flac', '.ogg', '.m4a'}
 
 
 def create_tts_blueprint(output_dir, socketio):
@@ -133,10 +146,15 @@ def create_tts_blueprint(output_dir, socketio):
         {
             "filename": "translated_book.epub",
             "target_language": "Chinese",
+            "tts_provider": "edge-tts",  // or "chatterbox"
             "tts_voice": "",  // Optional, auto-select if empty
             "tts_rate": "+0%",
             "tts_format": "opus",
-            "tts_bitrate": "64k"
+            "tts_bitrate": "64k",
+            // Chatterbox-specific options:
+            "tts_voice_prompt_path": "",  // Path to audio file for voice cloning
+            "tts_exaggeration": 0.5,  // Emotion level (0.0-1.0)
+            "tts_cfg_weight": 0.5  // Classifier-free guidance weight
         }
         """
         try:
@@ -157,17 +175,30 @@ def create_tts_blueprint(output_dir, socketio):
 
             # Get TTS configuration from request
             target_language = data.get('target_language', 'English')
+            provider = data.get('tts_provider', 'edge-tts')
+
+            # Validate provider choice
+            if provider == 'chatterbox' and not is_chatterbox_available():
+                return jsonify({
+                    "error": "Chatterbox TTS is not available",
+                    "details": "Missing dependencies: torch, chatterbox-tts, or torchaudio. "
+                               "Install with: pip install chatterbox-tts torch torchaudio"
+                }), 400
 
             tts_config = TTSConfig(
                 enabled=True,
-                provider='edge-tts',
+                provider=provider,
                 voice=data.get('tts_voice', ''),
                 rate=data.get('tts_rate', '+0%'),
                 volume=data.get('tts_volume', '+0%'),
                 pitch=data.get('tts_pitch', '+0Hz'),
                 output_format=data.get('tts_format', 'opus'),
                 bitrate=data.get('tts_bitrate', '64k'),
-                target_language=target_language
+                target_language=target_language,
+                # Chatterbox-specific settings
+                voice_prompt_path=data.get('tts_voice_prompt_path', ''),
+                exaggeration=float(data.get('tts_exaggeration', 0.5)),
+                cfg_weight=float(data.get('tts_cfg_weight', 0.5)),
             )
 
             # Generate job ID
@@ -208,9 +239,7 @@ def create_tts_blueprint(output_dir, socketio):
 
     @bp.route('/api/tts/voices', methods=['GET'])
     def list_voices():
-        """List available TTS voices by language"""
-        from src.tts.tts_config import DEFAULT_VOICES
-
+        """List available TTS voices by language for Edge-TTS (default)"""
         # Group voices by language
         voices_by_language = {}
         for key, voice in DEFAULT_VOICES.items():
@@ -222,5 +251,213 @@ def create_tts_blueprint(output_dir, socketio):
             "voices": voices_by_language,
             "default_provider": "edge-tts"
         })
+
+    @bp.route('/api/tts/voices/chatterbox', methods=['GET'])
+    def list_chatterbox_voices():
+        """
+        List available languages for Chatterbox TTS.
+
+        Chatterbox supports 23 languages. Voice is determined by the
+        voice prompt audio file (voice cloning) or uses default model voice.
+
+        Returns:
+            JSON with supported languages and availability status
+        """
+        available = is_chatterbox_available()
+
+        return jsonify({
+            "available": available,
+            "provider": "chatterbox",
+            "languages": CHATTERBOX_LANGUAGES,
+            "language_count": len(CHATTERBOX_LANGUAGES),
+            "features": {
+                "voice_cloning": True,
+                "emotion_control": True,
+                "gpu_acceleration": True,
+            },
+            "note": "Voice is determined by uploaded voice prompt or uses default model voice"
+        })
+
+    @bp.route('/api/tts/providers', methods=['GET'])
+    def list_providers():
+        """
+        List available TTS providers and their status.
+
+        Returns:
+            JSON with provider information and availability
+        """
+        providers = {
+            "edge-tts": {
+                "name": "Edge TTS",
+                "description": "Microsoft Edge neural voices (cloud-based)",
+                "available": True,  # Always available (uses HTTP API)
+                "features": {
+                    "voice_selection": True,
+                    "rate_control": True,
+                    "volume_control": True,
+                    "pitch_control": True,
+                    "voice_cloning": False,
+                    "gpu_required": False,
+                },
+                "language_count": len([k for k in DEFAULT_VOICES.keys() if len(k) > 2 and '-' not in k]),
+            },
+            "chatterbox": {
+                "name": "Chatterbox TTS",
+                "description": "Local GPU-accelerated TTS with voice cloning",
+                "available": is_chatterbox_available(),
+                "features": {
+                    "voice_selection": False,  # Voice determined by audio prompt
+                    "rate_control": False,
+                    "volume_control": False,
+                    "pitch_control": False,
+                    "voice_cloning": True,
+                    "emotion_control": True,
+                    "gpu_required": True,
+                },
+                "language_count": len(CHATTERBOX_LANGUAGES),
+            }
+        }
+
+        return jsonify({
+            "providers": providers,
+            "default": "edge-tts"
+        })
+
+    @bp.route('/api/tts/gpu-status', methods=['GET'])
+    def gpu_status():
+        """
+        Get GPU status for Chatterbox TTS.
+
+        Returns:
+            JSON with GPU availability, name, and VRAM information
+        """
+        status = get_gpu_status()
+        status["chatterbox_ready"] = is_chatterbox_available() and status.get("cuda_available", False)
+
+        return jsonify(status)
+
+    @bp.route('/api/tts/voice-prompt/upload', methods=['POST'])
+    def upload_voice_prompt():
+        """
+        Upload an audio file for voice cloning with Chatterbox TTS.
+
+        The uploaded file will be saved to the output directory and can
+        be referenced in TTS generation requests.
+
+        Form data:
+            file: Audio file (WAV, MP3, FLAC, OGG, M4A)
+
+        Returns:
+            JSON with the path to the saved voice prompt
+        """
+        if 'file' not in request.files:
+            return jsonify({"error": "No file provided"}), 400
+
+        file = request.files['file']
+        if file.filename == '':
+            return jsonify({"error": "No file selected"}), 400
+
+        # Validate file extension
+        filename = secure_filename(file.filename)
+        ext = os.path.splitext(filename)[1].lower()
+
+        if ext not in ALLOWED_VOICE_PROMPT_EXTENSIONS:
+            return jsonify({
+                "error": f"Invalid file type: {ext}",
+                "allowed": list(ALLOWED_VOICE_PROMPT_EXTENSIONS)
+            }), 400
+
+        # Create voice_prompts directory if it doesn't exist
+        voice_prompts_dir = os.path.join(output_dir, 'voice_prompts')
+        os.makedirs(voice_prompts_dir, exist_ok=True)
+
+        # Generate unique filename to avoid conflicts
+        unique_filename = f"{uuid.uuid4().hex[:8]}_{filename}"
+        save_path = os.path.join(voice_prompts_dir, unique_filename)
+
+        try:
+            file.save(save_path)
+            logger.info(f"Voice prompt saved: {save_path}")
+
+            return jsonify({
+                "success": True,
+                "filename": unique_filename,
+                "path": save_path,
+                "message": f"Voice prompt uploaded successfully"
+            })
+
+        except Exception as e:
+            logger.error(f"Failed to save voice prompt: {e}")
+            return jsonify({
+                "error": "Failed to save voice prompt",
+                "details": str(e)
+            }), 500
+
+    @bp.route('/api/tts/voice-prompts', methods=['GET'])
+    def list_voice_prompts():
+        """
+        List available voice prompt files for voice cloning.
+
+        Returns:
+            JSON with list of available voice prompt files
+        """
+        voice_prompts_dir = os.path.join(output_dir, 'voice_prompts')
+
+        if not os.path.exists(voice_prompts_dir):
+            return jsonify({
+                "voice_prompts": [],
+                "directory": voice_prompts_dir
+            })
+
+        prompts = []
+        for filename in os.listdir(voice_prompts_dir):
+            ext = os.path.splitext(filename)[1].lower()
+            if ext in ALLOWED_VOICE_PROMPT_EXTENSIONS:
+                filepath = os.path.join(voice_prompts_dir, filename)
+                prompts.append({
+                    "filename": filename,
+                    "path": filepath,
+                    "size_bytes": os.path.getsize(filepath),
+                    "extension": ext
+                })
+
+        return jsonify({
+            "voice_prompts": prompts,
+            "directory": voice_prompts_dir,
+            "count": len(prompts)
+        })
+
+    @bp.route('/api/tts/voice-prompt/<filename>', methods=['DELETE'])
+    def delete_voice_prompt(filename):
+        """
+        Delete a voice prompt file.
+
+        Args:
+            filename: Name of the voice prompt file to delete
+
+        Returns:
+            JSON with success status
+        """
+        voice_prompts_dir = os.path.join(output_dir, 'voice_prompts')
+        filepath = os.path.join(voice_prompts_dir, secure_filename(filename))
+
+        if not os.path.exists(filepath):
+            return jsonify({"error": "Voice prompt not found"}), 404
+
+        try:
+            os.remove(filepath)
+            logger.info(f"Voice prompt deleted: {filepath}")
+
+            return jsonify({
+                "success": True,
+                "message": f"Voice prompt '{filename}' deleted"
+            })
+
+        except Exception as e:
+            logger.error(f"Failed to delete voice prompt: {e}")
+            return jsonify({
+                "error": "Failed to delete voice prompt",
+                "details": str(e)
+            }), 500
 
     return bp

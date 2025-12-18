@@ -17,6 +17,7 @@ from typing import List, Optional, Callable, Tuple
 from .tts_config import TTSConfig, get_voice_for_language
 from .providers.base import TTSProvider, TTSError, ProgressCallback
 from .providers.edge_tts import EdgeTTSProvider
+from .providers.chatterbox_tts import ChatterboxProvider, is_chatterbox_available, MAX_TEXT_LENGTH as CHATTERBOX_MAX_LENGTH
 
 logger = logging.getLogger(__name__)
 
@@ -209,6 +210,15 @@ class AudioProcessor:
         self.provider = provider or EdgeTTSProvider()
         self._temp_dir: Optional[Path] = None
 
+        # Adjust chunk size based on provider
+        # Chatterbox has strict tokenizer limits
+        if isinstance(self.provider, ChatterboxProvider):
+            # Use smaller chunks for Chatterbox (with safety margin)
+            self._effective_chunk_size = min(config.chunk_size, CHATTERBOX_MAX_LENGTH - 50)
+            logger.info(f"Using Chatterbox-optimized chunk size: {self._effective_chunk_size}")
+        else:
+            self._effective_chunk_size = config.chunk_size
+
     async def generate_audio(
         self,
         text: str,
@@ -249,8 +259,8 @@ class AudioProcessor:
             # Create temp directory for intermediate files
             self._temp_dir = Path(tempfile.mkdtemp(prefix="tts_"))
 
-            # Chunk the text
-            chunks = chunk_text_for_tts(text, self.config.chunk_size)
+            # Chunk the text (use provider-appropriate chunk size)
+            chunks = chunk_text_for_tts(text, self._effective_chunk_size)
             total_chunks = len(chunks)
 
             if total_chunks == 0:
@@ -428,12 +438,13 @@ class AudioProcessor:
             self._temp_dir = None
 
 
-def create_tts_provider(provider_name: str = "edge-tts") -> TTSProvider:
+def create_tts_provider(provider_name: str = "edge-tts", **kwargs) -> TTSProvider:
     """
     Factory function to create a TTS provider.
 
     Args:
         provider_name: Name of the provider to create
+        **kwargs: Additional arguments for provider (e.g., voice_prompt_path for chatterbox)
 
     Returns:
         TTSProvider instance
@@ -441,14 +452,27 @@ def create_tts_provider(provider_name: str = "edge-tts") -> TTSProvider:
     Raises:
         ValueError: If provider is not supported
     """
-    providers = {
-        "edge-tts": EdgeTTSProvider,
-    }
+    if provider_name == "edge-tts":
+        return EdgeTTSProvider()
 
-    if provider_name not in providers:
-        raise ValueError(f"Unknown TTS provider: {provider_name}. Supported: {list(providers.keys())}")
+    elif provider_name == "chatterbox":
+        if not is_chatterbox_available():
+            raise ValueError(
+                "Chatterbox TTS is not available. Install with: "
+                "pip install torch torchaudio --index-url https://download.pytorch.org/whl/cu124 && "
+                "pip install chatterbox-tts"
+            )
+        return ChatterboxProvider(
+            voice_prompt_path=kwargs.get('voice_prompt_path'),
+            exaggeration=kwargs.get('exaggeration', 0.5),
+            cfg_weight=kwargs.get('cfg_weight', 0.5)
+        )
 
-    return providers[provider_name]()
+    else:
+        supported = ["edge-tts"]
+        if is_chatterbox_available():
+            supported.append("chatterbox")
+        raise ValueError(f"Unknown TTS provider: {provider_name}. Supported: {supported}")
 
 
 async def generate_tts_for_text(
@@ -475,7 +499,12 @@ async def generate_tts_for_text(
         config = TTSConfig.from_env()
         config.target_language = language
 
-    provider = create_tts_provider(config.provider)
+    provider = create_tts_provider(
+        config.provider,
+        voice_prompt_path=config.voice_prompt_path,
+        exaggeration=config.exaggeration,
+        cfg_weight=config.cfg_weight
+    )
     processor = AudioProcessor(config, provider)
 
     return await processor.generate_audio(

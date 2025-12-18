@@ -362,6 +362,70 @@ export const ApiClient = {
      */
     async getTTSVoices() {
         return await apiRequest('/api/tts/voices');
+    },
+
+    /**
+     * Get available TTS providers and their status
+     * @returns {Promise<Object>} Providers information
+     */
+    async getTTSProviders() {
+        return await apiRequest('/api/tts/providers');
+    },
+
+    /**
+     * Get available Chatterbox voices/languages
+     * @returns {Promise<Object>} Chatterbox languages and availability
+     */
+    async getChatterboxVoices() {
+        return await apiRequest('/api/tts/voices/chatterbox');
+    },
+
+    /**
+     * Get GPU status for TTS
+     * @returns {Promise<Object>} GPU status information
+     */
+    async getTTSGPUStatus() {
+        return await apiRequest('/api/tts/gpu-status');
+    },
+
+    /**
+     * Upload a voice prompt file for voice cloning
+     * @param {File} file - Audio file to upload
+     * @returns {Promise<Object>} Upload result with path
+     */
+    async uploadTTSVoicePrompt(file) {
+        const formData = new FormData();
+        formData.append('file', file);
+
+        const response = await fetch(`${API_BASE_URL}/api/tts/voice-prompt/upload`, {
+            method: 'POST',
+            body: formData
+        });
+
+        if (!response.ok) {
+            await handleApiError(response);
+        }
+
+        return await response.json();
+    },
+
+    /**
+     * Get list of available voice prompts
+     * @returns {Promise<Object>} Voice prompts list
+     */
+    async getTTSVoicePrompts() {
+        return await apiRequest('/api/tts/voice-prompts');
+    },
+
+    /**
+     * Delete a voice prompt file
+     * @param {string} filename - Filename to delete
+     * @returns {Promise<Object>} Delete result
+     */
+    async deleteTTSVoicePrompt(filename) {
+        return await apiRequest(`/api/tts/voice-prompt/${encodeURIComponent(filename)}`, {
+            method: 'DELETE'
+        });
     }
 };
 
