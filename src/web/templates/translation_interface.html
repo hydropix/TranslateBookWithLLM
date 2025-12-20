@@ -111,15 +111,8 @@
                     <small>Example: `translated_{originalName}_to_FR.{ext}`</small>
                 </div>
 
-                <!-- Save Settings Button -->
-                <div style="text-align: center; margin: 20px 0;">
-                    <button type="button" class="btn btn-secondary" id="saveSettingsBtn" onclick="saveSettings()" style="padding: 8px 20px; font-size: 14px;" title="Save current settings (API keys, model, languages) to .env file for next session">
-                        💾 Save Settings
-                    </button>
-                    <span id="saveSettingsStatus" style="margin-left: 10px; font-size: 14px;"></span>
-                </div>
-
-                <div class="form-group" style="margin-bottom: 30px;">
+                <!-- Fast Mode Option -->
+                <div class="form-group" style="margin-bottom: 15px;">
                     <label style="display: flex; align-items: center; gap: 10px;">
                         <input type="checkbox" id="fastMode" style="width: auto;">
                         Fast Mode (EPUB only - removes all formatting, maximum reliability)
@@ -139,7 +132,7 @@
                 </div>
 
                 <!-- TTS (Text-to-Speech) Options -->
-                <div class="form-group" style="margin-bottom: 30px;">
+                <div class="form-group" style="margin-bottom: 15px;">
                     <label style="display: flex; align-items: center; gap: 10px;">
                         <input type="checkbox" id="ttsEnabled" style="width: auto;">
                         🔊 Generate Audio (TTS) - Create audio narration after translation
@@ -299,6 +292,14 @@
                             </div>
                         </div>
                     </div>
+                </div>
+
+                <!-- Save Settings Button -->
+                <div style="text-align: center; margin: 20px 0;">
+                    <button type="button" class="btn btn-secondary" id="saveSettingsBtn" onclick="saveSettings()" style="padding: 8px 20px; font-size: 14px;" title="Save current settings (API keys, model, languages) to .env file for next session">
+                        💾 Save Settings
+                    </button>
+                    <span id="saveSettingsStatus" style="margin-left: 10px; font-size: 14px;"></span>
                 </div>
 
                 <div class="advanced-toggle" onclick="toggleAdvanced()">

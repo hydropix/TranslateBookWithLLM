@@ -27,7 +27,9 @@ const LOCAL_SETTINGS = [
     'lastSourceLanguage',
     'lastTargetLanguage',
     'lastApiEndpoint',
-    'lastOpenaiEndpoint'
+    'lastOpenaiEndpoint',
+    'fastMode',
+    'ttsEnabled'
 ];
 
 /**
@@ -113,6 +115,32 @@ export const SettingsManager = {
                 providerSelect.dispatchEvent(new Event('change'));
             }
         }
+
+        // Apply Fast Mode setting
+        if (prefs.fastMode !== undefined) {
+            const fastModeCheckbox = DomHelpers.getElement('fastMode');
+            if (fastModeCheckbox) {
+                fastModeCheckbox.checked = prefs.fastMode;
+                // Show/hide the info panel based on checkbox state
+                const fastModeInfo = DomHelpers.getElement('fastModeInfo');
+                if (fastModeInfo) {
+                    fastModeInfo.style.display = prefs.fastMode ? 'block' : 'none';
+                }
+            }
+        }
+
+        // Apply TTS Enabled setting
+        if (prefs.ttsEnabled !== undefined) {
+            const ttsEnabledCheckbox = DomHelpers.getElement('ttsEnabled');
+            if (ttsEnabledCheckbox) {
+                ttsEnabledCheckbox.checked = prefs.ttsEnabled;
+                // Show/hide the TTS options panel based on checkbox state
+                const ttsOptions = DomHelpers.getElement('ttsOptions');
+                if (ttsOptions) {
+                    ttsOptions.style.display = prefs.ttsEnabled ? 'block' : 'none';
+                }
+            }
+        }
     },
 
     /**
@@ -146,13 +174,19 @@ export const SettingsManager = {
      * Save current form state to local preferences
      */
     saveCurrentState() {
+        // Get checkbox values
+        const fastModeCheckbox = DomHelpers.getElement('fastMode');
+        const ttsEnabledCheckbox = DomHelpers.getElement('ttsEnabled');
+
         const prefs = {
             lastProvider: DomHelpers.getValue('llmProvider'),
             lastModel: DomHelpers.getValue('model'),
             lastSourceLanguage: this._getLanguageValue('sourceLang', 'customSourceLang'),
             lastTargetLanguage: this._getLanguageValue('targetLang', 'customTargetLang'),
             lastApiEndpoint: DomHelpers.getValue('apiEndpoint'),
-            lastOpenaiEndpoint: DomHelpers.getValue('openaiEndpoint')
+            lastOpenaiEndpoint: DomHelpers.getValue('openaiEndpoint'),
+            fastMode: fastModeCheckbox ? fastModeCheckbox.checked : false,
+            ttsEnabled: ttsEnabledCheckbox ? ttsEnabledCheckbox.checked : false
         };
 
         this.saveLocalPreferences(prefs);
