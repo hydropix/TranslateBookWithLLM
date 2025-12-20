@@ -55,11 +55,11 @@ def log_callback(level: str, message: str) -> None:
 def print_banner() -> None:
     """Print CLI banner."""
     banner = """
-╔═══════════════════════════════════════════════════════════════╗
-║          TranslateBookWithLLM - Benchmark System              ║
-║                                                               ║
-║  Test translation quality across 40+ languages and models    ║
-╚═══════════════════════════════════════════════════════════════╝
++---------------------------------------------------------------+
+|          TranslateBookWithLLM - Benchmark System              |
+|                                                               |
+|  Test translation quality across 40+ languages and models     |
++---------------------------------------------------------------+
 """
     print(colored(banner, Colors.HEADER))
 
@@ -283,6 +283,171 @@ def cmd_delete(args: argparse.Namespace) -> int:
         return 1
 
 
+def cmd_merge(args: argparse.Namespace) -> int:
+    """Merge multiple benchmark runs into one."""
+    print_banner()
+
+    config = BenchmarkConfig()
+    storage = ResultsStorage(config)
+
+    run_ids = args.run_ids
+
+    # Validate all runs exist
+    for run_id in run_ids:
+        run = storage.load_run(run_id)
+        if run is None:
+            log_callback("error", f"Run {run_id} not found")
+            return 1
+
+    print(colored(f"Merging {len(run_ids)} runs...", Colors.CYAN))
+
+    merged = storage.merge_runs(run_ids, new_run_id=args.output)
+
+    if merged is None:
+        log_callback("error", "No valid results to merge")
+        return 1
+
+    print(colored(f"\nMerged run created: {merged.run_id}", Colors.GREEN))
+    print(f"  Models: {', '.join(merged.models)}")
+    print(f"  Languages: {len(merged.languages)}")
+    print(f"  Total results: {len(merged.results)}")
+
+    # Optionally regenerate wiki
+    if args.publish:
+        print(colored("\nPublishing merged results to wiki...", Colors.CYAN))
+        from benchmark.wiki.generator import WikiGenerator
+        generator = WikiGenerator(config)
+        generator.generate_all(merged.run_id)
+        print(colored("Wiki updated.", Colors.GREEN))
+
+    return 0
+
+
+def cmd_wiki_publish(args: argparse.Namespace) -> int:
+    """Generate wiki pages and publish to GitHub wiki repository."""
+    import shutil
+    import subprocess
+
+    print_banner()
+
+    config = BenchmarkConfig()
+    generator = WikiGenerator(config)
+
+    wiki_clone_dir = config.paths.wiki_clone_dir
+    wiki_output_dir = config.paths.wiki_output_dir
+    wiki_repo_url = config.paths.wiki_repo_url
+
+    run_id = args.run_id
+
+    try:
+        # Step 1: Generate wiki pages
+        print(colored("Step 1/4: Generating wiki pages...", Colors.CYAN))
+        generator.generate_all(run_id)
+        print(colored("Wiki pages generated.", Colors.GREEN))
+
+        # Step 2: Clone or update wiki repo
+        print(colored("Step 2/4: Cloning/updating wiki repository...", Colors.CYAN))
+
+        if wiki_clone_dir.exists():
+            # Pull latest changes
+            result = subprocess.run(
+                ["git", "-C", str(wiki_clone_dir), "pull", "--rebase"],
+                capture_output=True,
+                text=True
+            )
+            if result.returncode != 0:
+                # If pull fails, delete and re-clone
+                shutil.rmtree(wiki_clone_dir)
+                subprocess.run(
+                    ["git", "clone", wiki_repo_url, str(wiki_clone_dir)],
+                    check=True,
+                    capture_output=True
+                )
+        else:
+            # Clone fresh
+            result = subprocess.run(
+                ["git", "clone", wiki_repo_url, str(wiki_clone_dir)],
+                capture_output=True,
+                text=True
+            )
+            if result.returncode != 0:
+                log_callback("error", f"Failed to clone wiki repo: {result.stderr}")
+                log_callback("error", "Make sure you have created at least one wiki page on GitHub first.")
+                return 1
+
+        print(colored("Wiki repository ready.", Colors.GREEN))
+
+        # Step 3: Copy generated files to wiki repo
+        print(colored("Step 3/4: Copying files to wiki repository...", Colors.CYAN))
+
+        # Copy all markdown files
+        for md_file in wiki_output_dir.glob("*.md"):
+            shutil.copy2(md_file, wiki_clone_dir / md_file.name)
+
+        # Copy subdirectories (languages, models)
+        for subdir in ["languages", "models"]:
+            src_dir = wiki_output_dir / subdir
+            dst_dir = wiki_clone_dir / subdir
+            if src_dir.exists():
+                if dst_dir.exists():
+                    shutil.rmtree(dst_dir)
+                shutil.copytree(src_dir, dst_dir)
+
+        print(colored("Files copied.", Colors.GREEN))
+
+        # Step 4: Commit and push
+        print(colored("Step 4/4: Committing and pushing changes...", Colors.CYAN))
+
+        # Add all changes
+        subprocess.run(
+            ["git", "-C", str(wiki_clone_dir), "add", "-A"],
+            check=True,
+            capture_output=True
+        )
+
+        # Check if there are changes to commit
+        result = subprocess.run(
+            ["git", "-C", str(wiki_clone_dir), "status", "--porcelain"],
+            capture_output=True,
+            text=True
+        )
+
+        if not result.stdout.strip():
+            print(colored("No changes to commit.", Colors.YELLOW))
+            return 0
+
+        # Commit
+        commit_msg = f"Update benchmark results ({run_id or 'latest'})"
+        subprocess.run(
+            ["git", "-C", str(wiki_clone_dir), "commit", "-m", commit_msg],
+            check=True,
+            capture_output=True
+        )
+
+        # Push
+        result = subprocess.run(
+            ["git", "-C", str(wiki_clone_dir), "push"],
+            capture_output=True,
+            text=True
+        )
+
+        if result.returncode != 0:
+            log_callback("error", f"Failed to push: {result.stderr}")
+            return 1
+
+        print(colored("\nWiki published successfully!", Colors.GREEN))
+        print(colored(f"View at: https://github.com/hydropix/TranslateBookWithLLM/wiki", Colors.CYAN))
+
+        return 0
+
+    except subprocess.CalledProcessError as e:
+        log_callback("error", f"Git command failed: {e}")
+        return 1
+    except Exception as e:
+        log_callback("error", f"Wiki publish failed: {e}")
+        return 1
+
+
 def print_run_summary(run) -> None:
     """Print a summary of a benchmark run."""
     print(colored("\n" + "=" * 60, Colors.BOLD))
@@ -388,6 +553,39 @@ Examples:
         help="Run ID to generate pages for. If not specified, uses latest run."
     )
     wiki_parser.set_defaults(func=cmd_wiki)
+
+    # Wiki-publish command
+    wiki_publish_parser = subparsers.add_parser(
+        "wiki-publish",
+        help="Generate and publish wiki pages to GitHub"
+    )
+    wiki_publish_parser.add_argument(
+        "run_id",
+        nargs="?",
+        help="Run ID to publish. If not specified, uses latest run."
+    )
+    wiki_publish_parser.set_defaults(func=cmd_wiki_publish)
+
+    # Merge command
+    merge_parser = subparsers.add_parser(
+        "merge",
+        help="Merge multiple benchmark runs into one"
+    )
+    merge_parser.add_argument(
+        "run_ids",
+        nargs="+",
+        help="Run IDs to merge (at least 2)"
+    )
+    merge_parser.add_argument(
+        "-o", "--output",
+        help="Custom ID for the merged run"
+    )
+    merge_parser.add_argument(
+        "--publish",
+        action="store_true",
+        help="Regenerate and publish wiki after merging"
+    )
+    merge_parser.set_defaults(func=cmd_merge)
 
     # List command
     list_parser = subparsers.add_parser("list", help="List available benchmark runs")

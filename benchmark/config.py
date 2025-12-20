@@ -98,6 +98,14 @@ class PathConfig:
 
     base_dir: Path = field(default_factory=lambda: Path(__file__).parent)
 
+    # GitHub wiki repository URL
+    wiki_repo_url: str = field(
+        default_factory=lambda: os.getenv(
+            "WIKI_REPO_URL",
+            "https://github.com/hydropix/TranslateBookWithLLM.wiki.git"
+        )
+    )
+
     @property
     def languages_file(self) -> Path:
         return self.base_dir / "languages.yaml"
@@ -117,6 +125,10 @@ class PathConfig:
     @property
     def templates_dir(self) -> Path:
         return self.base_dir / "wiki" / "templates"
+
+    @property
+    def wiki_clone_dir(self) -> Path:
+        return self.base_dir.parent / ".wiki_repo"
 
 
 @dataclass

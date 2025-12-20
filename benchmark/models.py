@@ -328,6 +328,8 @@ class BenchmarkRun:
     def get_language_stats(self) -> list[LanguageStats]:
         """Calculate statistics per language."""
         stats_by_lang: dict[str, LanguageStats] = {}
+        # Track scores per model for each language to find best/worst
+        scores_by_lang_model: dict[str, dict[str, list[float]]] = {}
 
         for result in self.results:
             lang = result.target_language
@@ -336,6 +338,7 @@ class BenchmarkRun:
                     language_code=lang,
                     language_name=lang,  # Will be enriched later
                 )
+                scores_by_lang_model[lang] = {}
 
             stats = stats_by_lang[lang]
             stats.total_translations += 1
@@ -347,14 +350,29 @@ class BenchmarkRun:
                 stats.avg_style += result.scores.style
                 stats.avg_overall += result.scores.overall
 
-        # Calculate averages
-        for stats in stats_by_lang.values():
+                # Track scores per model
+                if result.model not in scores_by_lang_model[lang]:
+                    scores_by_lang_model[lang][result.model] = []
+                scores_by_lang_model[lang][result.model].append(result.scores.overall)
+
+        # Calculate averages and find best/worst models
+        for lang, stats in stats_by_lang.items():
             if stats.successful_translations > 0:
                 n = stats.successful_translations
                 stats.avg_accuracy /= n
                 stats.avg_fluency /= n
                 stats.avg_style /= n
                 stats.avg_overall /= n
+
+                # Find best and worst model for this language
+                model_avgs = {}
+                for model, scores in scores_by_lang_model[lang].items():
+                    if scores:
+                        model_avgs[model] = sum(scores) / len(scores)
+
+                if model_avgs:
+                    stats.best_model = max(model_avgs, key=model_avgs.get)
+                    stats.worst_model = min(model_avgs, key=model_avgs.get)
 
         return list(stats_by_lang.values())
 

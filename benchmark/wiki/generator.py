@@ -17,6 +17,74 @@ from ..models import BenchmarkRun, LanguageCategory
 from ..results.storage import ResultsStorage
 
 
+def _visual_len(text: str) -> int:
+    """
+    Calculate visual length of a string, accounting for wide characters.
+
+    CJK characters and emojis take 2 columns in monospace fonts.
+    """
+    import unicodedata
+    length = 0
+    for char in text:
+        # East Asian Width
+        if unicodedata.east_asian_width(char) in ('F', 'W'):
+            length += 2
+        # Emojis (simplified check for common emoji ranges)
+        elif ord(char) >= 0x1F300:
+            length += 2
+        else:
+            length += 1
+    return length
+
+
+def _pad_to_width(text: str, width: int) -> str:
+    """Pad a string to a specific visual width."""
+    current_width = _visual_len(text)
+    if current_width >= width:
+        return text
+    return text + " " * (width - current_width)
+
+
+def format_markdown_table(headers: list[str], rows: list[list[str]]) -> str:
+    """
+    Format a Markdown table with aligned columns.
+
+    Args:
+        headers: List of column headers
+        rows: List of rows, where each row is a list of cell values
+
+    Returns:
+        Formatted Markdown table string
+    """
+    if not headers or not rows:
+        return ""
+
+    # Calculate max width for each column (using visual length)
+    col_widths = [_visual_len(h) for h in headers]
+    for row in rows:
+        for i, cell in enumerate(row):
+            if i < len(col_widths):
+                col_widths[i] = max(col_widths[i], _visual_len(str(cell)))
+
+    # Build header row
+    header_cells = [_pad_to_width(h, col_widths[i]) for i, h in enumerate(headers)]
+    header_line = "| " + " | ".join(header_cells) + " |"
+
+    # Build separator row
+    separator_cells = ["-" * col_widths[i] for i in range(len(headers))]
+    separator_line = "|-" + "-|-".join(separator_cells) + "-|"
+
+    # Build data rows
+    data_lines = []
+    for row in rows:
+        # Pad row if it has fewer cells than headers
+        padded_row = list(row) + [""] * (len(headers) - len(row))
+        cells = [_pad_to_width(str(padded_row[i]), col_widths[i]) for i in range(len(headers))]
+        data_lines.append("| " + " | ".join(cells) + " |")
+
+    return "\n".join([header_line, separator_line] + data_lines)
+
+
 class WikiGenerator:
     """Generates GitHub wiki pages from benchmark results."""
 
@@ -195,47 +263,47 @@ class WikiGenerator:
         """Generate All-Languages.md page."""
         language_stats = run.get_language_stats()
 
-        content = ["# All Languages\n\n"]
-        content.append("| Language | Native Name | Category | Avg Score | Best Model |\n")
-        content.append("|----------|-------------|----------|-----------|------------|\n")
+        headers = ["Language", "Native Name", "Category", "Avg Score", "Best Model"]
+        rows = []
 
         for stats in sorted(language_stats, key=lambda x: x.avg_overall, reverse=True):
             lang_info = self._get_language_info(stats.language_code)
             indicator = get_score_indicator(stats.avg_overall)
-            content.append(
-                f"| [{lang_info['name']}](languages/{self._slugify(lang_info['name'])}.md) "
-                f"| {lang_info['native_name']} "
-                f"| {lang_info['category']} "
-                f"| {indicator} {stats.avg_overall:.1f} "
-                f"| {stats.best_model or 'N/A'} |\n"
-            )
+            rows.append([
+                f"[{lang_info['name']}](languages/{self._slugify(lang_info['name'])}.md)",
+                lang_info['native_name'],
+                lang_info['category'],
+                f"{indicator} {stats.avg_overall:.1f}",
+                stats.best_model or "N/A",
+            ])
 
-        content.append("\n---\n\n[< Back to Home](Home.md)\n")
+        table = format_markdown_table(headers, rows)
+        content = f"# All Languages\n\n{table}\n\n---\n\n[< Back to Home](Home.md)\n"
 
-        (self.output_dir / "All-Languages.md").write_text("".join(content), encoding="utf-8")
+        (self.output_dir / "All-Languages.md").write_text(content, encoding="utf-8")
 
     def _generate_all_models_page(self, run: BenchmarkRun) -> None:
         """Generate All-Models.md page."""
         model_stats = run.get_model_stats()
 
-        content = ["# All Models\n\n"]
-        content.append("| Model | Avg Score | Accuracy | Fluency | Style | Languages |\n")
-        content.append("|-------|-----------|----------|---------|-------|----------|\n")
+        headers = ["Model", "Avg Score", "Accuracy", "Fluency", "Style", "Languages"]
+        rows = []
 
         for stats in sorted(model_stats, key=lambda x: x.avg_overall, reverse=True):
             indicator = get_score_indicator(stats.avg_overall)
-            content.append(
-                f"| [{stats.model}](models/{self._slugify(stats.model)}.md) "
-                f"| {indicator} {stats.avg_overall:.1f} "
-                f"| {stats.avg_accuracy:.1f} "
-                f"| {stats.avg_fluency:.1f} "
-                f"| {stats.avg_style:.1f} "
-                f"| {stats.successful_translations} |\n"
-            )
+            rows.append([
+                f"[{stats.model}](models/{self._slugify(stats.model)}.md)",
+                f"{indicator} {stats.avg_overall:.1f}",
+                f"{stats.avg_accuracy:.1f}",
+                f"{stats.avg_fluency:.1f}",
+                f"{stats.avg_style:.1f}",
+                str(stats.successful_translations),
+            ])
 
-        content.append("\n---\n\n[< Back to Home](Home.md)\n")
+        table = format_markdown_table(headers, rows)
+        content = f"# All Models\n\n{table}\n\n---\n\n[< Back to Home](Home.md)\n"
 
-        (self.output_dir / "All-Models.md").write_text("".join(content), encoding="utf-8")
+        (self.output_dir / "All-Models.md").write_text(content, encoding="utf-8")
 
     def _generate_language_pages(self, run: BenchmarkRun) -> None:
         """Generate individual language pages."""
