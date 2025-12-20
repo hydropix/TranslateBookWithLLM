@@ -34,6 +34,8 @@ The web interface opens at **http://localhost:5000**
 | 16-24 GB | `ollama pull qwen3:30b`    | 30B        |
 | 48+ GB   | `ollama pull qwen3:235b`   | 235B       |
 
+📖 **[Translation Quality Benchmarks](https://github.com/hydropix/TranslateBookWithLLM/wiki)** - Model tests across 19 languages with accuracy, fluency and style scores.
+
 ---
 
 ## LLM Providers
