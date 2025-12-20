@@ -1,0 +1,73 @@
+# {{ language.name }} ({{ language.native_name }})
+
+**Category:** {{ language.category }}
+**Script:** {{ language.script }}
+{% if language.is_rtl %}**Direction:** Right-to-Left  {% endif %}
+
+---
+
+## Summary
+
+| Metric | Value |
+|--------|-------|
+| **Average Score** | {{ indicator }} {{ avg_overall|round(1) }}/10 |
+| **Accuracy** | {{ avg_accuracy|round(1) }}/10 |
+| **Fluency** | {{ avg_fluency|round(1) }}/10 |
+| **Style** | {{ avg_style|round(1) }}/10 |
+| **Total Tests** | {{ total_translations }} |
+| **Best Model** | [{{ best_model }}](../models/{{ best_model_slug }}.md) |
+| **Worst Model** | [{{ worst_model }}](../models/{{ worst_model_slug }}.md) |
+
+---
+
+## Model Comparison
+
+| Model | Overall | Accuracy | Fluency | Style |
+|-------|---------|----------|---------|-------|
+{% for result in model_results %}
+| [{{ result.model }}](../models/{{ result.model_slug }}.md) | {{ result.indicator }} {{ result.avg_overall|round(1) }} | {{ result.avg_accuracy|round(1) }} | {{ result.avg_fluency|round(1) }} | {{ result.avg_style|round(1) }} |
+{% endfor %}
+
+---
+
+## Translation Examples
+
+{% for example in examples[:3] %}
+### {{ example.text_title }} ({{ example.author }}, {{ example.year }})
+
+**Model:** {{ example.model }}
+**Score:** {{ example.indicator }} {{ example.overall|round(1) }}/10
+
+<details>
+<summary>View Translation</summary>
+
+**Original (English):**
+> {{ example.source_text }}
+
+**Translation ({{ language.name }}):**
+> {{ example.translated_text }}
+
+{% if example.feedback %}
+**Evaluator Feedback:**
+> {{ example.feedback }}
+{% endif %}
+
+</details>
+
+{% endfor %}
+
+---
+
+## Score Distribution
+
+| Score Range | Count | Percentage |
+|-------------|-------|------------|
+| {{ indicators.excellent }} Excellent (9-10) | {{ score_dist.excellent }} | {{ (score_dist.excellent / total_translations * 100)|round(1) }}% |
+| {{ indicators.good }} Good (7-8) | {{ score_dist.good }} | {{ (score_dist.good / total_translations * 100)|round(1) }}% |
+| {{ indicators.acceptable }} Acceptable (5-6) | {{ score_dist.acceptable }} | {{ (score_dist.acceptable / total_translations * 100)|round(1) }}% |
+| {{ indicators.poor }} Poor (3-4) | {{ score_dist.poor }} | {{ (score_dist.poor / total_translations * 100)|round(1) }}% |
+| {{ indicators.failed }} Failed (1-2) | {{ score_dist.failed }} | {{ (score_dist.failed / total_translations * 100)|round(1) }}% |
+
+---
+
+[< Back to Home](../Home.md) | [All Languages](../All-Languages.md)

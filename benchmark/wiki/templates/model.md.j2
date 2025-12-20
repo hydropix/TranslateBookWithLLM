@@ -1,0 +1,133 @@
+# {{ model.name }}
+
+**Ollama Model ID:** `{{ model.id }}`
+
+---
+
+## Summary
+
+| Metric | Value |
+|--------|-------|
+| **Average Score** | {{ indicator }} {{ avg_overall|round(1) }}/10 |
+| **Accuracy** | {{ avg_accuracy|round(1) }}/10 |
+| **Fluency** | {{ avg_fluency|round(1) }}/10 |
+| **Style** | {{ avg_style|round(1) }}/10 |
+| **Languages Tested** | {{ total_languages }} |
+| **Total Translations** | {{ total_translations }} |
+| **Best Language** | [{{ best_language }}](../languages/{{ best_language_slug }}.md) ({{ best_language_score|round(1) }}) |
+| **Worst Language** | [{{ worst_language }}](../languages/{{ worst_language_slug }}.md) ({{ worst_language_score|round(1) }}) |
+
+---
+
+## Language Performance
+
+### Top Languages
+
+| Rank | Language | Overall | Accuracy | Fluency | Style |
+|------|----------|---------|----------|---------|-------|
+{% for lang in language_results[:10] %}
+| {{ loop.index }} | [{{ lang.name }}](../languages/{{ lang.slug }}.md) | {{ lang.indicator }} {{ lang.avg_overall|round(1) }} | {{ lang.avg_accuracy|round(1) }} | {{ lang.avg_fluency|round(1) }} | {{ lang.avg_style|round(1) }} |
+{% endfor %}
+
+{% if language_results|length > 10 %}
+<details>
+<summary>View all {{ language_results|length }} languages</summary>
+
+| Rank | Language | Overall | Accuracy | Fluency | Style |
+|------|----------|---------|----------|---------|-------|
+{% for lang in language_results %}
+| {{ loop.index }} | [{{ lang.name }}](../languages/{{ lang.slug }}.md) | {{ lang.indicator }} {{ lang.avg_overall|round(1) }} | {{ lang.avg_accuracy|round(1) }} | {{ lang.avg_fluency|round(1) }} | {{ lang.avg_style|round(1) }} |
+{% endfor %}
+
+</details>
+{% endif %}
+
+---
+
+## Performance by Category
+
+{% for category in categories %}
+### {{ category.name }}
+
+| Language | Overall | Accuracy | Fluency | Style |
+|----------|---------|----------|---------|-------|
+{% for lang in category.languages %}
+| [{{ lang.name }}](../languages/{{ lang.slug }}.md) | {{ lang.indicator }} {{ lang.avg_overall|round(1) }} | {{ lang.avg_accuracy|round(1) }} | {{ lang.avg_fluency|round(1) }} | {{ lang.avg_style|round(1) }} |
+{% endfor %}
+
+**Category Average:** {{ category.indicator }} {{ category.avg_overall|round(1) }}
+
+{% endfor %}
+
+---
+
+## Translation Examples
+
+### Best Translation
+
+{% if best_example %}
+**{{ best_example.language }}** - {{ best_example.text_title }}
+**Score:** {{ best_example.indicator }} {{ best_example.overall|round(1) }}/10
+
+<details>
+<summary>View Translation</summary>
+
+**Original:**
+> {{ best_example.source_text }}
+
+**Translation:**
+> {{ best_example.translated_text }}
+
+{% if best_example.feedback %}
+**Feedback:** {{ best_example.feedback }}
+{% endif %}
+
+</details>
+{% endif %}
+
+### Worst Translation
+
+{% if worst_example %}
+**{{ worst_example.language }}** - {{ worst_example.text_title }}
+**Score:** {{ worst_example.indicator }} {{ worst_example.overall|round(1) }}/10
+
+<details>
+<summary>View Translation</summary>
+
+**Original:**
+> {{ worst_example.source_text }}
+
+**Translation:**
+> {{ worst_example.translated_text }}
+
+{% if worst_example.feedback %}
+**Feedback:** {{ worst_example.feedback }}
+{% endif %}
+
+</details>
+{% endif %}
+
+---
+
+## Score Distribution
+
+| Score Range | Count | Percentage |
+|-------------|-------|------------|
+| {{ indicators.excellent }} Excellent (9-10) | {{ score_dist.excellent }} | {{ (score_dist.excellent / total_translations * 100)|round(1) }}% |
+| {{ indicators.good }} Good (7-8) | {{ score_dist.good }} | {{ (score_dist.good / total_translations * 100)|round(1) }}% |
+| {{ indicators.acceptable }} Acceptable (5-6) | {{ score_dist.acceptable }} | {{ (score_dist.acceptable / total_translations * 100)|round(1) }}% |
+| {{ indicators.poor }} Poor (3-4) | {{ score_dist.poor }} | {{ (score_dist.poor / total_translations * 100)|round(1) }}% |
+| {{ indicators.failed }} Failed (1-2) | {{ score_dist.failed }} | {{ (score_dist.failed / total_translations * 100)|round(1) }}% |
+
+---
+
+## Performance Metrics
+
+| Metric | Value |
+|--------|-------|
+| Average Translation Time | {{ avg_translation_time_ms|round(0) }}ms |
+| Success Rate | {{ (successful_translations / total_translations * 100)|round(1) }}% |
+
+---
+
+[< Back to Home](../Home.md) | [All Models](../All-Models.md)

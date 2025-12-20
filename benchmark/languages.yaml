@@ -1,0 +1,271 @@
+# Benchmark Language Configuration
+# 40+ languages organized by category for translation quality testing
+
+categories:
+  european_major:
+    name: "European Major Languages"
+    description: "Major European languages with large speaker populations"
+    languages:
+      - code: fr
+        name: French
+        native_name: Français
+        script: Latin
+        difficulty: easy
+      - code: de
+        name: German
+        native_name: Deutsch
+        script: Latin
+        difficulty: easy
+      - code: es
+        name: Spanish
+        native_name: Español
+        script: Latin
+        difficulty: easy
+      - code: it
+        name: Italian
+        native_name: Italiano
+        script: Latin
+        difficulty: easy
+      - code: pt
+        name: Portuguese
+        native_name: Português
+        script: Latin
+        difficulty: easy
+      - code: nl
+        name: Dutch
+        native_name: Nederlands
+        script: Latin
+        difficulty: easy
+      - code: pl
+        name: Polish
+        native_name: Polski
+        script: Latin
+        difficulty: medium
+      - code: sv
+        name: Swedish
+        native_name: Svenska
+        script: Latin
+        difficulty: easy
+      - code: da
+        name: Danish
+        native_name: Dansk
+        script: Latin
+        difficulty: easy
+      - code: "no"
+        name: Norwegian
+        native_name: Norsk
+        script: Latin
+        difficulty: easy
+      - code: fi
+        name: Finnish
+        native_name: Suomi
+        script: Latin
+        difficulty: hard
+      - code: el
+        name: Greek
+        native_name: Ελληνικά
+        script: Greek
+        difficulty: medium
+      - code: ro
+        name: Romanian
+        native_name: Română
+        script: Latin
+        difficulty: medium
+      - code: hu
+        name: Hungarian
+        native_name: Magyar
+        script: Latin
+        difficulty: hard
+      - code: cs
+        name: Czech
+        native_name: Čeština
+        script: Latin
+        difficulty: medium
+
+  asian:
+    name: "Asian Languages"
+    description: "Languages from East, Southeast, and South Asia"
+    languages:
+      - code: zh-Hans
+        name: Chinese (Simplified)
+        native_name: 简体中文
+        script: Han
+        difficulty: hard
+      - code: zh-Hant
+        name: Chinese (Traditional)
+        native_name: 繁體中文
+        script: Han
+        difficulty: hard
+      - code: ja
+        name: Japanese
+        native_name: 日本語
+        script: Japanese
+        difficulty: hard
+      - code: ko
+        name: Korean
+        native_name: 한국어
+        script: Hangul
+        difficulty: hard
+      - code: vi
+        name: Vietnamese
+        native_name: Tiếng Việt
+        script: Latin
+        difficulty: medium
+      - code: th
+        name: Thai
+        native_name: ไทย
+        script: Thai
+        difficulty: hard
+      - code: id
+        name: Indonesian
+        native_name: Bahasa Indonesia
+        script: Latin
+        difficulty: easy
+      - code: ms
+        name: Malay
+        native_name: Bahasa Melayu
+        script: Latin
+        difficulty: easy
+      - code: tl
+        name: Filipino
+        native_name: Filipino
+        script: Latin
+        difficulty: medium
+      - code: hi
+        name: Hindi
+        native_name: हिन्दी
+        script: Devanagari
+        difficulty: hard
+      - code: bn
+        name: Bengali
+        native_name: বাংলা
+        script: Bengali
+        difficulty: hard
+      - code: ta
+        name: Tamil
+        native_name: தமிழ்
+        script: Tamil
+        difficulty: hard
+
+  semitic:
+    name: "Semitic Languages"
+    description: "Right-to-left Semitic languages"
+    languages:
+      - code: ar
+        name: Arabic
+        native_name: العربية
+        script: Arabic
+        difficulty: hard
+        rtl: true
+      - code: he
+        name: Hebrew
+        native_name: עברית
+        script: Hebrew
+        difficulty: hard
+        rtl: true
+
+  cyrillic:
+    name: "Cyrillic Languages"
+    description: "Languages using the Cyrillic script"
+    languages:
+      - code: ru
+        name: Russian
+        native_name: Русский
+        script: Cyrillic
+        difficulty: medium
+      - code: uk
+        name: Ukrainian
+        native_name: Українська
+        script: Cyrillic
+        difficulty: medium
+      - code: bg
+        name: Bulgarian
+        native_name: Български
+        script: Cyrillic
+        difficulty: medium
+      - code: sr
+        name: Serbian
+        native_name: Српски
+        script: Cyrillic
+        difficulty: medium
+
+  classical:
+    name: "Classical/Historical Languages"
+    description: "Ancient and historical languages (challenging for LLMs)"
+    languages:
+      - code: la
+        name: Latin
+        native_name: Latina
+        script: Latin
+        difficulty: very_hard
+      - code: grc
+        name: Ancient Greek
+        native_name: Ἀρχαία Ἑλληνική
+        script: Greek
+        difficulty: very_hard
+      - code: sa
+        name: Sanskrit
+        native_name: संस्कृतम्
+        script: Devanagari
+        difficulty: very_hard
+
+  minority:
+    name: "Minority/Regional Languages"
+    description: "Less common European languages (tests model breadth)"
+    languages:
+      - code: cy
+        name: Welsh
+        native_name: Cymraeg
+        script: Latin
+        difficulty: hard
+      - code: eu
+        name: Basque
+        native_name: Euskara
+        script: Latin
+        difficulty: very_hard
+      - code: ca
+        name: Catalan
+        native_name: Català
+        script: Latin
+        difficulty: medium
+      - code: gl
+        name: Galician
+        native_name: Galego
+        script: Latin
+        difficulty: medium
+      - code: ga
+        name: Irish
+        native_name: Gaeilge
+        script: Latin
+        difficulty: hard
+      - code: gd
+        name: Scottish Gaelic
+        native_name: Gàidhlig
+        script: Latin
+        difficulty: very_hard
+      - code: is
+        name: Icelandic
+        native_name: Íslenska
+        script: Latin
+        difficulty: hard
+      - code: mt
+        name: Maltese
+        native_name: Malti
+        script: Latin
+        difficulty: hard
+
+# Quick test subset (7 diverse languages for fast benchmarking)
+quick_test_languages:
+  - fr   # European, Romance
+  - de   # European, Germanic
+  - ja   # Asian, complex script
+  - zh-Hans  # Asian, logographic
+  - ru   # Cyrillic
+  - ar   # Semitic, RTL
+  - eu   # Minority, challenging
+
+# Difficulty levels explained:
+# - easy: Well-represented in training data, similar to English
+# - medium: Good coverage but some structural differences
+# - hard: Significant differences from English, less training data
+# - very_hard: Rare in training data or dead languages
