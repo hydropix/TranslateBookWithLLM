@@ -26,7 +26,8 @@ const LOCAL_SETTINGS = [
     'lastModel',
     'lastSourceLanguage',
     'lastTargetLanguage',
-    'lastApiEndpoint'
+    'lastApiEndpoint',
+    'lastOpenaiEndpoint'
 ];
 
 /**
@@ -80,16 +81,6 @@ export const SettingsManager = {
     loadLocalPreferences() {
         const prefs = this.getLocalPreferences();
 
-        // Apply last provider
-        if (prefs.lastProvider) {
-            const providerSelect = DomHelpers.getElement('llmProvider');
-            if (providerSelect) {
-                providerSelect.value = prefs.lastProvider;
-                // Trigger change event to show correct settings panel
-                providerSelect.dispatchEvent(new Event('change'));
-            }
-        }
-
         // Apply last model (after models are loaded)
         if (prefs.lastModel) {
             // Store for later application after models load
@@ -104,9 +95,23 @@ export const SettingsManager = {
             this._setLanguage('targetLang', 'customTargetLang', prefs.lastTargetLanguage);
         }
 
-        // Apply last API endpoint
+        // Apply API endpoints BEFORE setting provider (so models load with correct endpoint)
         if (prefs.lastApiEndpoint) {
             DomHelpers.setValue('apiEndpoint', prefs.lastApiEndpoint);
+        }
+        if (prefs.lastOpenaiEndpoint) {
+            DomHelpers.setValue('openaiEndpoint', prefs.lastOpenaiEndpoint);
+        }
+
+        // Apply last provider AFTER endpoints are set
+        // This triggers model loading with the correct endpoint
+        if (prefs.lastProvider) {
+            const providerSelect = DomHelpers.getElement('llmProvider');
+            if (providerSelect) {
+                providerSelect.value = prefs.lastProvider;
+                // Trigger change event to show correct settings panel and load models
+                providerSelect.dispatchEvent(new Event('change'));
+            }
         }
     },
 
@@ -146,7 +151,8 @@ export const SettingsManager = {
             lastModel: DomHelpers.getValue('model'),
             lastSourceLanguage: this._getLanguageValue('sourceLang', 'customSourceLang'),
             lastTargetLanguage: this._getLanguageValue('targetLang', 'customTargetLang'),
-            lastApiEndpoint: DomHelpers.getValue('apiEndpoint')
+            lastApiEndpoint: DomHelpers.getValue('apiEndpoint'),
+            lastOpenaiEndpoint: DomHelpers.getValue('openaiEndpoint')
         };
 
         this.saveLocalPreferences(prefs);

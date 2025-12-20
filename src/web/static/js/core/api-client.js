@@ -244,7 +244,7 @@ export const ApiClient = {
     /**
      * Get available models for a provider
      * @param {string} provider - Provider name ('ollama', 'gemini', 'openai', 'openrouter')
-     * @param {Object} [options] - Additional options (api_endpoint, api_key)
+     * @param {Object} [options] - Additional options (apiEndpoint, apiKey)
      * @returns {Promise<Object>} Models list
      */
     async getModels(provider, options = {}) {
@@ -258,12 +258,19 @@ export const ApiClient = {
         }
 
         // Gemini/OpenRouter/OpenAI: POST request (API key in body - more secure)
+        const body = {
+            provider: provider,
+            api_key: options.apiKey || '__USE_ENV__'
+        };
+
+        // Include endpoint for OpenAI (needed for LM Studio support)
+        if (provider === 'openai' && options.apiEndpoint) {
+            body.api_endpoint = options.apiEndpoint;
+        }
+
         return await apiRequest('/api/models', {
             method: 'POST',
-            body: JSON.stringify({
-                provider: provider,
-                api_key: options.apiKey || '__USE_ENV__'
-            })
+            body: JSON.stringify(body)
         });
     },
 

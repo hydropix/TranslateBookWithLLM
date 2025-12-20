@@ -438,6 +438,10 @@ async def translate_chunks(chunks, source_language, target_language, model_name,
                 # Mark as paused when interrupted
                 if checkpoint_manager and translation_id:
                     checkpoint_manager.mark_paused(translation_id)
+                # Add remaining untranslated chunks as original text so partial output is complete
+                # This ensures image markers and other content are preserved in partial EPUB
+                for remaining_chunk in chunks[i:]:
+                    full_translation_parts.append(remaining_chunk["main_content"])
                 break
 
             if progress_callback and total_chunks > 0:

@@ -372,7 +372,7 @@ TBL supports four types of providers:
 
 💡 **Tip**: Start with cheap models like `google/gemini-2.0-flash-001` to test, then upgrade to premium models for better quality!
 
-### 3. ☁️ OpenAI (Cloud - Paid)
+### 3. ☁️ OpenAI & Compatible APIs (Cloud/Local)
 
 **Advantages**:
 
@@ -380,12 +380,13 @@ TBL supports four types of providers:
 - ✅ Fast
 - ✅ No powerful hardware needed
 - ✅ Very capable models (GPT-4, etc.)
+- ✅ **Works with OpenAI-compatible servers** (LM Studio, vLLM, text-generation-webui, etc.)
 
 **Disadvantages**:
 
-- ⚠️ Paid (cost per token)
-- ⚠️ Requires internet connection
-- ⚠️ Your texts are sent to OpenAI
+- ⚠️ Paid (cost per token) when using official OpenAI
+- ⚠️ Requires internet connection (unless using local server like LM Studio)
+- ⚠️ Your texts are sent to OpenAI (unless using local server)
 
 **Available models**:
 
@@ -393,19 +394,20 @@ TBL supports four types of providers:
 - `gpt-4o-mini` - More economical, still excellent
 - `gpt-4-turbo` - Turbo version of GPT-4
 - `gpt-3.5-turbo` - Most economical
+- Any model from your local OpenAI-compatible server
 
-**Setup**:
+**Setup for Official OpenAI**:
 
 1. Get an API key at [platform.openai.com](https://platform.openai.com/api-keys)
 
 2. **Web Interface**:
-   
+
    - Select "OpenAI" in the dropdown
    - Enter your API key
    - Endpoint is automatically configured
 
 3. **Command Line**:
-   
+
    ```bash
    python translate.py -i book.txt -o book_zh.txt \
     --provider openai \
@@ -415,6 +417,32 @@ TBL supports four types of providers:
    ```
 
 💰 **Estimated cost**: About $0.50 - $2.00 for a 300-page book with GPT-4o-mini.
+
+**Setup for LM Studio (or other OpenAI-compatible servers)**:
+
+[LM Studio](https://lmstudio.ai/) is a popular desktop app for running local LLMs with an OpenAI-compatible API.
+
+1. **Start LM Studio** and load your model
+
+2. **Enable the local server** in LM Studio (default port: 1234)
+
+3. **Web Interface**:
+
+   - Select "OpenAI" in the dropdown
+   - Leave API key empty (not required for local servers)
+   - Change the endpoint to: `http://localhost:1234/v1/chat/completions`
+   - Enter your model name manually
+
+4. **Command Line**:
+
+   ```bash
+   python translate.py -i book.txt -o book_zh.txt \
+    --provider openai \
+    --api_endpoint http://localhost:1234/v1/chat/completions \
+    -m your-model-name
+   ```
+
+💡 **Tip**: LM Studio provides a great GUI for managing models and is an excellent alternative to Ollama if you prefer a visual interface.
 
 ### 4. 🌐 Google Gemini (Cloud - Paid)
 

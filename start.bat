@@ -186,6 +186,9 @@ echo.
 echo Web interface will be available at:
 echo http://localhost:5000
 echo.
+echo The browser will open automatically in a few seconds.
+echo Please wait...
+echo.
 echo Press Ctrl+C to stop the server
 echo ============================================
 echo.

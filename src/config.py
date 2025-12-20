@@ -126,6 +126,18 @@ FAST_MODE_PRESERVE_IMAGES = os.getenv('FAST_MODE_PRESERVE_IMAGES', 'true').lower
 IMAGE_MARKER_PREFIX = "[IMG"
 IMAGE_MARKER_SUFFIX = "]"
 
+# Fast Mode Formatting Preservation
+# When enabled, inline formatting (bold, italic) is preserved using markers
+FAST_MODE_PRESERVE_FORMATTING = os.getenv('FAST_MODE_PRESERVE_FORMATTING', 'true').lower() == 'true'
+# Markers for inline formatting - designed to be simple and LLM-friendly
+# These wrap text that should be formatted: [I]italic text[/I], [B]bold text[/B]
+FORMAT_ITALIC_START = "[I]"
+FORMAT_ITALIC_END = "[/I]"
+FORMAT_BOLD_START = "[B]"
+FORMAT_BOLD_END = "[/B]"
+# Horizontal rule marker (standalone, no content)
+FORMAT_HR_MARKER = "[HR]"
+
 # Default languages from environment
 DEFAULT_SOURCE_LANGUAGE = os.getenv('DEFAULT_SOURCE_LANGUAGE', 'English')
 DEFAULT_TARGET_LANGUAGE = os.getenv('DEFAULT_TARGET_LANGUAGE', 'Chinese')

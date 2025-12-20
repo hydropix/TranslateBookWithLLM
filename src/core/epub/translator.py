@@ -758,6 +758,9 @@ async def _translate_epub_fast_mode(
     """
     Translate EPUB in fast mode (extract text, translate, rebuild)
 
+    Creates a partial EPUB even if translation is interrupted, so that
+    already-translated content is not lost.
+
     Args:
         See translate_epub_file() for parameter descriptions
     """
@@ -773,6 +776,12 @@ async def _translate_epub_fast_mode(
     )
     from src.config import FAST_MODE_PRESERVE_IMAGES
     import base64
+
+    # Variables to track state for partial EPUB creation
+    metadata = None
+    images = []
+    translated_text = None
+    was_interrupted = False
 
     try:
         # Phase 1: Extract pure text (with optional images)
@@ -843,6 +852,12 @@ async def _translate_epub_fast_mode(
             has_images=text_has_images  # Enable image marker preservation instructions in prompt
         )
 
+        # Check if translation was interrupted (partial result)
+        if checkpoint_manager and translation_id:
+            job_info = checkpoint_manager.get_job(translation_id)
+            if job_info and job_info.get('status') == 'paused':
+                was_interrupted = True
+
         # Phase 3: Rebuild EPUB with images (markers in translated text will be converted to img tags)
         await create_simple_epub(
             translated_text,
@@ -854,13 +869,44 @@ async def _translate_epub_fast_mode(
         )
 
         if log_callback:
-            msg = f"Fast mode: EPUB translation complete - {output_filepath}"
-            if images:
-                msg = f"Fast mode: EPUB translation complete with {len(images)} images - {output_filepath}"
-            log_callback("epub_fast_mode_complete", msg)
+            if was_interrupted:
+                msg = f"Fast mode: PARTIAL EPUB saved (translation interrupted) - {output_filepath}"
+                if images:
+                    msg = f"Fast mode: PARTIAL EPUB saved with {len(images)} images (translation interrupted) - {output_filepath}"
+                log_callback("epub_fast_mode_partial", msg)
+            else:
+                msg = f"Fast mode: EPUB translation complete - {output_filepath}"
+                if images:
+                    msg = f"Fast mode: EPUB translation complete with {len(images)} images - {output_filepath}"
+                log_callback("epub_fast_mode_complete", msg)
 
     except Exception as e:
-        _log_fast_mode_error(e, log_callback)
+        # Try to create a partial EPUB with whatever was translated
+        if translated_text and metadata:
+            try:
+                if log_callback:
+                    log_callback("epub_fast_mode_error_recovery",
+                               f"Error during translation: {str(e)}. Attempting to save partial EPUB...")
+
+                await create_simple_epub(
+                    translated_text,
+                    output_filepath,
+                    metadata,
+                    target_language,
+                    log_callback,
+                    images=images
+                )
+
+                if log_callback:
+                    log_callback("epub_fast_mode_partial_saved",
+                               f"Partial EPUB saved despite error - {output_filepath}")
+            except Exception as save_error:
+                if log_callback:
+                    log_callback("epub_fast_mode_partial_save_failed",
+                               f"Could not save partial EPUB: {str(save_error)}")
+                _log_fast_mode_error(e, log_callback)
+        else:
+            _log_fast_mode_error(e, log_callback)
 
 
 # Helper functions for file discovery and logging

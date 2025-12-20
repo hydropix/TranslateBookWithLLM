@@ -35,7 +35,9 @@ import aiofiles
 from src.config import (
     NAMESPACES, DEFAULT_MODEL, MAIN_LINES_PER_CHUNK, API_ENDPOINT,
     SENTENCE_TERMINATORS, TRANSLATE_TAG_IN, TRANSLATE_TAG_OUT,
-    FAST_MODE_PRESERVE_IMAGES, IMAGE_MARKER_PREFIX, IMAGE_MARKER_SUFFIX
+    FAST_MODE_PRESERVE_IMAGES, IMAGE_MARKER_PREFIX, IMAGE_MARKER_SUFFIX,
+    FAST_MODE_PRESERVE_FORMATTING, FORMAT_ITALIC_START, FORMAT_ITALIC_END,
+    FORMAT_BOLD_START, FORMAT_BOLD_END, FORMAT_HR_MARKER
 )
 from ..text_processor import split_text_into_chunks_with_context
 from ..translator import translate_chunks
@@ -341,6 +343,13 @@ def _extract_text_recursive(
         # Skip SVG content entirely (too complex to preserve)
         return
 
+    # Handle horizontal rules - preserve as marker
+    if tag_lower == 'hr' and FAST_MODE_PRESERVE_FORMATTING:
+        text_parts.append('')  # Paragraph break before
+        text_parts.append(FORMAT_HR_MARKER)
+        text_parts.append('')  # Paragraph break after
+        return
+
     # If this is a block element, accumulate all inline content with spaces
     if tag_lower in block_tags:
         inline_parts = []
@@ -352,9 +361,13 @@ def _extract_text_recursive(
             image_counter=image_counter,
             content_dir=content_dir
         )
+        # Join parts, preserving newlines from <br/> tags
+        # First join with spaces, then clean up spaces around newlines
         block_text = ' '.join(inline_parts)
-        # Clean up multiple spaces
-        block_text = ' '.join(block_text.split())
+        # Clean up multiple spaces (but preserve newlines)
+        block_text = re.sub(r'[^\S\n]+', ' ', block_text)  # Replace non-newline whitespace with single space
+        block_text = re.sub(r' *\n *', '\n', block_text)   # Remove spaces around newlines
+        block_text = block_text.strip()
         if block_text:
             text_parts.append(block_text)
             text_parts.append('')  # Empty string creates paragraph break
@@ -390,7 +403,8 @@ def _extract_inline_text(
     preserve_images: bool = False,
     images_list: list = None,
     image_counter: list = None,
-    content_dir: str = None
+    content_dir: str = None,
+    preserve_formatting: bool = None
 ):
     """
     Extract all text from an element and its children as inline content.
@@ -398,6 +412,8 @@ def _extract_inline_text(
     This accumulates text without adding paragraph breaks, suitable for
     gathering all content within a block-level element.
     Images within inline content are extracted and marked.
+    Line breaks (<br/>) are preserved as newline characters.
+    Formatting tags (em, i, strong, b) are preserved as markers.
 
     Args:
         element: lxml element
@@ -406,18 +422,79 @@ def _extract_inline_text(
         images_list: List to append image data to
         image_counter: Mutable counter [n] for unique image IDs
         content_dir: Directory for resolving relative image paths
+        preserve_formatting: Whether to preserve italic/bold formatting (default from config)
     """
+    if preserve_formatting is None:
+        preserve_formatting = FAST_MODE_PRESERVE_FORMATTING
+
     # Get tag name without namespace
     tag = element.tag
     if isinstance(tag, str) and '}' in tag:
         tag = tag.split('}', 1)[1]
     tag_lower = tag.lower() if isinstance(tag, str) else ''
 
+    # Handle line breaks - preserve them as newlines
+    if tag_lower == 'br':
+        inline_parts.append('\n')
+        # Also handle tail text after <br/>
+        if hasattr(element, 'tail') and element.tail:
+            tail = element.tail.strip()
+            if tail:
+                inline_parts.append(tail)
+        return
+
     # Handle inline images
     if tag_lower == 'img' and preserve_images and images_list is not None and image_counter is not None:
         image_marker = _extract_image(element, images_list, image_counter, content_dir)
         if image_marker:
             inline_parts.append(image_marker)
+        return
+
+    # Handle formatting tags (italic and bold) - wrap content with markers
+    if preserve_formatting and tag_lower in ('em', 'i'):
+        inline_parts.append(FORMAT_ITALIC_START)
+        # Process content inside the formatting tag
+        if hasattr(element, 'text') and element.text:
+            text = element.text.strip()
+            if text:
+                inline_parts.append(text)
+        for child in element:
+            _extract_inline_text(
+                child, inline_parts,
+                preserve_images=preserve_images,
+                images_list=images_list,
+                image_counter=image_counter,
+                content_dir=content_dir,
+                preserve_formatting=preserve_formatting
+            )
+            if hasattr(child, 'tail') and child.tail:
+                tail = child.tail.strip()
+                if tail:
+                    inline_parts.append(tail)
+        inline_parts.append(FORMAT_ITALIC_END)
+        return
+
+    if preserve_formatting and tag_lower in ('strong', 'b'):
+        inline_parts.append(FORMAT_BOLD_START)
+        # Process content inside the formatting tag
+        if hasattr(element, 'text') and element.text:
+            text = element.text.strip()
+            if text:
+                inline_parts.append(text)
+        for child in element:
+            _extract_inline_text(
+                child, inline_parts,
+                preserve_images=preserve_images,
+                images_list=images_list,
+                image_counter=image_counter,
+                content_dir=content_dir,
+                preserve_formatting=preserve_formatting
+            )
+            if hasattr(child, 'tail') and child.tail:
+                tail = child.tail.strip()
+                if tail:
+                    inline_parts.append(tail)
+        inline_parts.append(FORMAT_BOLD_END)
         return
 
     # Handle element text
@@ -434,7 +511,8 @@ def _extract_inline_text(
             preserve_images=preserve_images,
             images_list=images_list,
             image_counter=image_counter,
-            content_dir=content_dir
+            content_dir=content_dir,
+            preserve_formatting=preserve_formatting
         )
 
         # Handle tail text (text after child element)
@@ -452,6 +530,9 @@ def _extract_image(
 ) -> str:
     """
     Extract image data from an img element and return a marker.
+
+    Captures all display attributes (width, height, style, class) to restore
+    them in the output EPUB without passing them through the LLM.
 
     Args:
         element: lxml img element
@@ -528,14 +609,26 @@ def _extract_image(
     original_filename = os.path.basename(image_path)
     filename = f"image_{image_id}{ext}"
 
-    # Add to images list
+    # Extract display attributes (width, height, style, class)
+    # These are preserved and restored without passing through the LLM
+    width = element.get('width', '')
+    height = element.get('height', '')
+    style = element.get('style', '')
+    css_class = element.get('class', '')
+
+    # Add to images list with display attributes
     images_list.append({
         'id': image_id,
         'filename': filename,
         'original_filename': original_filename,
         'data': image_data,
         'media_type': media_type,
-        'alt': alt
+        'alt': alt,
+        # Display attributes (preserved for output)
+        'width': width,
+        'height': height,
+        'style': style,
+        'class': css_class
     })
 
     # Return marker
@@ -553,9 +646,101 @@ def has_image_markers(text: str) -> bool:
         bool: True if text contains at least one image marker
     """
     marker_pattern = re.compile(
-        re.escape(IMAGE_MARKER_PREFIX) + r'\d+' + re.escape(IMAGE_MARKER_SUFFIX)
+        re.escape(IMAGE_MARKER_PREFIX) + r'\s*\d+\s*' + re.escape(IMAGE_MARKER_SUFFIX)
     )
     return bool(marker_pattern.search(text))
+
+
+def _build_img_attributes(image_info: dict, is_inline: bool = False) -> str:
+    """
+    Build HTML attributes string for an image tag, including preserved display attributes.
+
+    Args:
+        image_info: Dict with image data including width, height, style, class
+        is_inline: Whether this is an inline image (affects default class)
+
+    Returns:
+        String of HTML attributes (e.g., 'width="100" height="50" style="..."')
+    """
+    import html as html_module
+
+    attrs = []
+
+    # Add preserved width/height attributes
+    width = image_info.get('width', '')
+    height = image_info.get('height', '')
+    if width:
+        attrs.append(f'width="{html_module.escape(width)}"')
+    if height:
+        attrs.append(f'height="{html_module.escape(height)}"')
+
+    # Add preserved style attribute
+    style = image_info.get('style', '')
+    if style:
+        attrs.append(f'style="{html_module.escape(style)}"')
+
+    # Handle class: combine preserved class with our class if needed
+    css_class = image_info.get('class', '')
+    if is_inline:
+        # For inline images, add our inline-image class
+        if css_class:
+            combined_class = f"{css_class} inline-image"
+        else:
+            combined_class = "inline-image"
+        attrs.append(f'class="{html_module.escape(combined_class)}"')
+    elif css_class:
+        # For block images, only use original class if present
+        attrs.append(f'class="{html_module.escape(css_class)}"')
+
+    return ' '.join(attrs)
+
+
+def replace_image_markers_in_text(text: str, images_by_id: dict) -> str:
+    """
+    Replace ALL image markers in text with HTML img tags.
+
+    This function finds and replaces image markers anywhere in the text,
+    not just when they are isolated paragraphs. It handles:
+    - Markers on their own line: [IMG001]
+    - Markers with spaces: [IMG 001] or [ IMG001 ]
+    - Markers inline with text: "Here is [IMG001] the image"
+    - Markers with surrounding punctuation: ([IMG001]) or "[IMG001]"
+
+    Preserves original display attributes (width, height, style, class).
+
+    Args:
+        text: Text containing image markers (e.g., "[IMG001]")
+        images_by_id: Dict mapping image IDs to image info dicts
+
+    Returns:
+        Text with all image markers replaced by HTML img tags
+    """
+    if not images_by_id:
+        return text
+
+    # Pattern to match image markers with optional whitespace inside
+    # Matches: [IMG001], [IMG 001], [ IMG001], [IMG001 ], etc.
+    marker_pattern = re.compile(
+        re.escape(IMAGE_MARKER_PREFIX) + r'\s*(\d+)\s*' + re.escape(IMAGE_MARKER_SUFFIX)
+    )
+
+    def replace_marker(match):
+        """Replace a single marker with its HTML representation."""
+        image_id = match.group(1)
+        image_info = images_by_id.get(image_id)
+
+        if not image_info:
+            # Image not found - keep the marker visible for debugging
+            return match.group(0)
+
+        filename = image_info['filename']
+        extra_attrs = _build_img_attributes(image_info, is_inline=True)
+        if extra_attrs:
+            return f'<img src="images/{filename}" alt="" {extra_attrs}/>'
+        else:
+            return f'<img src="images/{filename}" alt="" class="inline-image"/>'
+
+    return marker_pattern.sub(replace_marker, text)
 
 
 def _clean_translation_tags(text: str) -> str:
@@ -826,6 +1011,21 @@ p {
 
 p:first-of-type {
     text-indent: 0;
+}
+
+hr {
+    border: none;
+    border-top: 1px solid #ccc;
+    margin: 2em auto;
+    width: 50%;
+}
+
+em, i {
+    font-style: italic;
+}
+
+strong, b {
+    font-weight: bold;
 }'''
 
     if with_images:
@@ -851,9 +1051,58 @@ p:first-of-type {
     margin-top: 0.5em;
     text-align: center;
     text-indent: 0;
+}
+
+/* Inline images within paragraphs */
+.inline-image {
+    max-height: 1.5em;
+    vertical-align: middle;
+    display: inline;
+    margin: 0 0.2em;
+}
+
+/* Larger inline images (standalone in paragraph) */
+p > img.inline-image:only-child {
+    max-width: 100%;
+    max-height: none;
+    display: block;
+    margin: 0.5em auto;
 }'''
 
     return base_css
+
+
+def _convert_formatting_markers_to_html(text: str) -> str:
+    """
+    Convert formatting markers to HTML tags.
+
+    Converts:
+    - [I]text[/I] -> <em>text</em>
+    - [B]text[/B] -> <strong>text</strong>
+    - [HR] -> <hr/>
+
+    This is done AFTER HTML escaping, so the markers are still plain text.
+
+    Args:
+        text: Text with formatting markers (already HTML-escaped)
+
+    Returns:
+        Text with markers converted to HTML tags
+    """
+    # Convert italic markers
+    text = text.replace(FORMAT_ITALIC_START, '<em>')
+    text = text.replace(FORMAT_ITALIC_END, '</em>')
+
+    # Convert bold markers
+    text = text.replace(FORMAT_BOLD_START, '<strong>')
+    text = text.replace(FORMAT_BOLD_END, '</strong>')
+
+    return text
+
+
+def _is_hr_marker(text: str) -> bool:
+    """Check if text is only a horizontal rule marker."""
+    return text.strip() == FORMAT_HR_MARKER
 
 
 def _create_chapter_xhtml(
@@ -864,6 +1113,11 @@ def _create_chapter_xhtml(
 ) -> str:
     """
     Create XHTML content for a chapter - EPUB 2.0 format (like working EPUBs).
+
+    Handles image markers in three ways:
+    1. Isolated markers (paragraph is only "[IMG001]") -> full image container div
+    2. Inline markers (text contains "[IMG001]") -> inline img tag within paragraph
+    3. Markers with spaces/variations -> normalized and replaced
 
     Args:
         title: Chapter title
@@ -889,16 +1143,36 @@ def _create_chapter_xhtml(
     for para in text.split('\n\n'):
         para_stripped = para.strip()
         if para_stripped:
-            # Check if this paragraph is an image marker
+            # Check if this paragraph is ONLY a horizontal rule marker
+            if _is_hr_marker(para_stripped):
+                paragraphs.append('    <hr/>')
+                continue
+
+            # Check if this paragraph is ONLY an image marker (isolated image)
             image_html = _convert_image_marker_to_html(para_stripped, images_by_id)
             if image_html:
+                # Isolated image marker -> use full container div
                 paragraphs.append(image_html)
             else:
-                # Escape HTML and preserve line breaks within paragraphs
-                para_escaped = html_module.escape(para_stripped)
-                # Replace single newlines with spaces
-                para_escaped = para_escaped.replace('\n', ' ')
-                paragraphs.append(f'    <p>{para_escaped}</p>')
+                # Check if paragraph contains any image markers (inline images)
+                if has_image_markers(para_stripped) and images_by_id:
+                    # First escape HTML, then replace markers with img tags
+                    # We need to be careful: escape first, but markers should not be escaped
+                    # Solution: replace markers with placeholders, escape, then restore
+                    para_with_images = _process_paragraph_with_inline_images(
+                        para_stripped, images_by_id
+                    )
+                    # Convert formatting markers to HTML
+                    para_with_images = _convert_formatting_markers_to_html(para_with_images)
+                    paragraphs.append(f'    <p>{para_with_images}</p>')
+                else:
+                    # No image markers - standard text paragraph
+                    para_escaped = html_module.escape(para_stripped)
+                    # Replace single newlines with <br/> for line breaks (preserves text breathing)
+                    para_escaped = para_escaped.replace('\n', '<br/>\n')
+                    # Convert formatting markers to HTML
+                    para_escaped = _convert_formatting_markers_to_html(para_escaped)
+                    paragraphs.append(f'    <p>{para_escaped}</p>')
 
     # If no paragraphs were created, create at least one
     if not paragraphs:
@@ -921,9 +1195,66 @@ def _create_chapter_xhtml(
 </html>'''
 
 
+def _process_paragraph_with_inline_images(text: str, images_by_id: dict) -> str:
+    """
+    Process a paragraph that contains inline image markers.
+
+    Escapes HTML in the text while preserving and converting image markers
+    to proper img tags. Preserves original display attributes.
+
+    Args:
+        text: Paragraph text with image markers
+        images_by_id: Dict mapping image IDs to image info dicts
+
+    Returns:
+        HTML-safe paragraph content with img tags
+    """
+    import html as html_module
+
+    # Pattern to match image markers with optional whitespace inside
+    marker_pattern = re.compile(
+        re.escape(IMAGE_MARKER_PREFIX) + r'\s*(\d+)\s*' + re.escape(IMAGE_MARKER_SUFFIX)
+    )
+
+    # Split text by image markers, keeping the markers
+    parts = marker_pattern.split(text)
+    # parts will be: [text_before, id1, text_between, id2, text_after, ...]
+
+    result_parts = []
+    i = 0
+    while i < len(parts):
+        if i % 2 == 0:
+            # This is text content - escape it
+            text_part = parts[i]
+            if text_part:
+                escaped = html_module.escape(text_part)
+                # Replace single newlines with <br/> for line breaks
+                escaped = escaped.replace('\n', '<br/>\n')
+                result_parts.append(escaped)
+        else:
+            # This is an image ID - convert to img tag
+            image_id = parts[i]
+            image_info = images_by_id.get(image_id)
+            if image_info:
+                filename = image_info['filename']
+                extra_attrs = _build_img_attributes(image_info, is_inline=True)
+                if extra_attrs:
+                    result_parts.append(f'<img src="images/{filename}" alt="" {extra_attrs}/>')
+                else:
+                    result_parts.append(f'<img src="images/{filename}" alt="" class="inline-image"/>')
+            else:
+                # Image not found - keep the original marker (escaped)
+                result_parts.append(html_module.escape(f"{IMAGE_MARKER_PREFIX}{image_id}{IMAGE_MARKER_SUFFIX}"))
+        i += 1
+
+    return ''.join(result_parts)
+
+
 def _convert_image_marker_to_html(text: str, images_by_id: dict) -> str:
     """
-    Convert an image marker to HTML img tag.
+    Convert an image marker to HTML img tag for block-level display.
+
+    Preserves original display attributes (width, height, style, class).
 
     Args:
         text: Text that may be an image marker (e.g., "[IMG001]")
@@ -953,9 +1284,16 @@ def _convert_image_marker_to_html(text: str, images_by_id: dict) -> str:
 
     filename = image_info['filename']
 
+    # Build attributes from preserved display settings
+    extra_attrs = _build_img_attributes(image_info, is_inline=False)
+    if extra_attrs:
+        img_tag = f'<img src="images/{filename}" alt="" {extra_attrs}/>'
+    else:
+        img_tag = f'<img src="images/{filename}" alt=""/>'
+
     # Create image HTML with container div for styling (no caption)
     return f'''    <div class="image-container">
-      <img src="images/{filename}" alt=""/>
+      {img_tag}
     </div>'''
 
 

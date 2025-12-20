@@ -77,9 +77,10 @@ export const Validators = {
      * Validate provider API key
      * @param {string} provider - Provider name
      * @param {string} apiKey - API key
+     * @param {string} [endpoint] - API endpoint (for OpenAI/LM Studio detection)
      * @returns {boolean} True if valid
      */
-    validateProviderApiKey(provider, apiKey) {
+    validateProviderApiKey(provider, apiKey, endpoint = '') {
         if (provider === 'gemini') {
             if (!apiKey || apiKey.trim() === '') {
                 return this.showError('Gemini API key is required when using Gemini provider.');
@@ -87,7 +88,9 @@ export const Validators = {
         }
 
         if (provider === 'openai') {
-            if (!apiKey || apiKey.trim() === '') {
+            // Local endpoints (LM Studio) don't require an API key
+            const isLocalEndpoint = endpoint.includes('localhost') || endpoint.includes('127.0.0.1');
+            if (!isLocalEndpoint && (!apiKey || apiKey.trim() === '')) {
                 return this.showError('OpenAI API key is required when using OpenAI provider.');
             }
         }

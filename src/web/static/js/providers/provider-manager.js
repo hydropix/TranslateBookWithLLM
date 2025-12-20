@@ -158,6 +158,22 @@ export const ProviderManager = {
             });
         }
 
+        // Add listener for OpenAI endpoint changes (for LM Studio support)
+        const openaiEndpoint = DomHelpers.getElement('openaiEndpoint');
+        if (openaiEndpoint) {
+            // Use debounce to avoid too many requests while typing
+            let endpointTimeout = null;
+            openaiEndpoint.addEventListener('input', () => {
+                clearTimeout(endpointTimeout);
+                endpointTimeout = setTimeout(() => {
+                    const currentProvider = DomHelpers.getValue('llmProvider');
+                    if (currentProvider === 'openai') {
+                        this.loadOpenAIModels();
+                    }
+                }, 500); // Wait 500ms after user stops typing
+            });
+        }
+
         // Show initial provider settings and load models immediately
         this.toggleProviderSettings(true);
     },
@@ -175,32 +191,37 @@ export const ProviderManager = {
         // Get provider settings elements
         const ollamaSettings = DomHelpers.getElement('ollamaSettings');
         const geminiSettings = DomHelpers.getElement('geminiSettings');
-        const openaiSettings = DomHelpers.getElement('openaiSettings');
+        const openaiApiKeyGroup = DomHelpers.getElement('openaiApiKeyGroup');
+        const openaiEndpointRow = DomHelpers.getElement('openaiEndpointRow');
         const openrouterSettings = DomHelpers.getElement('openrouterSettings');
 
         // Show/hide provider-specific settings (use inline style for elements with inline display:none)
         if (provider === 'ollama') {
             DomHelpers.show('ollamaSettings');
             if (geminiSettings) geminiSettings.style.display = 'none';
-            if (openaiSettings) openaiSettings.style.display = 'none';
+            if (openaiApiKeyGroup) openaiApiKeyGroup.style.display = 'none';
+            if (openaiEndpointRow) openaiEndpointRow.style.display = 'none';
             if (openrouterSettings) openrouterSettings.style.display = 'none';
             if (loadModels) this.loadOllamaModels();
         } else if (provider === 'gemini') {
             DomHelpers.hide('ollamaSettings');
             if (geminiSettings) geminiSettings.style.display = 'block';
-            if (openaiSettings) openaiSettings.style.display = 'none';
+            if (openaiApiKeyGroup) openaiApiKeyGroup.style.display = 'none';
+            if (openaiEndpointRow) openaiEndpointRow.style.display = 'none';
             if (openrouterSettings) openrouterSettings.style.display = 'none';
             if (loadModels) this.loadGeminiModels();
         } else if (provider === 'openai') {
             DomHelpers.hide('ollamaSettings');
             if (geminiSettings) geminiSettings.style.display = 'none';
-            if (openaiSettings) openaiSettings.style.display = 'block';
+            if (openaiApiKeyGroup) openaiApiKeyGroup.style.display = 'block';
+            if (openaiEndpointRow) openaiEndpointRow.style.display = 'block';
             if (openrouterSettings) openrouterSettings.style.display = 'none';
             if (loadModels) this.loadOpenAIModels();
         } else if (provider === 'openrouter') {
             DomHelpers.hide('ollamaSettings');
             if (geminiSettings) geminiSettings.style.display = 'none';
-            if (openaiSettings) openaiSettings.style.display = 'none';
+            if (openaiApiKeyGroup) openaiApiKeyGroup.style.display = 'none';
+            if (openaiEndpointRow) openaiEndpointRow.style.display = 'none';
             if (openrouterSettings) openrouterSettings.style.display = 'block';
             if (loadModels) this.loadOpenRouterModels();
         }
@@ -392,22 +413,66 @@ export const ProviderManager = {
     },
 
     /**
-     * Load OpenAI models (static list)
+     * Load OpenAI/LM Studio models dynamically
+     * For LM Studio: fetches models from the local server
+     * For OpenAI: uses static list (dynamic fetch requires valid API key)
      */
     async loadOpenAIModels() {
         const modelSelect = DomHelpers.getElement('model');
         if (!modelSelect) return;
 
-        // OpenAI uses a static list, no .env default model for this provider
+        // Get API endpoint to determine if it's LM Studio or OpenAI
+        const apiEndpoint = DomHelpers.getValue('openaiEndpoint') || 'https://api.openai.com/v1/chat/completions';
+        const isLocal = apiEndpoint.includes('localhost') || apiEndpoint.includes('127.0.0.1');
+
+        if (isLocal) {
+            // LM Studio: try to fetch models dynamically
+            modelSelect.innerHTML = '<option value="">Loading models from LM Studio...</option>';
+
+            try {
+                const apiKey = FormManager._getApiKeyValue('openaiApiKey');
+                const data = await ApiClient.getModels('openai', { apiKey, apiEndpoint });
+
+                if (data.models && data.models.length > 0) {
+                    MessageLogger.showMessage('', '');
+
+                    // Format models for the dropdown
+                    const formattedModels = data.models.map(m => ({
+                        value: m.id,
+                        label: m.name || m.id
+                    }));
+
+                    const envModelApplied = populateModelSelect(formattedModels, data.default, 'openai');
+                    MessageLogger.addLog(`✅ ${data.count} model(s) loaded from LM Studio`);
+
+                    if (envModelApplied && data.default) {
+                        SettingsManager.markEnvModelApplied();
+                    }
+
+                    SettingsManager.applyPendingModelSelection();
+                    ModelDetector.checkAndShowRecommendation();
+
+                    StateManager.setState('models.availableModels', formattedModels.map(m => m.value));
+                    return;
+                } else {
+                    // LM Studio not running or no models
+                    const errorMsg = data.error || 'LM Studio server not accessible';
+                    MessageLogger.showMessage(`⚠️ ${errorMsg}`, 'warning');
+                    MessageLogger.addLog(`⚠️ ${errorMsg}. Using fallback OpenAI models.`);
+                }
+            } catch (error) {
+                MessageLogger.showMessage(`⚠️ Could not connect to LM Studio. Using fallback models.`, 'warning');
+                MessageLogger.addLog(`⚠️ LM Studio connection error: ${error.message}`);
+            }
+        }
+
+        // Fallback: use static OpenAI models list
         populateModelSelect(OPENAI_MODELS, null, 'openai');
         MessageLogger.addLog(`✅ OpenAI models loaded (common models)`);
 
-        // Apply saved model preference if any
         SettingsManager.applyPendingModelSelection();
-
         ModelDetector.checkAndShowRecommendation();
 
-        // Update available models in state
         StateManager.setState('models.availableModels', OPENAI_MODELS.map(m => m.value));
     },
 

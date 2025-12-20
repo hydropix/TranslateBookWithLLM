@@ -314,6 +314,14 @@ class OpenAICompatibleProvider(LLMProvider):
             "model": self.model,
             "messages": messages,
             "stream": False,
+            # Disable thinking/reasoning mode for LM Studio and compatible servers
+            # This prevents models from outputting <think>...</think> blocks
+            "thinking": False,
+            "enable_thinking": False,
+            # Some servers use chat_template_kwargs
+            "chat_template_kwargs": {
+                "enable_thinking": False
+            }
         }
 
         client = await self._get_client()

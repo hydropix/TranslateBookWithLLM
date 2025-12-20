@@ -89,6 +89,13 @@ def create_config_blueprint():
             return _get_gemini_models(api_key)
         elif provider == 'openrouter':
             return _get_openrouter_models(api_key)
+        elif provider == 'openai':
+            # Get endpoint from request for LM Studio support
+            if request.method == 'POST':
+                api_endpoint = data.get('api_endpoint', 'https://api.openai.com/v1/chat/completions')
+            else:
+                api_endpoint = request.args.get('api_endpoint', 'https://api.openai.com/v1/chat/completions')
+            return _get_openai_models(api_key, api_endpoint)
         else:
             return _get_ollama_models()
 
@@ -201,6 +208,160 @@ def create_config_blueprint():
                 "status": "openrouter_error",
                 "count": 0,
                 "error": f"Error connecting to OpenRouter API: {str(e)}"
+            })
+
+    def _get_openai_models(provided_api_key=None, api_endpoint=None):
+        """Get available models from OpenAI API or LM Studio
+
+        For LM Studio and other OpenAI-compatible servers, fetches models dynamically.
+        For official OpenAI API, returns a static list of common models.
+        """
+        api_key = _resolve_api_key(provided_api_key, 'OPENAI_API_KEY', OPENAI_API_KEY)
+
+        # Determine base URL from endpoint
+        if api_endpoint:
+            # Extract base URL (remove /chat/completions if present)
+            base_url = api_endpoint.replace('/chat/completions', '').rstrip('/')
+        else:
+            base_url = 'https://api.openai.com/v1'
+
+        # Check if this is a local server (LM Studio, etc.)
+        is_local = 'localhost' in base_url or '127.0.0.1' in base_url
+
+        # Static list of OpenAI models (fallback for official API)
+        openai_static_models = [
+            {'id': 'gpt-4o', 'name': 'GPT-4o (Latest)'},
+            {'id': 'gpt-4o-mini', 'name': 'GPT-4o Mini'},
+            {'id': 'gpt-4-turbo', 'name': 'GPT-4 Turbo'},
+            {'id': 'gpt-4', 'name': 'GPT-4'},
+            {'id': 'gpt-3.5-turbo', 'name': 'GPT-3.5 Turbo'}
+        ]
+
+        try:
+            models_url = f"{base_url}/models"
+            headers = {}
+            if api_key:
+                headers['Authorization'] = f'Bearer {api_key}'
+
+            if DEBUG_MODE:
+                logger.debug(f"📥 Fetching OpenAI/LM Studio models from: {models_url}")
+
+            response = requests.get(models_url, headers=headers, timeout=10)
+
+            if response.status_code == 200:
+                data = response.json()
+                models_data = data.get('data', [])
+
+                if models_data:
+                    # Filter and format models
+                    models = []
+                    for m in models_data:
+                        model_id = m.get('id', '')
+                        # Skip embedding models and other non-chat models
+                        if 'embedding' in model_id.lower() or 'whisper' in model_id.lower():
+                            continue
+                        models.append({
+                            'id': model_id,
+                            'name': model_id,
+                            'owned_by': m.get('owned_by', 'unknown')
+                        })
+
+                    # Sort models by name
+                    models.sort(key=lambda x: x['name'].lower())
+
+                    if models:
+                        model_ids = [m['id'] for m in models]
+                        default_model = model_ids[0] if model_ids else 'gpt-4o'
+
+                        return jsonify({
+                            "models": models,
+                            "model_names": model_ids,
+                            "default": default_model,
+                            "status": "openai_connected",
+                            "count": len(models),
+                            "is_local": is_local
+                        })
+
+            # If we get here, either request failed or no models returned
+            # For local servers, return error; for OpenAI, return static list
+            if is_local:
+                error_msg = f"Could not connect to LM Studio at {base_url}. Make sure the server is running."
+                return jsonify({
+                    "models": [],
+                    "model_names": [],
+                    "default": "",
+                    "status": "openai_error",
+                    "count": 0,
+                    "error": error_msg,
+                    "is_local": True
+                })
+            else:
+                # Return static OpenAI models
+                model_ids = [m['id'] for m in openai_static_models]
+                return jsonify({
+                    "models": openai_static_models,
+                    "model_names": model_ids,
+                    "default": "gpt-4o",
+                    "status": "openai_static",
+                    "count": len(openai_static_models),
+                    "is_local": False
+                })
+
+        except requests.exceptions.ConnectionError:
+            if is_local:
+                error_msg = f"Connection refused to {base_url}. Is LM Studio server running?"
+            else:
+                error_msg = f"Connection error to OpenAI API"
+
+            if DEBUG_MODE:
+                logger.debug(f"❌ OpenAI/LM Studio connection error: {error_msg}")
+
+            # For official OpenAI, return static list even on error
+            if not is_local:
+                model_ids = [m['id'] for m in openai_static_models]
+                return jsonify({
+                    "models": openai_static_models,
+                    "model_names": model_ids,
+                    "default": "gpt-4o",
+                    "status": "openai_static",
+                    "count": len(openai_static_models),
+                    "is_local": False
+                })
+
+            return jsonify({
+                "models": [],
+                "model_names": [],
+                "default": "",
+                "status": "openai_error",
+                "count": 0,
+                "error": error_msg,
+                "is_local": True
+            })
+
+        except Exception as e:
+            if DEBUG_MODE:
+                logger.debug(f"❌ OpenAI/LM Studio error: {e}")
+
+            # For official OpenAI, return static list even on error
+            if not is_local:
+                model_ids = [m['id'] for m in openai_static_models]
+                return jsonify({
+                    "models": openai_static_models,
+                    "model_names": model_ids,
+                    "default": "gpt-4o",
+                    "status": "openai_static",
+                    "count": len(openai_static_models),
+                    "is_local": False
+                })
+
+            return jsonify({
+                "models": [],
+                "model_names": [],
+                "default": "",
+                "status": "openai_error",
+                "count": 0,
+                "error": str(e),
+                "is_local": True
             })
 
     def _get_gemini_models(provided_api_key=None):
