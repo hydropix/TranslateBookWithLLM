@@ -14,3 +14,4 @@ build/
 /dist
 /benchmark_results/
 /wiki/
+.wiki_repo/
