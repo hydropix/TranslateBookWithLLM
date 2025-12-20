@@ -8,6 +8,8 @@ Translate books, subtitles, and documents using AI - locally or in the cloud.
 
 **Formats:** EPUB, SRT, TXT | **Providers:** Ollama (local), OpenRouter, OpenAI, Gemini
 
+> 📊 **[Translation Quality Benchmarks](https://github.com/hydropix/TranslateBookWithLLM/wiki)** — Find the best model for your target language.
+
 ---
 
 ## Quick Start (Windows)
@@ -34,7 +36,7 @@ The web interface opens at **http://localhost:5000**
 | 16-24 GB | `ollama pull qwen3:30b`    | 30B        |
 | 48+ GB   | `ollama pull qwen3:235b`   | 235B       |
 
-📖 **[Translation Quality Benchmarks](https://github.com/hydropix/TranslateBookWithLLM/wiki)** - Model tests across 19 languages with accuracy, fluency and style scores.
+> **Which model for my language?** Check our **[benchmarks wiki](https://github.com/hydropix/TranslateBookWithLLM/wiki)** for detailed scores (accuracy, fluency, style) per language.
 
 ---
 
