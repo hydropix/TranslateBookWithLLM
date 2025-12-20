@@ -7,7 +7,6 @@ __pycache__/
 .claude/
 CLAUDE.md
 .env
-/docs
 /venv
 OPENROUTER_INTEGRATION_PLAN.md
 build_installer.bat
