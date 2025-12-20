@@ -173,4 +173,4 @@ See [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) for more solutions.
 
 ---
 
-**License:** AGPL-3.0 license
+**License:** AGPL-3.0
