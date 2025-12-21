@@ -103,7 +103,9 @@ default_client = LLMClient(provider_type="ollama", api_endpoint=API_ENDPOINT, mo
 def create_llm_client(llm_provider: str, gemini_api_key: Optional[str],
                       api_endpoint: str, model_name: str,
                       openai_api_key: Optional[str] = None,
-                      openrouter_api_key: Optional[str] = None) -> Optional[LLMClient]:
+                      openrouter_api_key: Optional[str] = None,
+                      context_window: Optional[int] = None,
+                      log_callback: Optional[callable] = None) -> Optional[LLMClient]:
     """
     Factory function to create LLM client based on provider or custom endpoint
 
@@ -114,6 +116,8 @@ def create_llm_client(llm_provider: str, gemini_api_key: Optional[str],
         model_name: Model name to use
         openai_api_key: API key for OpenAI provider
         openrouter_api_key: API key for OpenRouter provider
+        context_window: Context window size for the model
+        log_callback: Callback function for logging
 
     Returns:
         LLMClient instance or None if using default client
@@ -121,10 +125,12 @@ def create_llm_client(llm_provider: str, gemini_api_key: Optional[str],
     if llm_provider == "gemini" and gemini_api_key:
         return LLMClient(provider_type="gemini", api_key=gemini_api_key, model=model_name)
     if llm_provider == "openai":
-        return LLMClient(provider_type="openai", api_endpoint=api_endpoint, model=model_name, api_key=openai_api_key)
+        return LLMClient(provider_type="openai", api_endpoint=api_endpoint, model=model_name,
+                         api_key=openai_api_key, context_window=context_window, log_callback=log_callback)
     if llm_provider == "openrouter":
         return LLMClient(provider_type="openrouter", model=model_name, api_key=openrouter_api_key)
     if llm_provider == "ollama":
         # Always create a new client for Ollama to ensure proper configuration
-        return LLMClient(provider_type="ollama", api_endpoint=api_endpoint, model=model_name)
+        return LLMClient(provider_type="ollama", api_endpoint=api_endpoint, model=model_name,
+                         context_window=context_window, log_callback=log_callback)
     return None

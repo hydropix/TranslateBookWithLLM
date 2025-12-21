@@ -143,6 +143,9 @@ class BenchmarkConfig:
     source_language: str = "English"
     quick_languages: list = field(default_factory=lambda: DEFAULT_QUICK_LANGUAGES.copy())
 
+    # Translation provider ("ollama" or "openrouter")
+    translation_provider: str = "ollama"
+
     # Retry settings
     max_retries: int = 3
     retry_delay: float = 2.0
@@ -158,6 +161,7 @@ class BenchmarkConfig:
         openrouter_key: Optional[str] = None,
         evaluator_model: Optional[str] = None,
         ollama_endpoint: Optional[str] = None,
+        translation_provider: Optional[str] = None,
         **kwargs
     ) -> "BenchmarkConfig":
         """Create configuration from CLI arguments with env fallbacks."""
@@ -172,23 +176,38 @@ class BenchmarkConfig:
         if ollama_endpoint:
             config.ollama.endpoint = ollama_endpoint
 
+        if translation_provider:
+            config.translation_provider = translation_provider.lower()
+
         return config
 
     def validate(self) -> list[str]:
         """Validate configuration and return list of errors."""
         errors = []
 
+        # OpenRouter API key is required for evaluation (always)
+        # and for translation if using OpenRouter provider
         if not self.openrouter.api_key:
-            errors.append(
-                "OpenRouter API key not configured. "
-                "Set OPENROUTER_API_KEY in .env or use --openrouter-key"
-            )
+            if self.translation_provider == "openrouter":
+                errors.append(
+                    "OpenRouter API key not configured. Required for both translation and evaluation. "
+                    "Set OPENROUTER_API_KEY in .env or use --openrouter-key"
+                )
+            else:
+                errors.append(
+                    "OpenRouter API key not configured. Required for evaluation. "
+                    "Set OPENROUTER_API_KEY in .env or use --openrouter-key"
+                )
 
         if not self.paths.languages_file.exists():
             errors.append(f"Languages file not found: {self.paths.languages_file}")
 
         if not self.paths.reference_texts_file.exists():
             errors.append(f"Reference texts file not found: {self.paths.reference_texts_file}")
+
+        # Validate translation provider
+        if self.translation_provider not in ("ollama", "openrouter"):
+            errors.append(f"Invalid translation provider: {self.translation_provider}. Must be 'ollama' or 'openrouter'")
 
         return errors
 

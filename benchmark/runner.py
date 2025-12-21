@@ -24,7 +24,8 @@ from benchmark.models import (
 )
 from benchmark.translator import (
     BenchmarkTranslator, TranslationRequest,
-    test_ollama_connection, get_available_ollama_models
+    test_ollama_connection, get_available_ollama_models,
+    test_openrouter_translation_connection, get_available_openrouter_models
 )
 from benchmark.evaluator import (
     TranslationEvaluator, test_openrouter_connection
@@ -197,19 +198,28 @@ class BenchmarkRunner:
         config_errors = self.config.validate()
         errors.extend(config_errors)
 
-        # Test Ollama connection
-        ollama_ok, ollama_msg = await test_ollama_connection(self.config)
-        if not ollama_ok:
-            errors.append(f"Ollama: {ollama_msg}")
+        # Test translation provider connection
+        if self.config.translation_provider == "openrouter":
+            # Test OpenRouter for translation
+            or_trans_ok, or_trans_msg = await test_openrouter_translation_connection(self.config)
+            if not or_trans_ok:
+                errors.append(f"OpenRouter (translation): {or_trans_msg}")
+            else:
+                self._log("info", f"OpenRouter (translation): {or_trans_msg}")
         else:
-            self._log("info", f"Ollama: {ollama_msg}")
+            # Test Ollama connection
+            ollama_ok, ollama_msg = await test_ollama_connection(self.config)
+            if not ollama_ok:
+                errors.append(f"Ollama: {ollama_msg}")
+            else:
+                self._log("info", f"Ollama: {ollama_msg}")
 
-        # Test OpenRouter connection
+        # Test OpenRouter connection (for evaluation - always required)
         openrouter_ok, openrouter_msg = await test_openrouter_connection(self.config)
         if not openrouter_ok:
-            errors.append(f"OpenRouter: {openrouter_msg}")
+            errors.append(f"OpenRouter (evaluation): {openrouter_msg}")
         else:
-            self._log("info", f"OpenRouter: {openrouter_msg}")
+            self._log("info", f"OpenRouter (evaluation): {openrouter_msg}")
 
         return len(errors) == 0, errors
 
@@ -310,7 +320,11 @@ class BenchmarkRunner:
         self._log("info", f"Total translations: {run.total_expected}")
 
         # Initialize translator and evaluator
-        self._translator = BenchmarkTranslator(self.config, self.log_callback)
+        self._translator = BenchmarkTranslator(
+            self.config,
+            self.log_callback,
+            provider_type=self.config.translation_provider
+        )
         self._evaluator = TranslationEvaluator(self.config, self.log_callback)
 
         try:

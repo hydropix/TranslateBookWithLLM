@@ -16,7 +16,7 @@ from benchmark.config import BenchmarkConfig, DEFAULT_EVALUATOR_MODEL
 from benchmark.runner import BenchmarkRunner, quick_benchmark, full_benchmark
 from benchmark.results.storage import ResultsStorage
 from benchmark.wiki.generator import WikiGenerator
-from benchmark.translator import get_available_ollama_models
+from benchmark.translator import get_available_ollama_models, get_available_openrouter_models
 
 
 # ANSI color codes for terminal output
@@ -68,11 +68,15 @@ def cmd_run(args: argparse.Namespace) -> int:
     """Execute benchmark run command."""
     print_banner()
 
+    # Determine provider
+    provider = getattr(args, 'provider', 'ollama') or 'ollama'
+
     # Build configuration
     config = BenchmarkConfig.from_cli_args(
         openrouter_key=args.openrouter_key,
         evaluator_model=args.evaluator,
         ollama_endpoint=args.ollama_endpoint,
+        translation_provider=provider,
     )
 
     # Validate configuration
@@ -82,15 +86,28 @@ def cmd_run(args: argparse.Namespace) -> int:
             log_callback("error", error)
         return 1
 
-    # Get models
+    # Get models based on provider
     models = args.models
     if not models:
-        print(colored("Detecting available Ollama models...", Colors.CYAN))
-        models = asyncio.run(get_available_ollama_models(config))
-        if not models:
-            log_callback("error", "No Ollama models found. Run 'ollama pull <model>' first.")
-            return 1
-        print(colored(f"Found {len(models)} models: {', '.join(models[:5])}...", Colors.GREEN))
+        if provider == "openrouter":
+            print(colored("Fetching available OpenRouter models...", Colors.CYAN))
+            models_data = asyncio.run(get_available_openrouter_models(config))
+            if not models_data:
+                log_callback("error", "No OpenRouter models available.")
+                return 1
+            # Extract model IDs
+            models = [m["id"] if isinstance(m, dict) else m for m in models_data[:10]]
+            print(colored(f"Found {len(models_data)} models. Using top 10: {', '.join(models[:3])}...", Colors.GREEN))
+        else:
+            print(colored("Detecting available Ollama models...", Colors.CYAN))
+            models = asyncio.run(get_available_ollama_models(config))
+            if not models:
+                log_callback("error", "No Ollama models found. Run 'ollama pull <model>' first.")
+                return 1
+            print(colored(f"Found {len(models)} models: {', '.join(models[:5])}...", Colors.GREEN))
+
+    # Show provider info
+    print(colored(f"Translation provider: {provider.upper()}", Colors.YELLOW))
 
     # Determine languages
     if args.full:
@@ -262,6 +279,63 @@ def cmd_export(args: argparse.Namespace) -> int:
     else:
         log_callback("error", f"Run {args.run_id} not found")
         return 1
+
+
+def cmd_models(args: argparse.Namespace) -> int:
+    """List available models for benchmarking."""
+    print_banner()
+
+    config = BenchmarkConfig.from_cli_args(openrouter_key=args.openrouter_key)
+    provider = args.provider
+
+    if provider == "openrouter":
+        print(colored("Fetching OpenRouter models...\n", Colors.CYAN))
+        models = asyncio.run(get_available_openrouter_models(config))
+
+        if not models:
+            log_callback("error", "Failed to fetch OpenRouter models")
+            return 1
+
+        print(colored(f"Available OpenRouter Models ({len(models)} text-only models):\n", Colors.BOLD))
+
+        # Table header
+        print(f"{'Model ID':<50} {'Price (per 1M tokens)':<25}")
+        print("-" * 75)
+
+        for model in models[:50]:  # Limit to 50 for readability
+            if isinstance(model, dict):
+                model_id = model.get("id", "unknown")
+                pricing = model.get("pricing", {})
+                prompt_price = pricing.get("prompt_per_million", 0)
+                completion_price = pricing.get("completion_per_million", 0)
+                price_str = f"${prompt_price:.2f} / ${completion_price:.2f}"
+            else:
+                model_id = model
+                price_str = "N/A"
+
+            print(f"{model_id:<50} {price_str:<25}")
+
+        print()
+        print(colored("Tip: Use -m to specify models, e.g.:", Colors.YELLOW))
+        print("  python -m benchmark.cli run -p openrouter -m anthropic/claude-sonnet-4 openai/gpt-4o")
+
+    else:
+        print(colored("Detecting Ollama models...\n", Colors.CYAN))
+        models = asyncio.run(get_available_ollama_models(config))
+
+        if not models:
+            log_callback("error", "No Ollama models found. Is Ollama running? Try 'ollama pull <model>'")
+            return 1
+
+        print(colored(f"Available Ollama Models ({len(models)}):\n", Colors.BOLD))
+        for model in models:
+            print(f"  - {model}")
+
+        print()
+        print(colored("Tip: Use -m to specify models, e.g.:", Colors.YELLOW))
+        print("  python -m benchmark.cli run -m llama3:8b qwen2.5:14b")
+
+    return 0
 
 
 def cmd_delete(args: argparse.Namespace) -> int:
@@ -489,14 +563,20 @@ def create_parser() -> argparse.ArgumentParser:
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  # Quick benchmark (7 test languages)
+  # Quick benchmark with Ollama (local models)
   python -m benchmark.cli run --openrouter-key YOUR_KEY
+
+  # Quick benchmark with OpenRouter (cloud models)
+  python -m benchmark.cli run --provider openrouter --openrouter-key YOUR_KEY
 
   # Full benchmark (all 40+ languages)
   python -m benchmark.cli run --full --openrouter-key YOUR_KEY
 
-  # Specific models and languages
+  # Specific Ollama models and languages
   python -m benchmark.cli run -m llama3:8b qwen2.5:14b -l fr de ja zh
+
+  # Specific OpenRouter models
+  python -m benchmark.cli run -p openrouter -m anthropic/claude-sonnet-4 openai/gpt-4o -l fr de ja
 
   # Generate wiki pages
   python -m benchmark.cli wiki
@@ -513,7 +593,9 @@ Examples:
     run_parser.add_argument(
         "-m", "--models",
         nargs="+",
-        help="Ollama models to benchmark. If not specified, uses all available models."
+        help="Models to benchmark. For Ollama: model names (e.g., llama3:8b). "
+             "For OpenRouter: model IDs (e.g., anthropic/claude-sonnet-4). "
+             "If not specified, auto-detects available models."
     )
     run_parser.add_argument(
         "-l", "--languages",
@@ -526,8 +608,15 @@ Examples:
         help="Run full benchmark with all 40+ languages"
     )
     run_parser.add_argument(
+        "-p", "--provider",
+        choices=["ollama", "openrouter"],
+        default="ollama",
+        help="Translation provider: 'ollama' (local, default) or 'openrouter' (cloud, 200+ models)"
+    )
+    run_parser.add_argument(
         "--openrouter-key",
-        help="OpenRouter API key for evaluation. Can also be set via OPENROUTER_API_KEY env var."
+        help="OpenRouter API key (for evaluation, and translation if using --provider openrouter). "
+             "Can also be set via OPENROUTER_API_KEY env var."
     )
     run_parser.add_argument(
         "--evaluator",
@@ -590,6 +679,20 @@ Examples:
     # List command
     list_parser = subparsers.add_parser("list", help="List available benchmark runs")
     list_parser.set_defaults(func=cmd_list)
+
+    # Models command
+    models_parser = subparsers.add_parser("models", help="List available models for benchmarking")
+    models_parser.add_argument(
+        "-p", "--provider",
+        choices=["ollama", "openrouter"],
+        default="ollama",
+        help="Provider to list models for (default: ollama)"
+    )
+    models_parser.add_argument(
+        "--openrouter-key",
+        help="OpenRouter API key (required for listing OpenRouter models)"
+    )
+    models_parser.set_defaults(func=cmd_models)
 
     # Show command
     show_parser = subparsers.add_parser("show", help="Show details of a benchmark run")

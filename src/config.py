@@ -205,6 +205,22 @@ CONTENT_BLOCK_TAGS_EPUB = [
     '{http://www.w3.org/1999/xhtml}dt', '{http://www.w3.org/1999/xhtml}dd'
 ]
 
+# Model family context size defaults (shared across providers)
+# Used as fallback when context size cannot be detected from the server
+# NOTE: Order matters! More specific patterns (gpt-4) must come before generic ones (gpt)
+MODEL_FAMILY_CONTEXT_DEFAULTS = {
+    "gpt-4": 128000,  # Must come before "gpt"
+    "gpt": 8192,
+    "claude": 100000,
+    "deepseek": 16384,
+    "mistral": 8192,
+    "gemma": 8192,
+    "qwen": 8192,
+    "llama": 4096,
+    "phi": 2048,
+}
+DEFAULT_CONTEXT_FALLBACK = 2048
+
 
 @dataclass
 class TranslationConfig:

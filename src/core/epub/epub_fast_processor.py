@@ -251,14 +251,19 @@ async def _extract_pure_text_from_xhtml(
         parser = etree.HTMLParser()
         tree = etree.fromstring(content.encode('utf-8'), parser)
 
-    # Remove script and style elements completely
-    for element in tree.xpath('.//script | .//style', namespaces=NAMESPACES):
+    # Remove non-content elements completely (script, style, head, link, meta)
+    # Using local-name() to match elements regardless of namespace
+    # This is critical for Fast Mode: we only want actual readable text content
+    non_content_tags = ('script', 'style', 'head', 'link', 'meta', 'title')
+    xpath_conditions = ' or '.join(f'local-name()="{tag}"' for tag in non_content_tags)
+    for element in tree.xpath(f'.//*[{xpath_conditions}]'):
         parent = element.getparent()
         if parent is not None:
             parent.remove(element)
 
     # Extract text from body (or whole tree if no body)
-    body = tree.xpath('.//body', namespaces=NAMESPACES)
+    # Using local-name() to match regardless of namespace
+    body = tree.xpath('.//*[local-name()="body"]')
     if body:
         text_root = body[0]
     else:

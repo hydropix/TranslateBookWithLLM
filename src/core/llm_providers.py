@@ -249,17 +249,11 @@ class OllamaProvider(LLMProvider):
                     self.log_callback("info", f"Detected model context size: {detected_ctx} tokens")
                 return detected_ctx
 
-            # Default values by model family
-            model_family_defaults = {
-                "llama": 4096,
-                "mistral": 8192,
-                "gemma": 8192,
-                "phi": 2048,
-                "qwen": 8192,
-            }
+            # Default values by model family (use shared constants)
+            from src.config import MODEL_FAMILY_CONTEXT_DEFAULTS, DEFAULT_CONTEXT_FALLBACK
 
             model_lower = self.model.lower()
-            for family, default_ctx in model_family_defaults.items():
+            for family, default_ctx in MODEL_FAMILY_CONTEXT_DEFAULTS.items():
                 if family in model_lower:
                     if self.log_callback:
                         self.log_callback("info",
@@ -269,8 +263,8 @@ class OllamaProvider(LLMProvider):
             # Conservative fallback
             if self.log_callback:
                 self.log_callback("warning",
-                    "Could not detect model context size, using default: 2048 tokens")
-            return 2048
+                    f"Could not detect model context size, using default: {DEFAULT_CONTEXT_FALLBACK} tokens")
+            return DEFAULT_CONTEXT_FALLBACK
 
         except Exception as e:
             if self.log_callback:
@@ -282,10 +276,14 @@ class OllamaProvider(LLMProvider):
 class OpenAICompatibleProvider(LLMProvider):
     """OpenAI-compatible API provider (works with llama.cpp, LM Studio, vLLM, OpenAI, etc.)"""
 
-    def __init__(self, api_endpoint: str, model: str, api_key: Optional[str] = None):
+    def __init__(self, api_endpoint: str, model: str, api_key: Optional[str] = None,
+                 context_window: int = OLLAMA_NUM_CTX, log_callback: Optional[Callable] = None):
         super().__init__(model)
         self.api_endpoint = api_endpoint
         self.api_key = api_key
+        self.context_window = context_window
+        self.log_callback = log_callback
+        self._detected_context_size: Optional[int] = None
 
     async def generate(self, prompt: str, timeout: int = REQUEST_TIMEOUT,
                       system_prompt: Optional[str] = None) -> Optional[str]:
@@ -380,6 +378,92 @@ class OpenAICompatibleProvider(LLMProvider):
                     return None
 
         return None
+
+    async def get_model_context_size(self) -> int:
+        """Query server to get model's context size. Tries multiple endpoints."""
+        if self._detected_context_size:
+            return self._detected_context_size
+
+        client = await self._get_client()
+        headers = {"Content-Type": "application/json"}
+        if self.api_key:
+            headers["Authorization"] = f"Bearer {self.api_key}"
+
+        # Try endpoints in order: /props -> /v1/models/{model} -> /v1/models -> fallback
+        for strategy in [self._try_props_endpoint, self._try_model_info_endpoint,
+                         self._try_models_list_endpoint]:
+            ctx = await strategy(client, headers)
+            if ctx:
+                self._detected_context_size = ctx
+                return ctx
+
+        # Fallback to model family defaults
+        ctx = self._get_model_family_default()
+        self._detected_context_size = ctx
+        return ctx
+
+    async def _try_props_endpoint(self, client, headers) -> Optional[int]:
+        """Try llama.cpp /props endpoint."""
+        try:
+            base_url = self.api_endpoint.replace("/v1/chat/completions", "").replace("/chat/completions", "")
+            response = await client.get(f"{base_url}/props", headers=headers, timeout=5.0)
+            if response.status_code == 200:
+                n_ctx = response.json().get("default_generation_settings", {}).get("n_ctx")
+                if n_ctx and isinstance(n_ctx, int) and n_ctx > 0:
+                    if self.log_callback:
+                        self.log_callback("info", f"Detected context size from /props: {n_ctx}")
+                    return n_ctx
+        except Exception:
+            pass
+        return None
+
+    async def _try_model_info_endpoint(self, client, headers) -> Optional[int]:
+        """Try OpenAI /v1/models/{model} endpoint."""
+        try:
+            base_url = self.api_endpoint.replace("/v1/chat/completions", "").replace("/chat/completions", "")
+            response = await client.get(f"{base_url}/v1/models/{self.model}", headers=headers, timeout=5.0)
+            if response.status_code == 200:
+                data = response.json()
+                for field in ["context_length", "max_model_len", "context_window", "max_context_length"]:
+                    ctx = data.get(field)
+                    if ctx and isinstance(ctx, int) and ctx > 0:
+                        if self.log_callback:
+                            self.log_callback("info", f"Detected context size: {ctx}")
+                        return ctx
+        except Exception:
+            pass
+        return None
+
+    async def _try_models_list_endpoint(self, client, headers) -> Optional[int]:
+        """Try /v1/models list and find matching model."""
+        try:
+            base_url = self.api_endpoint.replace("/v1/chat/completions", "").replace("/chat/completions", "")
+            response = await client.get(f"{base_url}/v1/models", headers=headers, timeout=5.0)
+            if response.status_code == 200:
+                for model_info in response.json().get("data", []):
+                    if model_info.get("id", "") == self.model:
+                        for field in ["context_length", "max_model_len", "context_window"]:
+                            ctx = model_info.get(field)
+                            if ctx and isinstance(ctx, int) and ctx > 0:
+                                return ctx
+        except Exception:
+            pass
+        return None
+
+    def _get_model_family_default(self) -> int:
+        """Get default context size based on model family."""
+        from src.config import MODEL_FAMILY_CONTEXT_DEFAULTS, DEFAULT_CONTEXT_FALLBACK
+
+        model_lower = self.model.lower()
+        for family, default_ctx in MODEL_FAMILY_CONTEXT_DEFAULTS.items():
+            if family in model_lower:
+                if self.log_callback:
+                    self.log_callback("info", f"Using default for {family}: {default_ctx}")
+                return default_ctx
+
+        if self.log_callback:
+            self.log_callback("warning", f"Using fallback: {DEFAULT_CONTEXT_FALLBACK}")
+        return DEFAULT_CONTEXT_FALLBACK
 
 
 class OpenRouterProvider(LLMProvider):
@@ -849,13 +933,17 @@ def create_llm_provider(provider_type: str = "ollama", **kwargs) -> LLMProvider:
     if provider_type.lower() == "ollama":
         return OllamaProvider(
             api_endpoint=kwargs.get("api_endpoint", API_ENDPOINT),
-            model=kwargs.get("model", DEFAULT_MODEL)
+            model=kwargs.get("model", DEFAULT_MODEL),
+            context_window=kwargs.get("context_window", OLLAMA_NUM_CTX),
+            log_callback=kwargs.get("log_callback")
         )
     elif provider_type.lower() == "openai":
         return OpenAICompatibleProvider(
             api_endpoint=kwargs.get("api_endpoint"),
             model=kwargs.get("model", DEFAULT_MODEL),
-            api_key=kwargs.get("api_key")
+            api_key=kwargs.get("api_key"),
+            context_window=kwargs.get("context_window", OLLAMA_NUM_CTX),
+            log_callback=kwargs.get("log_callback")
         )
     elif provider_type.lower() == "gemini":
         api_key = kwargs.get("api_key")

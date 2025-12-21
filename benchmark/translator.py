@@ -2,17 +2,17 @@
 Benchmark translation wrapper.
 
 Provides a simplified interface for translating reference texts
-using Ollama models for benchmark testing.
+using Ollama or OpenRouter models for benchmark testing.
 """
 
 import asyncio
 import time
 from dataclasses import dataclass
-from typing import Optional, Callable
+from typing import Optional, Callable, Union
 
 from benchmark.config import BenchmarkConfig
 from benchmark.models import ReferenceText, TranslationResult
-from src.core.llm_providers import OllamaProvider
+from src.core.llm_providers import OllamaProvider, OpenRouterProvider, LLMProvider
 from src.config import TRANSLATE_TAG_IN, TRANSLATE_TAG_OUT
 
 
@@ -28,18 +28,20 @@ class TranslationRequest:
 
 class BenchmarkTranslator:
     """
-    Wrapper for Ollama translation in benchmark context.
+    Wrapper for Ollama or OpenRouter translation in benchmark context.
 
     Simplified interface focusing on:
     - Single text translation
     - Timing measurement
     - Error handling for benchmark purposes
+    - Support for multiple providers (Ollama, OpenRouter)
     """
 
     def __init__(
         self,
         config: BenchmarkConfig,
-        log_callback: Optional[Callable[[str, str], None]] = None
+        log_callback: Optional[Callable[[str, str], None]] = None,
+        provider_type: str = "ollama"
     ):
         """
         Initialize the benchmark translator.
@@ -47,10 +49,12 @@ class BenchmarkTranslator:
         Args:
             config: Benchmark configuration
             log_callback: Optional callback for logging (level, message)
+            provider_type: Provider to use ("ollama" or "openrouter")
         """
         self.config = config
         self.log_callback = log_callback
-        self._providers: dict[str, OllamaProvider] = {}
+        self.provider_type = provider_type.lower()
+        self._providers: dict[str, LLMProvider] = {}
 
     def _log(self, level: str, message: str) -> None:
         """Log a message using the callback if available."""
@@ -59,15 +63,25 @@ class BenchmarkTranslator:
         else:
             print(f"[{level.upper()}] {message}")
 
-    def _get_provider(self, model: str) -> OllamaProvider:
-        """Get or create an Ollama provider for the given model."""
+    def _get_provider(self, model: str) -> LLMProvider:
+        """Get or create a provider for the given model."""
         if model not in self._providers:
-            self._providers[model] = OllamaProvider(
-                api_endpoint=self.config.ollama.endpoint,
-                model=model,
-                context_window=self.config.ollama.num_ctx,
-                log_callback=lambda level, msg: self._log(level, msg)
-            )
+            if self.provider_type == "openrouter":
+                if not self.config.openrouter.api_key:
+                    raise ValueError("OpenRouter API key is required for translation. "
+                                   "Set OPENROUTER_API_KEY in .env or use --openrouter-key")
+                self._providers[model] = OpenRouterProvider(
+                    api_key=self.config.openrouter.api_key,
+                    model=model
+                )
+            else:
+                # Default to Ollama
+                self._providers[model] = OllamaProvider(
+                    api_endpoint=self.config.ollama.endpoint,
+                    model=model,
+                    context_window=self.config.ollama.num_ctx,
+                    log_callback=lambda level, msg: self._log(level, msg)
+                )
         return self._providers[model]
 
     def _build_prompt(
@@ -311,3 +325,57 @@ async def get_available_ollama_models(config: BenchmarkConfig) -> list[str]:
 
     except Exception:
         return []
+
+
+async def get_available_openrouter_models(config: BenchmarkConfig, text_only: bool = True) -> list[dict]:
+    """
+    Get list of available OpenRouter models.
+
+    Args:
+        config: Benchmark configuration
+        text_only: If True, filter out vision/multimodal models
+
+    Returns:
+        List of model dicts with id, name, pricing info
+    """
+    if not config.openrouter.api_key:
+        print("⚠️ OpenRouter API key not configured. Using fallback model list.")
+        return OpenRouterProvider.FALLBACK_MODELS
+
+    try:
+        provider = OpenRouterProvider(
+            api_key=config.openrouter.api_key,
+            model="dummy"  # Model doesn't matter for listing
+        )
+        models = await provider.get_available_models(text_only=text_only)
+        await provider.close()
+        return models
+
+    except Exception as e:
+        print(f"⚠️ Failed to fetch OpenRouter models: {e}")
+        return [{"id": m, "name": m} for m in OpenRouterProvider.FALLBACK_MODELS]
+
+
+async def test_openrouter_translation_connection(config: BenchmarkConfig) -> tuple[bool, str]:
+    """
+    Test if OpenRouter is accessible for translation.
+
+    Args:
+        config: Benchmark configuration
+
+    Returns:
+        Tuple of (success, message)
+    """
+    if not config.openrouter.api_key:
+        return False, "OpenRouter API key not configured"
+
+    try:
+        models = await get_available_openrouter_models(config)
+        if not models:
+            return False, "No OpenRouter models available"
+
+        model_names = [m["id"] if isinstance(m, dict) else m for m in models[:5]]
+        return True, f"OpenRouter connected. Available models: {', '.join(model_names)}..."
+
+    except Exception as e:
+        return False, f"OpenRouter connection test failed: {e}"
