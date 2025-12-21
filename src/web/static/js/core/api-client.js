@@ -263,7 +263,7 @@ export const ApiClient = {
             api_key: options.apiKey || '__USE_ENV__'
         };
 
-        // Include endpoint for OpenAI (needed for LM Studio support)
+        // Include endpoint for OpenAI-compatible providers (llama.cpp, LM Studio, vLLM, etc.)
         if (provider === 'openai' && options.apiEndpoint) {
             body.api_endpoint = options.apiEndpoint;
         }

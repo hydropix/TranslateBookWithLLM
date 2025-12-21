@@ -45,12 +45,12 @@ The web interface opens at **http://localhost:5000**
 | Provider | Type | Setup |
 |----------|------|-------|
 | **Ollama** | Local | [ollama.com](https://ollama.com/) |
-| **LM Studio** | Local (OpenAI-compatible) | [lmstudio.ai](https://lmstudio.ai/) |
+| **OpenAI-Compatible** | Local | llama.cpp, LM Studio, vLLM, LocalAI... |
 | **OpenRouter** | Cloud (200+ models) | [openrouter.ai/keys](https://openrouter.ai/keys) |
 | **OpenAI** | Cloud | [platform.openai.com](https://platform.openai.com/api-keys) |
 | **Gemini** | Cloud | [Google AI Studio](https://makersuite.google.com/app/apikey) |
 
-> **LM Studio / Local OpenAI-compatible servers:** Use `--provider openai` with `--api_endpoint http://localhost:1234/v1/chat/completions`
+> **OpenAI-Compatible servers:** Use `--provider openai` with your server's endpoint (e.g., llama.cpp: `http://localhost:8080/v1/chat/completions`, LM Studio: `http://localhost:1234/v1/chat/completions`)
 
 See [docs/PROVIDERS.md](docs/PROVIDERS.md) for detailed setup instructions.
 
@@ -88,9 +88,9 @@ python translate.py -i book.txt -o book_fr.txt --provider openai \
 python translate.py -i book.txt -o book_fr.txt --provider gemini \
     --gemini_api_key YOUR_KEY -m gemini-2.0-flash
 
-# With LM Studio (or any OpenAI-compatible local server)
+# With local OpenAI-compatible server (llama.cpp, LM Studio, vLLM, etc.)
 python translate.py -i book.txt -o book_fr.txt --provider openai \
-    --api_endpoint http://localhost:1234/v1/chat/completions -m your-model
+    --api_endpoint http://localhost:8080/v1/chat/completions -m your-model
 ```
 
 ### Main Options

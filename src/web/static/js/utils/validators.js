@@ -77,7 +77,7 @@ export const Validators = {
      * Validate provider API key
      * @param {string} provider - Provider name
      * @param {string} apiKey - API key
-     * @param {string} [endpoint] - API endpoint (for OpenAI/LM Studio detection)
+     * @param {string} [endpoint] - API endpoint (for local server detection)
      * @returns {boolean} True if valid
      */
     validateProviderApiKey(provider, apiKey, endpoint = '') {
@@ -88,10 +88,10 @@ export const Validators = {
         }
 
         if (provider === 'openai') {
-            // Local endpoints (LM Studio) don't require an API key
+            // Local endpoints (llama.cpp, LM Studio, vLLM, etc.) don't require an API key
             const isLocalEndpoint = endpoint.includes('localhost') || endpoint.includes('127.0.0.1');
             if (!isLocalEndpoint && (!apiKey || apiKey.trim() === '')) {
-                return this.showError('OpenAI API key is required when using OpenAI provider.');
+                return this.showError('API key is required when using OpenAI cloud API.');
             }
         }
 

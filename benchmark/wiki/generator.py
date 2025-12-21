@@ -270,7 +270,7 @@ class WikiGenerator:
             lang_info = self._get_language_info(stats.language_code)
             indicator = get_score_indicator(stats.avg_overall)
             rows.append([
-                f"[{lang_info['name']}](languages/{self._slugify(lang_info['name'])}.md)",
+                f"[{lang_info['name']}](languages/{self._slugify(lang_info['name'])})",
                 lang_info['native_name'],
                 lang_info['category'],
                 f"{indicator} {stats.avg_overall:.1f}",
@@ -278,7 +278,7 @@ class WikiGenerator:
             ])
 
         table = format_markdown_table(headers, rows)
-        content = f"# All Languages\n\n{table}\n\n---\n\n[< Back to Home](Home.md)\n"
+        content = f"# All Languages\n\n{table}\n\n---\n\n[< Back to Home](Home)\n"
 
         (self.output_dir / "All-Languages.md").write_text(content, encoding="utf-8")
 
@@ -292,7 +292,7 @@ class WikiGenerator:
         for stats in sorted(model_stats, key=lambda x: x.avg_overall, reverse=True):
             indicator = get_score_indicator(stats.avg_overall)
             rows.append([
-                f"[{stats.model}](models/{self._slugify(stats.model)}.md)",
+                f"[{stats.model}](models/{self._slugify(stats.model)})",
                 f"{indicator} {stats.avg_overall:.1f}",
                 f"{stats.avg_accuracy:.1f}",
                 f"{stats.avg_fluency:.1f}",
@@ -301,7 +301,7 @@ class WikiGenerator:
             ])
 
         table = format_markdown_table(headers, rows)
-        content = f"# All Models\n\n{table}\n\n---\n\n[< Back to Home](Home.md)\n"
+        content = f"# All Models\n\n{table}\n\n---\n\n[< Back to Home](Home)\n"
 
         (self.output_dir / "All-Models.md").write_text(content, encoding="utf-8")
 

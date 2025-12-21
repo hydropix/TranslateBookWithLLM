@@ -117,10 +117,10 @@ python translate.py -i book.txt -o book_fr.txt \
     --gemini_api_key xxx \
     -m gemini-2.0-flash
 
-# LM Studio (local OpenAI-compatible)
+# OpenAI-compatible server (llama.cpp, LM Studio, vLLM, etc.)
 python translate.py -i book.txt -o book_fr.txt \
     --provider openai \
-    --api_endpoint http://localhost:1234/v1/chat/completions \
+    --api_endpoint http://localhost:8080/v1/chat/completions \
     -m your-model
 ```
 

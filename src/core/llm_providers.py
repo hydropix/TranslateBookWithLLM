@@ -280,7 +280,7 @@ class OllamaProvider(LLMProvider):
 
 
 class OpenAICompatibleProvider(LLMProvider):
-    """OpenAI compatible API provider"""
+    """OpenAI-compatible API provider (works with llama.cpp, LM Studio, vLLM, OpenAI, etc.)"""
 
     def __init__(self, api_endpoint: str, model: str, api_key: Optional[str] = None):
         super().__init__(model)
@@ -314,7 +314,7 @@ class OpenAICompatibleProvider(LLMProvider):
             "model": self.model,
             "messages": messages,
             "stream": False,
-            # Disable thinking/reasoning mode for LM Studio and compatible servers
+            # Disable thinking/reasoning mode for local servers and compatible APIs
             # This prevents models from outputting <think>...</think> blocks
             "thinking": False,
             "enable_thinking": False,
@@ -340,7 +340,7 @@ class OpenAICompatibleProvider(LLMProvider):
                 return response_text
 
             except httpx.TimeoutException as e:
-                    print(f"OpenAI API Timeout (attempt {attempt + 1}/{MAX_TRANSLATION_ATTEMPTS}): {e}")
+                    print(f"OpenAI-compatible API Timeout (attempt {attempt + 1}/{MAX_TRANSLATION_ATTEMPTS}): {e}")
                     if attempt < MAX_TRANSLATION_ATTEMPTS - 1:
                         await asyncio.sleep(RETRY_DELAY_SECONDS)
                         continue
@@ -352,28 +352,28 @@ class OpenAICompatibleProvider(LLMProvider):
                         error_body = e.response.text[:500]
                         error_message = f"{e} - {error_body}"
 
-                    print(f"OpenAI API HTTP Error (attempt {attempt + 1}/{MAX_TRANSLATION_ATTEMPTS}): {e}")
+                    print(f"OpenAI-compatible API HTTP Error (attempt {attempt + 1}/{MAX_TRANSLATION_ATTEMPTS}): {e}")
                     if error_body:
                         print(f"Response details: Status {e.response.status_code}, Body: {error_body}...")
 
-                    # Detect context overflow errors (OpenAI uses "context_length_exceeded" or similar)
+                    # Detect context overflow errors (OpenAI-compatible APIs use "context_length_exceeded" or similar)
                     context_overflow_keywords = ["context_length", "maximum context", "token limit",
                                                   "too many tokens", "reduce the length", "max_tokens"]
                     if any(keyword in error_message.lower() for keyword in context_overflow_keywords):
-                        raise ContextOverflowError(f"OpenAI context overflow: {error_message}")
+                        raise ContextOverflowError(f"Context overflow: {error_message}")
 
                     if attempt < MAX_TRANSLATION_ATTEMPTS - 1:
                         await asyncio.sleep(RETRY_DELAY_SECONDS)
                         continue
                     return None
             except json.JSONDecodeError as e:
-                    print(f"OpenAI API JSON Decode Error (attempt {attempt + 1}/{MAX_TRANSLATION_ATTEMPTS}): {e}")
+                    print(f"OpenAI-compatible API JSON Decode Error (attempt {attempt + 1}/{MAX_TRANSLATION_ATTEMPTS}): {e}")
                     if attempt < MAX_TRANSLATION_ATTEMPTS - 1:
                         await asyncio.sleep(RETRY_DELAY_SECONDS)
                         continue
                     return None
             except Exception as e:
-                    print(f"OpenAI API Unknown Error (attempt {attempt + 1}/{MAX_TRANSLATION_ATTEMPTS}): {e}")
+                    print(f"OpenAI-compatible API Unknown Error (attempt {attempt + 1}/{MAX_TRANSLATION_ATTEMPTS}): {e}")
                     if attempt < MAX_TRANSLATION_ATTEMPTS - 1:
                         await asyncio.sleep(RETRY_DELAY_SECONDS)
                         continue

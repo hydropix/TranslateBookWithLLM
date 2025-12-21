@@ -259,13 +259,13 @@ export const BatchController = {
 
         if (provider === 'openai') {
             const apiKeyValue = getApiKeyValue('openaiApiKey');
-            // Check if it's a local endpoint (LM Studio) - no API key required
+            // Check if it's a local endpoint (llama.cpp, LM Studio, vLLM, etc.) - no API key required
             const openaiEndpoint = DomHelpers.getValue('openaiEndpoint') || '';
             const isLocalEndpoint = openaiEndpoint.includes('localhost') || openaiEndpoint.includes('127.0.0.1');
 
             if (!apiKeyValue && !isLocalEndpoint) {
-                MessageLogger.addLog('❌ Error: OpenAI API key is required when using OpenAI provider');
-                MessageLogger.showMessage('Please enter your OpenAI API key', 'error');
+                MessageLogger.addLog('❌ Error: API key is required when using OpenAI cloud API');
+                MessageLogger.showMessage('Please enter your API key for OpenAI cloud', 'error');
                 updateFileStatusInList(fileToTranslate.name, 'Error: Missing API key');
                 StateManager.setState('translation.currentJob', null);
                 this.processNextFileInQueue();

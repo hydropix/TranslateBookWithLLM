@@ -505,11 +505,11 @@ export const FormManager = {
         }
 
         // OpenAI API key is only required for official OpenAI endpoint
-        // Local servers like LM Studio don't need an API key
+        // Local servers (llama.cpp, LM Studio, vLLM, etc.) don't need an API key
         if (config.llm_provider === 'openai' && !this._isApiKeyAvailable('openaiApiKey')) {
             const isOfficialEndpoint = config.llm_api_endpoint && config.llm_api_endpoint.includes('api.openai.com');
             if (isOfficialEndpoint) {
-                return { valid: false, message: 'OpenAI API key is required when using OpenAI provider.' };
+                return { valid: false, message: 'API key is required when using OpenAI cloud API.' };
             }
         }
 

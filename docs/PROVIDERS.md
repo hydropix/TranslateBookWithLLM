@@ -33,23 +33,41 @@ python translate.py -i book.txt -o book_fr.txt -m qwen3:14b
 
 ---
 
-## LM Studio (Local)
+## OpenAI-Compatible Servers (Local)
 
-Desktop application with GUI for running local models. Uses OpenAI-compatible API.
+TBL supports any server that implements the OpenAI API format. This includes:
+
+- **llama.cpp** (`llama-server`) - Lightweight, direct model serving
+- **LM Studio** - Desktop app with GUI
+- **vLLM** - High-performance serving
+- **LocalAI** - Drop-in OpenAI replacement
+- **Text Generation Inference** - HuggingFace's serving solution
 
 ### Setup
 
-1. Download from [lmstudio.ai](https://lmstudio.ai/)
-2. Download and load a model
-3. Start the local server (default port: 1234)
-4. In TBL:
-   - Select "OpenAI" provider
-   - Set endpoint: `http://localhost:1234/v1/chat/completions`
-   - Leave API key empty
+1. Start your OpenAI-compatible server
+2. In TBL:
+   - Select "OpenAI-Compatible" provider
+   - Set endpoint to your server URL (see table below)
+   - Leave API key empty (local servers don't require it)
 
-### CLI Example
+| Server | Default Endpoint |
+|--------|------------------|
+| llama.cpp (`llama-server`) | `http://localhost:8080/v1/chat/completions` |
+| LM Studio | `http://localhost:1234/v1/chat/completions` |
+| vLLM | `http://localhost:8000/v1/chat/completions` |
+| LocalAI | `http://localhost:8080/v1/chat/completions` |
+
+### CLI Examples
 
 ```bash
+# llama.cpp (llama-server)
+python translate.py -i book.txt -o book_fr.txt \
+    --provider openai \
+    --api_endpoint http://localhost:8080/v1/chat/completions \
+    -m your-model-name
+
+# LM Studio
 python translate.py -i book.txt -o book_fr.txt \
     --provider openai \
     --api_endpoint http://localhost:1234/v1/chat/completions \
@@ -81,9 +99,9 @@ Browse models and pricing: [openrouter.ai/models](https://openrouter.ai/models)
 
 ---
 
-## OpenAI (Cloud)
+## OpenAI Cloud
 
-Official OpenAI API (GPT models).
+Official OpenAI API (GPT models). Uses the same "OpenAI-Compatible" provider in TBL.
 
 ### Models
 
@@ -95,7 +113,10 @@ Official OpenAI API (GPT models).
 ### Setup
 
 1. Get API key at [platform.openai.com](https://platform.openai.com/api-keys)
-2. In TBL: Select "OpenAI", enter your key
+2. In TBL:
+   - Select "OpenAI-Compatible" provider
+   - Keep endpoint as `https://api.openai.com/v1/chat/completions`
+   - Enter your API key
 
 ### CLI Example
 

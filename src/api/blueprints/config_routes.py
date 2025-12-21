@@ -211,9 +211,9 @@ def create_config_blueprint():
             })
 
     def _get_openai_models(provided_api_key=None, api_endpoint=None):
-        """Get available models from OpenAI API or LM Studio
+        """Get available models from OpenAI-compatible API
 
-        For LM Studio and other OpenAI-compatible servers, fetches models dynamically.
+        For local servers (llama.cpp, LM Studio, vLLM, etc.), fetches models dynamically.
         For official OpenAI API, returns a static list of common models.
         """
         api_key = _resolve_api_key(provided_api_key, 'OPENAI_API_KEY', OPENAI_API_KEY)
@@ -225,7 +225,7 @@ def create_config_blueprint():
         else:
             base_url = 'https://api.openai.com/v1'
 
-        # Check if this is a local server (LM Studio, etc.)
+        # Check if this is a local server (llama.cpp, LM Studio, vLLM, etc.)
         is_local = 'localhost' in base_url or '127.0.0.1' in base_url
 
         # Static list of OpenAI models (fallback for official API)
@@ -244,7 +244,7 @@ def create_config_blueprint():
                 headers['Authorization'] = f'Bearer {api_key}'
 
             if DEBUG_MODE:
-                logger.debug(f"📥 Fetching OpenAI/LM Studio models from: {models_url}")
+                logger.debug(f"📥 Fetching models from OpenAI-compatible server: {models_url}")
 
             response = requests.get(models_url, headers=headers, timeout=10)
 
@@ -285,7 +285,7 @@ def create_config_blueprint():
             # If we get here, either request failed or no models returned
             # For local servers, return error; for OpenAI, return static list
             if is_local:
-                error_msg = f"Could not connect to LM Studio at {base_url}. Make sure the server is running."
+                error_msg = f"Could not connect to local server at {base_url}. Make sure your OpenAI-compatible server (llama.cpp, LM Studio, vLLM, etc.) is running."
                 return jsonify({
                     "models": [],
                     "model_names": [],
@@ -309,12 +309,12 @@ def create_config_blueprint():
 
         except requests.exceptions.ConnectionError:
             if is_local:
-                error_msg = f"Connection refused to {base_url}. Is LM Studio server running?"
+                error_msg = f"Connection refused to {base_url}. Is your OpenAI-compatible server running?"
             else:
                 error_msg = f"Connection error to OpenAI API"
 
             if DEBUG_MODE:
-                logger.debug(f"❌ OpenAI/LM Studio connection error: {error_msg}")
+                logger.debug(f"❌ OpenAI-compatible server connection error: {error_msg}")
 
             # For official OpenAI, return static list even on error
             if not is_local:
@@ -340,7 +340,7 @@ def create_config_blueprint():
 
         except Exception as e:
             if DEBUG_MODE:
-                logger.debug(f"❌ OpenAI/LM Studio error: {e}")
+                logger.debug(f"❌ OpenAI-compatible server error: {e}")
 
             # For official OpenAI, return static list even on error
             if not is_local:

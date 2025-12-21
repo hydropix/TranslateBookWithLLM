@@ -26,7 +26,7 @@
                         <select class="form-control" id="llmProvider">
                             <option value="ollama">Ollama</option>
                             <option value="gemini">Gemini</option>
-                            <option value="openai">OpenAI / LM Studio</option>
+                            <option value="openai">OpenAI-Compatible (llama.cpp, LM Studio, vLLM...)</option>
                             <option value="openrouter">OpenRouter</option>
                         </select>
                     </div>
@@ -69,7 +69,7 @@
                     <div class="form-group" style="margin-bottom: 0;">
                         <label>API Endpoint</label>
                         <input type="text" class="form-control" id="openaiEndpoint" value="https://api.openai.com/v1/chat/completions" placeholder="https://api.openai.com/v1/chat/completions">
-                        <small style="color: #6b7280;">For LM Studio, use: http://localhost:1234/v1/chat/completions</small>
+                        <small style="color: #6b7280;">Local servers: llama.cpp (8080), LM Studio (1234), vLLM, etc. Example: http://localhost:8080/v1/chat/completions</small>
                     </div>
                 </div>
 

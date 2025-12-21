@@ -158,7 +158,7 @@ export const ProviderManager = {
             });
         }
 
-        // Add listener for OpenAI endpoint changes (for LM Studio support)
+        // Add listener for OpenAI endpoint changes (for local server support)
         const openaiEndpoint = DomHelpers.getElement('openaiEndpoint');
         if (openaiEndpoint) {
             // Use debounce to avoid too many requests while typing
@@ -413,21 +413,21 @@ export const ProviderManager = {
     },
 
     /**
-     * Load OpenAI/LM Studio models dynamically
-     * For LM Studio: fetches models from the local server
+     * Load OpenAI-compatible models dynamically
+     * For local servers (llama.cpp, LM Studio, vLLM, etc.): fetches models from the local server
      * For OpenAI: uses static list (dynamic fetch requires valid API key)
      */
     async loadOpenAIModels() {
         const modelSelect = DomHelpers.getElement('model');
         if (!modelSelect) return;
 
-        // Get API endpoint to determine if it's LM Studio or OpenAI
+        // Get API endpoint to determine if it's a local server or OpenAI cloud
         const apiEndpoint = DomHelpers.getValue('openaiEndpoint') || 'https://api.openai.com/v1/chat/completions';
         const isLocal = apiEndpoint.includes('localhost') || apiEndpoint.includes('127.0.0.1');
 
         if (isLocal) {
-            // LM Studio: try to fetch models dynamically
-            modelSelect.innerHTML = '<option value="">Loading models from LM Studio...</option>';
+            // Local server (llama.cpp, LM Studio, vLLM, etc.): try to fetch models dynamically
+            modelSelect.innerHTML = '<option value="">Loading models from local server...</option>';
 
             try {
                 const apiKey = FormManager._getApiKeyValue('openaiApiKey');
@@ -443,7 +443,7 @@ export const ProviderManager = {
                     }));
 
                     const envModelApplied = populateModelSelect(formattedModels, data.default, 'openai');
-                    MessageLogger.addLog(`✅ ${data.count} model(s) loaded from LM Studio`);
+                    MessageLogger.addLog(`✅ ${data.count} model(s) loaded from local server`);
 
                     if (envModelApplied && data.default) {
                         SettingsManager.markEnvModelApplied();
@@ -455,14 +455,14 @@ export const ProviderManager = {
                     StateManager.setState('models.availableModels', formattedModels.map(m => m.value));
                     return;
                 } else {
-                    // LM Studio not running or no models
-                    const errorMsg = data.error || 'LM Studio server not accessible';
+                    // Local server not running or no models
+                    const errorMsg = data.error || 'Local server not accessible';
                     MessageLogger.showMessage(`⚠️ ${errorMsg}`, 'warning');
                     MessageLogger.addLog(`⚠️ ${errorMsg}. Using fallback OpenAI models.`);
                 }
             } catch (error) {
-                MessageLogger.showMessage(`⚠️ Could not connect to LM Studio. Using fallback models.`, 'warning');
-                MessageLogger.addLog(`⚠️ LM Studio connection error: ${error.message}`);
+                MessageLogger.showMessage(`⚠️ Could not connect to local server. Using fallback models.`, 'warning');
+                MessageLogger.addLog(`⚠️ Local server connection error: ${error.message}`);
             }
         }
 
