@@ -167,7 +167,10 @@ class OllamaProvider(LLMProvider):
             "options": {
                 "num_ctx": self.context_window,
                 "truncate": False
-            }
+            },
+            # Disable thinking/reasoning mode for models like Qwen3
+            # This prevents the model from generating <think>...</think> blocks
+            "think": False
         }
 
         # Add system prompt if provided (Ollama supports 'system' field)
@@ -180,6 +183,16 @@ class OllamaProvider(LLMProvider):
                 response = await client.post(self.api_endpoint, json=payload, timeout=timeout)
                 response.raise_for_status()
                 response_json = response.json()
+
+                # Log token usage from Ollama response
+                if self.log_callback:
+                    prompt_tokens = response_json.get("prompt_eval_count", 0)
+                    response_tokens = response_json.get("eval_count", 0)
+                    total_tokens = prompt_tokens + response_tokens
+                    self.log_callback("token_usage",
+                        f"Tokens: prompt={prompt_tokens}, response={response_tokens}, "
+                        f"total={total_tokens} (num_ctx={self.context_window})")
+
                 return response_json.get("response", "")
 
             except httpx.TimeoutException:
@@ -645,6 +658,10 @@ class OpenRouterProvider(LLMProvider):
             "model": self.model,
             "messages": messages,
             "stream": False,
+            # Disable thinking/reasoning mode for models like DeepSeek, Qwen via OpenRouter
+            # OpenRouter passes these parameters to the underlying model
+            "thinking": False,
+            "enable_thinking": False,
         }
 
         client = await self._get_client()

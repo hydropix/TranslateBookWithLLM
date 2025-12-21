@@ -2,7 +2,12 @@
 Text processing module for chunking and context management
 """
 import re
+from typing import List, Dict, Optional, TYPE_CHECKING
+
 from src.config import SENTENCE_TERMINATORS
+
+if TYPE_CHECKING:
+    from src.config import TranslationConfig
 
 
 def get_adjusted_start_index(all_lines, intended_start_idx, max_look_back_lines=20):
@@ -170,5 +175,61 @@ def split_text_into_chunks_with_context(text, main_lines_per_chunk_target):
         current_position = final_main_end_index
         if current_position <= initial_main_start_index:
             current_position = initial_main_start_index + 1
-    
+
     return structured_chunks
+
+
+def split_text_into_chunks(
+    text: str,
+    config: Optional['TranslationConfig'] = None,
+    use_token_chunking: Optional[bool] = None,
+    max_tokens_per_chunk: Optional[int] = None,
+    soft_limit_ratio: Optional[float] = None,
+    chunk_size: Optional[int] = None
+) -> List[Dict[str, str]]:
+    """
+    Split text into chunks with context preservation.
+
+    Wrapper function that chooses between token-based and line-based chunking.
+
+    Args:
+        text: Input text to split
+        config: TranslationConfig object (optional, for default values)
+        use_token_chunking: Override for token chunking setting
+        max_tokens_per_chunk: Override for max tokens per chunk
+        soft_limit_ratio: Override for soft limit ratio
+        chunk_size: Override for line-based chunk size
+
+    Returns:
+        List of chunk dictionaries with context_before, main_content, context_after
+    """
+    from src.config import (
+        USE_TOKEN_CHUNKING,
+        MAX_TOKENS_PER_CHUNK,
+        SOFT_LIMIT_RATIO,
+        MAIN_LINES_PER_CHUNK
+    )
+
+    # Determine settings from config or defaults
+    if config is not None:
+        _use_token = use_token_chunking if use_token_chunking is not None else config.use_token_chunking
+        _max_tokens = max_tokens_per_chunk if max_tokens_per_chunk is not None else config.max_tokens_per_chunk
+        _soft_limit = soft_limit_ratio if soft_limit_ratio is not None else config.soft_limit_ratio
+        _chunk_size = chunk_size if chunk_size is not None else config.chunk_size
+    else:
+        _use_token = use_token_chunking if use_token_chunking is not None else USE_TOKEN_CHUNKING
+        _max_tokens = max_tokens_per_chunk if max_tokens_per_chunk is not None else MAX_TOKENS_PER_CHUNK
+        _soft_limit = soft_limit_ratio if soft_limit_ratio is not None else SOFT_LIMIT_RATIO
+        _chunk_size = chunk_size if chunk_size is not None else MAIN_LINES_PER_CHUNK
+
+    if _use_token:
+        # Token-based chunking (new)
+        from src.core.chunking.token_chunker import TokenChunker
+        chunker = TokenChunker(
+            max_tokens=_max_tokens,
+            soft_limit_ratio=_soft_limit
+        )
+        return chunker.chunk_text(text)
+    else:
+        # Legacy line-based chunking
+        return split_text_into_chunks_with_context(text, _chunk_size)

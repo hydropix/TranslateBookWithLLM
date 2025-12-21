@@ -9,7 +9,7 @@ from lxml import etree
 
 from .xml_helpers import safe_get_tag, safe_iter_children, serialize_inline_tags
 from .tag_preservation import TagPreserver
-from ..text_processor import split_text_into_chunks_with_context
+from ..text_processor import split_text_into_chunks
 
 
 def collect_translation_jobs(
@@ -155,8 +155,8 @@ def _add_text_job(
     leading_space = original_text[:len(original_text) - len(original_text.lstrip())]
     trailing_space = original_text[len(original_text.rstrip()):]
 
-    # Split into chunks
-    sub_chunks = split_text_into_chunks_with_context(text_to_translate, chunk_size)
+    # Split into chunks (uses token-based or line-based based on config)
+    sub_chunks = split_text_into_chunks(text_to_translate)
     if not sub_chunks and text_to_translate:
         sub_chunks = [{"context_before": "", "main_content": text_to_translate, "context_after": ""}]
 
@@ -199,8 +199,8 @@ def _add_block_content_job(
     # Replace tags with placeholders
     text_with_placeholders, tag_map = tag_preserver.preserve_tags(text_content)
 
-    # Split into chunks
-    sub_chunks = split_text_into_chunks_with_context(text_with_placeholders, chunk_size)
+    # Split into chunks (uses token-based or line-based based on config)
+    sub_chunks = split_text_into_chunks(text_with_placeholders)
     if not sub_chunks and text_with_placeholders:
         sub_chunks = [{"context_before": "", "main_content": text_with_placeholders, "context_after": ""}]
 

@@ -7,12 +7,19 @@ replacing them with simple placeholders that LLMs won't modify.
 import re
 from typing import Dict, List, Tuple
 
+from src.config import (
+    PLACEHOLDER_PREFIX,
+    PLACEHOLDER_SUFFIX,
+    create_placeholder,
+    get_mutation_variants,
+)
+
 
 class TagPreserver:
     """
     Preserves HTML/XML tags during translation by replacing them with simple placeholders
 
-    The TagPreserver converts tags like <em>text</em> into ⟦TAG0⟧text⟦TAG1⟧ before
+    The TagPreserver converts tags like <em>text</em> into [TAG0]text[TAG1] before
     translation, then restores them afterward. This prevents LLMs from modifying
     or hallucinating HTML/XML structure.
     """
@@ -20,8 +27,8 @@ class TagPreserver:
     def __init__(self):
         self.tag_map: Dict[str, str] = {}
         self.counter: int = 0
-        self.placeholder_prefix: str = "⟦TAG"
-        self.placeholder_suffix: str = "⟧"
+        self.placeholder_prefix: str = PLACEHOLDER_PREFIX
+        self.placeholder_suffix: str = PLACEHOLDER_SUFFIX
 
     def preserve_tags(self, text: str) -> Tuple[str, Dict[str, str]]:
         """
@@ -117,17 +124,10 @@ class TagPreserver:
 
                 # Check for common mutations
                 # Extract tag number
-                tag_num = placeholder[len(self.placeholder_prefix):-len(self.placeholder_suffix)]
+                tag_num_str = placeholder[len(self.placeholder_prefix):-len(self.placeholder_suffix)]
 
-                # Check various mutation patterns
-                mutations = [
-                    f"[[TAG{tag_num}]]",  # Double brackets
-                    f"[TAG{tag_num}]",    # Single brackets
-                    f"{{TAG{tag_num}}}",  # Curly braces
-                    f"<TAG{tag_num}>",    # Angle brackets
-                    f"TAG{tag_num}",      # No brackets (check last to avoid false positives)
-                    f"⟦TAG{tag_num}⟧",    # Unicode brackets (in case of encoding issues)
-                ]
+                # Check various mutation patterns using centralized function
+                mutations = get_mutation_variants(tag_num_str)
 
                 for mutation in mutations:
                     if mutation in text:

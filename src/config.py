@@ -88,10 +88,16 @@ RETRY_DELAY_SECONDS = int(os.getenv('RETRY_DELAY_SECONDS', '2'))
 
 # Context optimization settings
 MIN_RECOMMENDED_NUM_CTX = 4096  # Minimum recommended context for chunk_size=25
-SAFETY_MARGIN = 1.2  # 20% safety margin for token estimation
+SAFETY_MARGIN = 1.1  # 10% safety margin for token estimation
 AUTO_ADJUST_CONTEXT = os.getenv("AUTO_ADJUST_CONTEXT", "true").lower() == "true"
 MIN_CHUNK_SIZE = int(os.getenv("MIN_CHUNK_SIZE", "5"))
 MAX_CHUNK_SIZE = int(os.getenv("MAX_CHUNK_SIZE", "100"))
+
+# Token-based chunking configuration
+# When enabled, uses tiktoken to count tokens instead of lines for more consistent chunk sizes
+USE_TOKEN_CHUNKING = os.getenv('USE_TOKEN_CHUNKING', 'true').lower() == 'true'
+MAX_TOKENS_PER_CHUNK = int(os.getenv('MAX_TOKENS_PER_CHUNK', '800'))
+SOFT_LIMIT_RATIO = float(os.getenv('SOFT_LIMIT_RATIO', '0.8'))
 
 # LLM Provider configuration
 LLM_PROVIDER = os.getenv('LLM_PROVIDER', 'ollama')  # 'ollama', 'gemini', 'openai', or 'openrouter'
@@ -176,6 +182,83 @@ TRANSLATE_TAG_OUT = "</TRANSLATION>"
 INPUT_TAG_IN = "<SOURCE_TEXT>"
 INPUT_TAG_OUT = "</SOURCE_TEXT>"
 
+# ============================================================================
+# TAG PLACEHOLDER CONFIGURATION
+# ============================================================================
+# These placeholders are used to temporarily replace HTML/XML tags during
+# translation. The LLM must preserve them exactly in its output.
+
+PLACEHOLDER_TAG_KEYWORD = "TAG"
+"""The keyword used in placeholders (e.g., TAG in [TAG0])"""
+
+PLACEHOLDER_PREFIX = f"[{PLACEHOLDER_TAG_KEYWORD}"
+"""Prefix for tag placeholders (e.g., [TAG in [TAG0])"""
+
+PLACEHOLDER_SUFFIX = "]"
+"""Suffix for tag placeholders (e.g., ] in [TAG0])"""
+
+PLACEHOLDER_PATTERN = rf'\[{PLACEHOLDER_TAG_KEYWORD}\d+\]'
+"""Regex pattern for detecting tag placeholders in translated text (e.g., [TAG0])"""
+
+# Mutation patterns - alternative formats LLMs might produce
+PLACEHOLDER_DOUBLE_BRACKET_PATTERN = rf'\[\[{PLACEHOLDER_TAG_KEYWORD}\d+\]\]'
+"""Pattern for double bracket mutation (e.g., [[TAG0]])"""
+
+PLACEHOLDER_SINGLE_BRACKET_PATTERN = rf'\[{PLACEHOLDER_TAG_KEYWORD}\d+\]'
+"""Pattern for single bracket mutation (e.g., [TAG0])"""
+
+PLACEHOLDER_CURLY_BRACE_PATTERN = rf'\{{{PLACEHOLDER_TAG_KEYWORD}\d+\}}'
+"""Pattern for curly brace mutation (e.g., {TAG0})"""
+
+PLACEHOLDER_ANGLE_BRACKET_PATTERN = rf'<{PLACEHOLDER_TAG_KEYWORD}\d+>'
+"""Pattern for angle bracket mutation (e.g., <TAG0>)"""
+
+PLACEHOLDER_BARE_PATTERN = rf'{PLACEHOLDER_TAG_KEYWORD}\d+'
+"""Pattern for bare TAG without brackets (e.g., TAG0)"""
+
+# Orphaned bracket patterns for cleanup
+ORPHANED_DOUBLE_BRACKETS_PATTERN = r'\[\[|\]\]'
+"""Pattern for orphaned double brackets"""
+
+ORPHANED_UNICODE_BRACKETS_PATTERN = r'⟦|⟧'
+"""Pattern for orphaned Unicode brackets (legacy format)"""
+
+ORPHANED_SINGLE_BRACKETS_PATTERN = r'(?<!\[)\[(?!\[)|(?<!\])\](?!\])'
+"""Pattern for orphaned single brackets (current format)"""
+
+
+def create_placeholder(tag_num: int) -> str:
+    """Create a placeholder string for a given tag number."""
+    return f"{PLACEHOLDER_PREFIX}{tag_num}{PLACEHOLDER_SUFFIX}"
+
+
+def create_example_placeholder() -> str:
+    """Create an example placeholder for documentation/prompts."""
+    return create_placeholder(0)
+
+
+def get_mutation_variants(tag_num) -> list:
+    """
+    Get all possible mutation variants for a given tag number.
+
+    These are alternative formats that LLMs might produce instead of
+    the correct placeholder format.
+
+    Args:
+        tag_num: The tag number (e.g., 0 for TAG0) - can be int or str
+
+    Returns:
+        List of possible mutation strings
+    """
+    return [
+        f"[[{PLACEHOLDER_TAG_KEYWORD}{tag_num}]]",   # Double brackets
+        f"{{{PLACEHOLDER_TAG_KEYWORD}{tag_num}}}",   # Curly braces
+        f"<{PLACEHOLDER_TAG_KEYWORD}{tag_num}>",     # Angle brackets
+        f"⟦{PLACEHOLDER_TAG_KEYWORD}{tag_num}⟧",     # Unicode brackets (legacy)
+        f"{PLACEHOLDER_TAG_KEYWORD}{tag_num}",       # No brackets (check last)
+    ]
+
+
 # Sentence terminators
 SENTENCE_TERMINATORS = tuple(list(".!?") + ['."', '?"', '!"', '."', ".'", "?'", "!'", ":", ".)"])
 
@@ -252,6 +335,11 @@ class TranslationConfig:
     min_chunk_size: int = MIN_CHUNK_SIZE
     max_chunk_size: int = MAX_CHUNK_SIZE
 
+    # Token-based chunking
+    use_token_chunking: bool = USE_TOKEN_CHUNKING
+    max_tokens_per_chunk: int = MAX_TOKENS_PER_CHUNK
+    soft_limit_ratio: float = SOFT_LIMIT_RATIO
+
     # Interface-specific
     interface_type: str = "cli"  # or "web"
     enable_colors: bool = True
@@ -271,9 +359,12 @@ class TranslationConfig:
             llm_provider=getattr(args, 'provider', LLM_PROVIDER),
             gemini_api_key=getattr(args, 'gemini_api_key', GEMINI_API_KEY),
             openai_api_key=getattr(args, 'openai_api_key', OPENAI_API_KEY),
-            openrouter_api_key=getattr(args, 'openrouter_api_key', OPENROUTER_API_KEY)
+            openrouter_api_key=getattr(args, 'openrouter_api_key', OPENROUTER_API_KEY),
+            use_token_chunking=getattr(args, 'use_token_chunking', USE_TOKEN_CHUNKING),
+            max_tokens_per_chunk=getattr(args, 'max_tokens_per_chunk', MAX_TOKENS_PER_CHUNK),
+            soft_limit_ratio=getattr(args, 'soft_limit_ratio', SOFT_LIMIT_RATIO)
         )
-    
+
     @classmethod
     def from_web_request(cls, request_data: dict) -> 'TranslationConfig':
         """Create config from web request data"""
@@ -295,9 +386,12 @@ class TranslationConfig:
             llm_provider=request_data.get('llm_provider', LLM_PROVIDER),
             gemini_api_key=request_data.get('gemini_api_key', GEMINI_API_KEY),
             openai_api_key=request_data.get('openai_api_key', OPENAI_API_KEY),
-            openrouter_api_key=request_data.get('openrouter_api_key', OPENROUTER_API_KEY)
+            openrouter_api_key=request_data.get('openrouter_api_key', OPENROUTER_API_KEY),
+            use_token_chunking=request_data.get('use_token_chunking', USE_TOKEN_CHUNKING),
+            max_tokens_per_chunk=request_data.get('max_tokens_per_chunk', MAX_TOKENS_PER_CHUNK),
+            soft_limit_ratio=request_data.get('soft_limit_ratio', SOFT_LIMIT_RATIO)
         )
-    
+
     def to_dict(self) -> dict:
         """Convert to dictionary for serialization"""
         return {
@@ -313,5 +407,8 @@ class TranslationConfig:
             'llm_provider': self.llm_provider,
             'gemini_api_key': self.gemini_api_key,
             'openai_api_key': self.openai_api_key,
-            'openrouter_api_key': self.openrouter_api_key
+            'openrouter_api_key': self.openrouter_api_key,
+            'use_token_chunking': self.use_token_chunking,
+            'max_tokens_per_chunk': self.max_tokens_per_chunk,
+            'soft_limit_ratio': self.soft_limit_ratio
         }

@@ -9,7 +9,7 @@ import zipfile
 from pathlib import Path
 from typing import Optional, Callable, Tuple
 
-from src.core.text_processor import split_text_into_chunks_with_context
+from src.core.text_processor import split_text_into_chunks_with_context, split_text_into_chunks
 from src.core.translator import translate_chunks
 from src.core.subtitle_translator import translate_subtitles, translate_subtitles_in_blocks
 from src.core.epub import translate_epub_file
@@ -69,7 +69,9 @@ async def translate_text_file_with_callbacks(input_filepath, output_filepath,
                                              openrouter_api_key=None,
                                              context_window=2048, auto_adjust_context=True, min_chunk_size=5,
                                              fast_mode=False, checkpoint_manager=None, translation_id=None,
-                                             resume_from_index=0):
+                                             resume_from_index=0,
+                                             use_token_chunking=None, max_tokens_per_chunk=None,
+                                             soft_limit_ratio=None):
     """
     Translate a text file with callback support
 
@@ -79,13 +81,16 @@ async def translate_text_file_with_callbacks(input_filepath, output_filepath,
         source_language (str): Source language
         target_language (str): Target language
         model_name (str): LLM model name
-        chunk_target_lines_cli (int): Target lines per chunk
+        chunk_target_lines_cli (int): Target lines per chunk (legacy mode)
         cli_api_endpoint (str): API endpoint
         progress_callback (callable): Progress callback
         log_callback (callable): Logging callback
         stats_callback (callable): Statistics callback
         check_interruption_callback (callable): Interruption check callback
         fast_mode (bool): If True, uses simplified prompts without placeholder instructions
+        use_token_chunking (bool): If True, use token-based chunking instead of line-based
+        max_tokens_per_chunk (int): Maximum tokens per chunk (token mode)
+        soft_limit_ratio (float): Soft limit ratio for token chunking (default 0.8)
     """
     if not os.path.exists(input_filepath):
         err_msg = f"ERROR: Input file '{input_filepath}' not found."
@@ -106,10 +111,17 @@ async def translate_text_file_with_callbacks(input_filepath, output_filepath,
             print(err_msg)
         return
 
-    if log_callback: 
+    if log_callback:
         log_callback("txt_split_start", f"Splitting text from '{source_language}'...")
 
-    structured_chunks = split_text_into_chunks_with_context(original_text, chunk_target_lines_cli)
+    # Use the new unified chunking function (token-based or line-based)
+    structured_chunks = split_text_into_chunks(
+        original_text,
+        use_token_chunking=use_token_chunking,
+        max_tokens_per_chunk=max_tokens_per_chunk,
+        soft_limit_ratio=soft_limit_ratio,
+        chunk_size=chunk_target_lines_cli
+    )
     total_chunks = len(structured_chunks)
 
     if stats_callback and total_chunks > 0:
@@ -143,7 +155,14 @@ async def translate_text_file_with_callbacks(input_filepath, output_filepath,
     if log_callback:
         log_callback("txt_translation_info_lang", f"Translating from {source_language} to {target_language}.")
         log_callback("txt_translation_info_chunks1", f"{total_chunks} main segments in memory.")
-        log_callback("txt_translation_info_chunks2", f"Target size per segment: ~{chunk_target_lines_cli} lines.")
+        # Show appropriate info based on chunking mode
+        from src.config import USE_TOKEN_CHUNKING, MAX_TOKENS_PER_CHUNK
+        _use_tokens = use_token_chunking if use_token_chunking is not None else USE_TOKEN_CHUNKING
+        if _use_tokens:
+            _max_tokens = max_tokens_per_chunk if max_tokens_per_chunk is not None else MAX_TOKENS_PER_CHUNK
+            log_callback("txt_translation_info_chunks2", f"Target size per segment: ~{_max_tokens} tokens.")
+        else:
+            log_callback("txt_translation_info_chunks2", f"Target size per segment: ~{chunk_target_lines_cli} lines.")
 
     # Translate chunks
     translated_parts = await translate_chunks(

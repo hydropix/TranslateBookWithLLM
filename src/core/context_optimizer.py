@@ -10,6 +10,8 @@ import re
 from typing import Optional, Tuple, Dict
 from dataclasses import dataclass
 
+from src.config import MAX_TOKENS_PER_CHUNK
+
 # Try to import tiktoken, fallback to character-based estimation
 try:
     import tiktoken
@@ -43,17 +45,36 @@ CHAR_TO_TOKEN_RATIOS = {
     "arabic": 3.0,
 }
 
-# Safety margin for estimation (20% buffer)
-SAFETY_MARGIN = 1.2
+# Safety margin for estimation (10% buffer)
+SAFETY_MARGIN = 1.1
 
-# Model family maximum context sizes (tokens)
-MODEL_MAX_CONTEXT = {
-    "llama": 32768,   # Llama 2 and 3 support up to 32K
-    "mistral": 32768, # Mistral models support up to 32K
-    "gemma": 8192,    # Gemma models typically 8K
-    "phi": 4096,      # Phi models typically 4K
-    "qwen": 32768,    # Qwen models support up to 32K
-}
+# Standard context sizes (powers of 2) for optimal Ollama performance
+STANDARD_CONTEXT_SIZES = [2048, 4096, 8192, 16384, 32768, 65536, 131072]
+
+
+def round_to_standard_context_size(required: int) -> int:
+    """
+    Round up to the nearest standard context size (power of 2).
+    Ollama performs better with these standard sizes.
+
+    Args:
+        required: Minimum required context size
+
+    Returns:
+        Nearest standard context size >= required
+    """
+    for size in STANDARD_CONTEXT_SIZES:
+        if size >= required:
+            return size
+    # If larger than all standard sizes, return as-is
+    return required
+
+# Default context size - most translations fit within 2048 tokens
+DEFAULT_CONTEXT_SIZE = 2048
+
+# Maximum context size limit (can be adjusted via OLLAMA_NUM_CTX in .env)
+# Most modern models support at least 32K, so we use this as a safe upper bound
+MAX_CONTEXT_SIZE = 131072
 
 
 def estimate_tokens_with_margin(
@@ -70,7 +91,7 @@ def estimate_tokens_with_margin(
     Args:
         text: The text to estimate
         language: Language of the text (affects character ratio)
-        apply_margin: Whether to apply 20% safety margin
+        apply_margin: Whether to apply 10% safety margin
 
     Returns:
         ContextEstimation object with estimation details
@@ -153,45 +174,25 @@ def calculate_optimal_chunk_size(
     return optimal_size
 
 
-def get_max_model_context(model_name: str) -> int:
-    """
-    Get maximum context size for a model based on its family.
-
-    Args:
-        model_name: Name of the model (e.g., "qwen3:14b")
-
-    Returns:
-        Maximum context size in tokens
-    """
-    model_lower = model_name.lower()
-
-    for family, max_ctx in MODEL_MAX_CONTEXT.items():
-        if family in model_lower:
-            return max_ctx
-
-    # Conservative default if family not recognized
-    return 8192
-
-
 def adjust_parameters_for_context(
     estimated_tokens: int,
     current_num_ctx: int,
     current_chunk_size: int,
-    model_name: str,
+    model_name: str = "",
     min_chunk_size: int = 5
 ) -> Tuple[int, int, list[str]]:
     """
     Adjust num_ctx and/or chunk_size to fit prompt within context.
 
-    Strategy (Option B):
-        1. Priority: Increase num_ctx up to model's maximum
-        2. Last resort: Reduce chunk_size if num_ctx cannot be increased enough
+    Strategy:
+        1. Priority: Increase num_ctx to next standard size (power of 2)
+        2. Last resort: Reduce chunk_size if num_ctx would exceed MAX_CONTEXT_SIZE
 
     Args:
         estimated_tokens: Estimated prompt size in tokens
-        current_num_ctx: Current context window setting
+        current_num_ctx: Current context window setting (base from .env)
         current_chunk_size: Current chunk size (lines)
-        model_name: Name of the model
+        model_name: Name of the model (unused, kept for compatibility)
         min_chunk_size: Minimum allowed chunk size
 
     Returns:
@@ -201,20 +202,20 @@ def adjust_parameters_for_context(
     adjusted_num_ctx = current_num_ctx
     adjusted_chunk_size = current_chunk_size
 
-    # Get model's absolute maximum
-    model_max = get_max_model_context(model_name)
-
     # Check if current context is sufficient
-    # Need headroom for output (reserve 50% at minimum)
-    required_ctx = estimated_tokens * 2  # 50% input, 50% output
+    # Response can be up to 2x MAX_TOKENS_PER_CHUNK (for languages less efficient in tokenization)
+    # + ~50 tokens for <Translated> tags
+    response_buffer = (MAX_TOKENS_PER_CHUNK * 2) + 50
+    required_ctx = estimated_tokens + response_buffer
 
     if required_ctx <= current_num_ctx:
         # All good, no adjustment needed
         return adjusted_num_ctx, adjusted_chunk_size, warnings
 
-    # Step 1: Try to increase num_ctx
-    if required_ctx <= model_max:
-        adjusted_num_ctx = required_ctx
+    # Step 1: Try to increase num_ctx to next standard size (power of 2)
+    standard_ctx = round_to_standard_context_size(required_ctx)
+    if standard_ctx <= MAX_CONTEXT_SIZE:
+        adjusted_num_ctx = standard_ctx
         warnings.append(
             f"Automatically increased context window from {current_num_ctx} to {adjusted_num_ctx} tokens "
             f"to accommodate prompt size (~{estimated_tokens} tokens)."
@@ -222,29 +223,23 @@ def adjust_parameters_for_context(
         return adjusted_num_ctx, adjusted_chunk_size, warnings
 
     # Step 2: Last resort - reduce chunk_size
-    # num_ctx is already at or above model max
-    adjusted_num_ctx = model_max
+    adjusted_num_ctx = MAX_CONTEXT_SIZE
 
     # Calculate what chunk_size would fit
     new_chunk_size = calculate_optimal_chunk_size(
-        max_context_tokens=model_max,
+        max_context_tokens=MAX_CONTEXT_SIZE,
         min_chunk_size=min_chunk_size
     )
 
     if new_chunk_size < current_chunk_size:
         adjusted_chunk_size = new_chunk_size
         warnings.append(
-            f"Prompt too large even at maximum context ({model_max} tokens). "
+            f"Prompt too large even at maximum context ({MAX_CONTEXT_SIZE} tokens). "
             f"Automatically reduced chunk_size from {current_chunk_size} to {adjusted_chunk_size} lines."
         )
-        warnings.append(
-            f"Consider: 1) Using a model with larger context, or "
-            f"2) Manually setting a smaller chunk_size in configuration."
-        )
     else:
-        # This shouldn't happen, but handle gracefully
         warnings.append(
-            f"WARNING: Prompt size ({estimated_tokens} tokens) may exceed model capacity. "
+            f"WARNING: Prompt size ({estimated_tokens} tokens) may exceed maximum context. "
             f"Translation may fail or produce incomplete results."
         )
 
@@ -254,7 +249,7 @@ def adjust_parameters_for_context(
 def validate_configuration(
     chunk_size: int,
     num_ctx: int,
-    model_name: str
+    model_name: str = ""
 ) -> list[str]:
     """
     Validate translation configuration and return warnings/recommendations.
@@ -262,45 +257,24 @@ def validate_configuration(
     Args:
         chunk_size: Configured chunk size
         num_ctx: Configured context window
-        model_name: Model name
+        model_name: Model name (unused, kept for compatibility)
 
     Returns:
         List of warning/recommendation messages
     """
     warnings = []
 
-    # Estimate typical prompt size for this configuration
-    # Base overhead + (chunk_size * tokens_per_line) + context overhead
-    estimated_prompt = 2000 + (chunk_size * 23) + 200
-
-    # Need to reserve space for output (at least 50%)
-    min_recommended_ctx = estimated_prompt * 2
-
-    if num_ctx < min_recommended_ctx:
-        warnings.append(
-            f"⚠️  Configuration Warning:\n"
-            f"   chunk_size={chunk_size} requires approximately {min_recommended_ctx} tokens of context\n"
-            f"   Current num_ctx={num_ctx} may be insufficient\n"
-            f"   Recommendation: Set OLLAMA_NUM_CTX={min_recommended_ctx} or higher in .env file"
-        )
-
-    # Check against model maximum
-    model_max = get_max_model_context(model_name)
-    if num_ctx > model_max:
-        warnings.append(
-            f"⚠️  num_ctx ({num_ctx}) exceeds model's likely maximum ({model_max}).\n"
-            f"   This may be ignored by Ollama or cause errors.\n"
-            f"   Recommendation: Set OLLAMA_NUM_CTX={model_max}"
-        )
-
     # Check if chunk_size is reasonable
     if chunk_size < 5:
         warnings.append(
             f"ℹ️  chunk_size ({chunk_size}) is very small. Translation may be slow.\n"
-            f"   Consider increasing chunk_size and num_ctx for better performance."
+            f"   Consider increasing chunk_size for better performance."
         )
 
     if chunk_size > 100:
+        # Estimate typical prompt size for this configuration
+        estimated_prompt = 2000 + (chunk_size * 23) + 200
+        min_recommended_ctx = estimated_prompt * 2
         warnings.append(
             f"ℹ️  chunk_size ({chunk_size}) is very large. Ensure num_ctx is sufficient.\n"
             f"   Minimum recommended num_ctx: {min_recommended_ctx} tokens"
@@ -312,7 +286,7 @@ def validate_configuration(
 # Convenience function for logging
 def format_estimation_info(estimation: ContextEstimation) -> str:
     """Format estimation details for logging"""
-    margin_text = " (with 20% safety margin)" if estimation.safety_margin_applied else ""
+    margin_text = " (with 10% safety margin)" if estimation.safety_margin_applied else ""
     return (
         f"Estimated {estimation.estimated_tokens} tokens{margin_text} "
         f"using {estimation.estimation_method} method "

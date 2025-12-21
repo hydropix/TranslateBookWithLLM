@@ -39,7 +39,7 @@ from src.config import (
     FAST_MODE_PRESERVE_FORMATTING, FORMAT_ITALIC_START, FORMAT_ITALIC_END,
     FORMAT_BOLD_START, FORMAT_BOLD_END, FORMAT_HR_MARKER
 )
-from ..text_processor import split_text_into_chunks_with_context
+from ..text_processor import split_text_into_chunks
 from ..translator import translate_chunks
 
 # Supported image media types for EPUB
@@ -1483,8 +1483,8 @@ async def translate_text_as_string(
         log_callback("fast_mode_text_translation_start",
                     f"Fast mode: Translating text from {source_language} to {target_language}")
 
-    # Split text into chunks
-    structured_chunks = split_text_into_chunks_with_context(text, chunk_target_lines)
+    # Split text into chunks (uses token-based or line-based based on config)
+    structured_chunks = split_text_into_chunks(text)
     total_chunks = len(structured_chunks)
 
     if stats_callback and total_chunks > 0:

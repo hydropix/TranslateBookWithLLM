@@ -1,7 +1,12 @@
 from typing import List, Tuple, NamedTuple
 from src.config import (
     TRANSLATE_TAG_IN, TRANSLATE_TAG_OUT, INPUT_TAG_IN, INPUT_TAG_OUT,
-    IMAGE_MARKER_PREFIX, IMAGE_MARKER_SUFFIX
+)
+from prompts.examples import (
+    get_output_format_example,
+    get_subtitle_example,
+    build_placeholder_section,
+    build_image_placeholder_section,
 )
 
 
@@ -14,63 +19,9 @@ class PromptPair(NamedTuple):
 # ============================================================================
 # SHARED PROMPT SECTIONS
 # ============================================================================
-
-PLACEHOLDER_PRESERVATION_SECTION = """# PLACEHOLDER PRESERVATION (CRITICAL)
-
-You will encounter placeholders like: ⟦TAG0⟧, ⟦TAG1⟧, ⟦TAG2⟧
-These represent HTML/XML tags that have been temporarily replaced.
-
-**MANDATORY RULES:**
-1. Keep ALL placeholders EXACTLY as they appear
-2. Do NOT translate, modify, remove, or explain them
-3. Maintain their EXACT position in the sentence structure
-4. Do NOT add spaces around them unless present in the source
-
-**Examples with placeholders (multilingual):**
-
-English → Chinese:
-English: "This is ⟦TAG0⟧very important⟦TAG1⟧ information"
-✅ CORRECT: "这是⟦TAG0⟧非常重要的⟦TAG1⟧信息"
-❌ WRONG: "这是非常重要的信息" (placeholders removed)
-❌ WRONG: "这是 ⟦ TAG0 ⟧非常重要的⟦ TAG1 ⟧ 信息" (spaces added)
-"""
-
-# Image marker example for fast mode prompt
-_IMAGE_MARKER_EXAMPLE = f"{IMAGE_MARKER_PREFIX}001{IMAGE_MARKER_SUFFIX}"
-
-IMAGE_PLACEHOLDER_PRESERVATION_SECTION = f"""# IMAGE PLACEHOLDER PRESERVATION (CRITICAL)
-
-You will encounter image placeholders like: {_IMAGE_MARKER_EXAMPLE}, {IMAGE_MARKER_PREFIX}002{IMAGE_MARKER_SUFFIX}, etc.
-These represent images that must stay at their EXACT position in the text.
-
-**MANDATORY RULES:**
-1. Keep ALL image placeholders EXACTLY as they appear
-2. Do NOT translate, modify, remove, or explain them
-3. Maintain their EXACT position relative to surrounding text
-4. Image placeholders usually appear on their own line between paragraphs
-
-**Examples:**
-
-English → Chinese:
-Source:
-The beautiful landscape stretched before us.
-
-{_IMAGE_MARKER_EXAMPLE}
-
-We continued our journey through the valley.
-
-✅ CORRECT:
-美丽的风景在我们面前展开。
-
-{_IMAGE_MARKER_EXAMPLE}
-
-我们继续穿越山谷的旅程。
-
-❌ WRONG: (placeholder removed or moved)
-美丽的风景在我们面前展开。
-我们继续穿越山谷的旅程。
-{_IMAGE_MARKER_EXAMPLE}
-"""
+# Note: Multilingual examples are now in prompts/examples.py
+# Use build_placeholder_section() and build_image_placeholder_section()
+# to generate language-specific examples dynamically.
 
 
 def _get_output_format_section(
@@ -101,15 +52,12 @@ def _get_output_format_section(
 
 **CRITICAL OUTPUT RULES:**
 1. Translate ONLY the text between "{input_tag_in}" and "{input_tag_out}" tags
-2. Your response MUST start with {translate_tag_in} (first characters, no text before)
-3. Your response MUST end with {translate_tag_out} (last characters, no text after)
+2. Your response MUST start with {translate_tag_in}
+3. Your response MUST end with {translate_tag_out}
 4. Include NOTHING before {translate_tag_in} and NOTHING after {translate_tag_out}
-5. Do NOT add explanations, comments, notes, or greetings{additional_rules_text}
 
 **INCORRECT examples (DO NOT do this):**
 ❌ "Here is the translation: {translate_tag_in}Text...{translate_tag_out}"
-❌ "{translate_tag_in}Text...{translate_tag_out} (Additional comment)"
-❌ "Sure! {translate_tag_in}Text...{translate_tag_out}"
 ❌ "Text..." (missing tags entirely)
 ❌ "{translate_tag_in}Text..." (missing closing tag)
 
@@ -155,21 +103,7 @@ def generate_translation_prompt(
         PromptPair: A named tuple with 'system' and 'user' prompts
     """
     # Get target-language-specific example text for output format
-    example_texts = {
-        "chinese": "您翻译的文本在这里" if fast_mode else "您翻译的文本在这里，所有⟦TAG0⟧标记都精确保留",
-        "french": "Votre texte traduit ici" if fast_mode else "Votre texte traduit ici, tous les marqueurs ⟦TAG0⟧ sont préservés exactement",
-        "spanish": "Su texto traducido aquí" if fast_mode else "Su texto traducido aquí, todos los marcadores ⟦TAG0⟧ se preservan exactamente",
-        "german": "Ihr übersetzter Text hier" if fast_mode else "Ihr übersetzter Text hier, alle ⟦TAG0⟧-Markierungen werden genau beibehalten",
-        "japanese": "翻訳されたテキストはこちら" if fast_mode else "翻訳されたテキストはこちら、すべての⟦TAG0⟧マーカーは正確に保持されます",
-        "italian": "Il tuo testo tradotto qui" if fast_mode else "Il tuo testo tradotto qui, tutti i marcatori ⟦TAG0⟧ sono conservati esattamente",
-        "portuguese": "Seu texto traduzido aqui" if fast_mode else "Seu texto traduzido aqui, todos os marcadores ⟦TAG0⟧ são preservados exatamente",
-        "russian": "Ваш переведенный текст здесь" if fast_mode else "Ваш переведенный текст здесь, все маркеры ⟦TAG0⟧ сохранены точно",
-        "korean": "번역된 텍스트는 여기에" if fast_mode else "번역된 텍스트는 여기에, 모든 ⟦TAG0⟧ 마커는 정확히 보존됩니다",
-    }
-
-    # Try to match target language to get appropriate example
-    target_lang_lower = target_language.lower()
-    example_format_text = example_texts.get(target_lang_lower, "Your translated text here")
+    example_format_text = get_output_format_example(target_language, fast_mode=fast_mode)
 
     # Build the output format section outside the f-string to avoid backslash issues in Python 3.11
     additional_rules_text = "\n6. Do NOT repeat the input text or tags\n7. Preserve all spacing, indentation, and line breaks exactly as in source"
@@ -182,40 +116,33 @@ def generate_translation_prompt(
         example_format=example_format_text
     )
 
+    # Build placeholder preservation section dynamically based on languages
+    if fast_mode and has_images:
+        placeholder_section = build_image_placeholder_section(source_language, target_language)
+    elif fast_mode:
+        placeholder_section = ""
+    else:
+        placeholder_section = build_placeholder_section(source_language, target_language)
+
     # SYSTEM PROMPT - Role and instructions (stable across requests)
     system_prompt = f"""You are a professional {target_language} translator and writer.
 
-# CRITICAL: TARGET LANGUAGE IS {target_language.upper()}
-
-**YOUR TRANSLATION MUST BE WRITTEN ENTIRELY IN {target_language.upper()}.**
-
 You are translating FROM {source_language} TO {target_language}.
-Your output must be in {target_language} ONLY - do NOT use any other language.
 
 # TRANSLATION PRINCIPLES
 
 **Quality Standards:**
 - Translate faithfully while preserving the author's style
-- Maintain the original meaning
 - Restructure sentences naturally in {target_language} (avoid word-by-word translation)
-- Adapt cultural references, idioms, and expressions to {target_language} context
-- Keep the exact text layout, spacing, line breaks, and indentation
-- **WRITE YOUR TRANSLATION IN {target_language.upper()} - THIS IS MANDATORY**
+- Adapt cultural references and expressions to {target_language} context
 
 **Technical Content (DO NOT TRANSLATE):**
-- Code snippets and syntax: `function()`, `variable_name`, `class MyClass`
-- Command lines: `npm install`, `git commit -m "message"`
-- File paths: `/usr/bin/`, `C:/Users/Documents/`
-- URLs: `https://example.com`, `www.site.org`
 - Programming identifiers, API names, and technical terms
 
-{IMAGE_PLACEHOLDER_PRESERVATION_SECTION if (fast_mode and has_images) else ('' if fast_mode else PLACEHOLDER_PRESERVATION_SECTION)}
+{placeholder_section}
 
-# FINAL REMINDER: YOUR OUTPUT LANGUAGE
-
-**YOU MUST TRANSLATE INTO {target_language.upper()}.**
-Your entire translation output must be written in {target_language}.
-Do NOT write in {source_language} or any other language - ONLY {target_language.upper()}.
+# FINAL REMINDER: **YOU MUST TRANSLATE INTO {target_language.upper()}.**
+Do NOT write in {source_language}.
 
 {output_format_section}"""
 
@@ -224,7 +151,7 @@ Do NOT write in {source_language} or any other language - ONLY {target_language.
     if previous_translation_context and previous_translation_context.strip():
         previous_translation_block_text = f"""# CONTEXT - Previous Paragraph
 
-For consistency and natural flow, here's what came immediately before:
+Here's what came immediately before:
 
 {previous_translation_context}
 

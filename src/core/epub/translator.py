@@ -309,7 +309,7 @@ async def _translate_jobs(
 
     # Create LLM client
     from ..llm_client import create_llm_client
-    llm_client = create_llm_client(llm_provider, gemini_api_key, cli_api_endpoint, model_name, openai_api_key, openrouter_api_key)
+    llm_client = create_llm_client(llm_provider, gemini_api_key, cli_api_endpoint, model_name, openai_api_key, openrouter_api_key, log_callback=log_callback)
 
     last_successful_context = ""
     context_accumulator = []

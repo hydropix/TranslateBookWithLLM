@@ -46,7 +46,7 @@ async def translate_subtitles(subtitles: List[Dict[str, str]], source_language: 
         log_callback("srt_translation_start", f"Starting translation of {total_subtitles} subtitles...")
     
     # Create LLM client based on provider or custom endpoint
-    llm_client = create_llm_client(llm_provider, gemini_api_key, api_endpoint, model_name, openai_api_key, openrouter_api_key)
+    llm_client = create_llm_client(llm_provider, gemini_api_key, api_endpoint, model_name, openai_api_key, openrouter_api_key, log_callback=log_callback)
     
     try:
         iterator = tqdm(enumerate(subtitles), total=total_subtitles, 
@@ -213,7 +213,7 @@ async def translate_subtitles_in_blocks(subtitle_blocks: List[List[Dict[str, str
                     f"Starting block translation: {total_subtitles} subtitles in {total_blocks} blocks...")
     
     # Create LLM client based on provider or custom endpoint
-    llm_client = create_llm_client(llm_provider, gemini_api_key, api_endpoint, model_name, openai_api_key, openrouter_api_key)
+    llm_client = create_llm_client(llm_provider, gemini_api_key, api_endpoint, model_name, openai_api_key, openrouter_api_key, log_callback=log_callback)
     
     try:
         for block_idx, block in enumerate(subtitle_blocks):

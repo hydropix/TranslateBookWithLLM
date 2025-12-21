@@ -103,7 +103,11 @@ export const MessageLogger = {
 
         let translatedText = translateMatch[1];
 
-        // Remove placeholder tags (⟦TAG0⟧, ⟦TAG1⟧, etc.) for cleaner preview
+        // Remove placeholder tags ([TAG0], [TAG1], etc.) for cleaner preview
+        // NOTE: This pattern must stay synchronized with PLACEHOLDER_PATTERN in
+        // src/config.py (currently: [TAG + number + ])
+        translatedText = translatedText.replace(/\[TAG\d+\]/g, '');
+        // Also remove legacy Unicode format for backward compatibility
         translatedText = translatedText.replace(/⟦TAG\d+⟧/g, '');
 
         // Remove common leading whitespace (indentation) from all lines

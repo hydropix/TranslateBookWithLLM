@@ -24,6 +24,7 @@ class LogType(Enum):
     GENERAL = "general"
     LLM_REQUEST = "llm_request"
     LLM_RESPONSE = "llm_response"
+    TOKEN_USAGE = "token_usage"
     PROGRESS = "progress"
     CHUNK_INFO = "chunk_info"
     FILE_OPERATION = "file_operation"
@@ -33,19 +34,21 @@ class LogType(Enum):
 
 
 class Colors:
-    """ANSI color codes for terminal output - simplified to 3 colors"""
+    """ANSI color codes for terminal output"""
     # Check if colors should be disabled
     NO_COLOR = os.environ.get('NO_COLOR') is not None or not sys.stdout.isatty()
-    
-    YELLOW = '' if NO_COLOR else '\033[93m'  # Pour les requêtes LLM
-    WHITE = '' if NO_COLOR else '\033[97m'   # Pour les réponses LLM et texte principal
-    GRAY = '' if NO_COLOR else '\033[90m'    # Pour les infos techniques
-    ENDC = '' if NO_COLOR else '\033[0m'     # Reset
-    
+
+    YELLOW = '' if NO_COLOR else '\033[93m'       # Pour les headers
+    WHITE = '' if NO_COLOR else '\033[97m'        # Pour le texte principal
+    GRAY = '' if NO_COLOR else '\033[90m'         # Pour les infos techniques
+    ORANGE = '' if NO_COLOR else '\033[38;5;214m' # Orange clair - INPUT vers LLM
+    GREEN = '' if NO_COLOR else '\033[92m'        # Vert clair - OUTPUT du LLM
+    ENDC = '' if NO_COLOR else '\033[0m'          # Reset
+
     @classmethod
     def disable(cls):
         """Disable all colors"""
-        cls.YELLOW = cls.WHITE = cls.GRAY = cls.ENDC = ''
+        cls.YELLOW = cls.WHITE = cls.GRAY = cls.ORANGE = cls.GREEN = cls.ENDC = ''
 
 
 class UnifiedLogger:
@@ -132,6 +135,8 @@ class UnifiedLogger:
             return self._format_translation_end(message, data or {})
         elif log_type == LogType.ERROR_DETAIL:
             return self._format_error_detail(message, data or {})
+        elif log_type == LogType.TOKEN_USAGE:
+            return self._format_token_usage(message, data or {})
         else:
             # General message format
             level_str = f"[{level.name}]" if level != LogLevel.INFO else ""
@@ -157,27 +162,35 @@ class UnifiedLogger:
         if 'model' in data:
             output.append(f"{Colors.GRAY}Model: {data['model']}{Colors.ENDC}")
         
-        # Full prompt
-        output.append(f"\n{Colors.WHITE}RAW PROMPT:{Colors.ENDC}")
-        output.append(f"{Colors.WHITE}{data.get('prompt', '')}{Colors.ENDC}")
-        
+        # Full prompt - handle both legacy 'prompt' and new 'system_prompt'/'user_prompt' formats
+        output.append(f"\n{Colors.ORANGE}RAW PROMPT (INPUT):{Colors.ENDC}")
+        if 'system_prompt' in data or 'user_prompt' in data:
+            if data.get('system_prompt'):
+                output.append(f"{Colors.GRAY}[SYSTEM]{Colors.ENDC}")
+                output.append(f"{Colors.ORANGE}{data.get('system_prompt', '')}{Colors.ENDC}")
+            if data.get('user_prompt'):
+                output.append(f"{Colors.GRAY}[USER]{Colors.ENDC}")
+                output.append(f"{Colors.ORANGE}{data.get('user_prompt', '')}{Colors.ENDC}")
+        else:
+            output.append(f"{Colors.ORANGE}{data.get('prompt', '')}{Colors.ENDC}")
+
         return '\n'.join(output)
     
     def _format_llm_response(self, data: Dict[str, Any]) -> str:
         """Format LLM response with full details"""
         output = []
-        
+
         timestamp = self._format_timestamp()
-        output.append(f"{Colors.WHITE}[{timestamp}] LLM RESPONSE{Colors.ENDC}")
-        
+        output.append(f"{Colors.GREEN}[{timestamp}] LLM RESPONSE (OUTPUT){Colors.ENDC}")
+
         # Execution time (en gris)
         if 'execution_time' in data:
             output.append(f"{Colors.GRAY}Execution time: {data['execution_time']:.2f} seconds{Colors.ENDC}")
-        
+
         # Full response
-        output.append(f"\n{Colors.WHITE}RAW RESPONSE (including tags):{Colors.ENDC}")
-        output.append(f"{Colors.WHITE}{data.get('response', '')}{Colors.ENDC}")
-        
+        output.append(f"\n{Colors.GREEN}RAW RESPONSE:{Colors.ENDC}")
+        output.append(f"{Colors.GREEN}{data.get('response', '')}{Colors.ENDC}")
+
         return '\n'.join(output)
     
     def _format_progress(self, data: Dict[str, Any]) -> str:
@@ -253,17 +266,36 @@ class UnifiedLogger:
     def _format_error_detail(self, message: str, data: Dict[str, Any]) -> str:
         """Format detailed error message"""
         output = []
-        
+
         timestamp = self._format_timestamp()
         output.append(f"{Colors.WHITE}[{timestamp}] ERROR: {message}{Colors.ENDC}")
-        
+
         if 'details' in data:
             output.append(f"{Colors.GRAY}Details: {data['details']}{Colors.ENDC}")
         if 'chunk' in data:
             output.append(f"{Colors.GRAY}Chunk: {data['chunk']}{Colors.ENDC}")
-        
+
         return '\n'.join(output)
-    
+
+    def _format_token_usage(self, message: str, data: Dict[str, Any]) -> str:
+        """Format token usage information from Ollama"""
+        prompt_tokens = data.get('prompt_tokens', 0)
+        response_tokens = data.get('response_tokens', 0)
+        total_tokens = data.get('total_tokens', 0)
+        num_ctx = data.get('num_ctx', 0)
+
+        # Calculate usage percentage
+        usage_pct = (total_tokens / num_ctx * 100) if num_ctx > 0 else 0
+
+        # Color based on usage level
+        if usage_pct > 90:
+            color = Colors.YELLOW  # Warning: near limit
+        else:
+            color = Colors.GRAY
+
+        return (f"{color}[TOKENS] prompt={prompt_tokens}, response={response_tokens}, "
+                f"total={total_tokens}/{num_ctx} ({usage_pct:.1f}% used){Colors.ENDC}")
+
     def log(self, level: LogLevel, message: str, 
             log_type: LogType = LogType.GENERAL,
             data: Optional[Dict[str, Any]] = None):
@@ -365,7 +397,25 @@ class UnifiedLogger:
                     self.info(details or message, data=data)
             else:
                 # Map specific message patterns
-                if "error" in message.lower():
+                if message == "token_usage":
+                    # Parse token usage from details string
+                    # Format: "Tokens: prompt=X, response=Y, total=Z (num_ctx=W)"
+                    import re
+                    token_data = {}
+                    prompt_match = re.search(r'prompt=(\d+)', details)
+                    response_match = re.search(r'response=(\d+)', details)
+                    total_match = re.search(r'total=(\d+)', details)
+                    ctx_match = re.search(r'num_ctx=(\d+)', details)
+                    if prompt_match:
+                        token_data['prompt_tokens'] = int(prompt_match.group(1))
+                    if response_match:
+                        token_data['response_tokens'] = int(response_match.group(1))
+                    if total_match:
+                        token_data['total_tokens'] = int(total_match.group(1))
+                    if ctx_match:
+                        token_data['num_ctx'] = int(ctx_match.group(1))
+                    self.log(LogLevel.INFO, "Token Usage", LogType.TOKEN_USAGE, token_data)
+                elif "error" in message.lower():
                     self.error(details or message)
                 elif "warning" in message.lower():
                     self.warning(details or message)

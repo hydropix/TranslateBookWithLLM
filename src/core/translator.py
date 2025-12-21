@@ -373,6 +373,9 @@ async def translate_chunks(chunks, source_language, target_language, model_name,
     completed_chunks_count = 0
     failed_chunks_count = 0
 
+    # Save base context window for per-chunk recalculation
+    base_context_window = context_window
+
     # Get chunk_size from first chunk (assuming consistent chunking)
     chunk_size = 25  # Default fallback
     if chunks and 'main_content' in chunks[0]:
@@ -503,29 +506,24 @@ async def translate_chunks(chunks, source_language, target_language, model_name,
                     log_callback("context_estimation",
                         f"Chunk {i+1}: {format_estimation_info(estimation)}")
 
-                # Adjust parameters if necessary
+                # Adjust parameters if necessary - always start from base_context_window
+                # This ensures each chunk gets optimal context size (can go up or down)
                 adjusted_num_ctx, adjusted_chunk_size, warnings = adjust_parameters_for_context(
                     estimated_tokens=estimation.estimated_tokens,
-                    current_num_ctx=context_window,
+                    current_num_ctx=base_context_window,  # Always use base, not current
                     current_chunk_size=chunk_size,
                     model_name=model_name,
                     min_chunk_size=min_chunk_size
                 )
 
-                # Log adjustments
+                # Log adjustments only when different from base
                 for warning in warnings:
                     if log_callback:
                         log_callback("context_adjustment_warning", warning)
 
-                # Apply adjustments if changed
-                if adjusted_num_ctx != context_window:
-                    context_window = adjusted_num_ctx
-                    # Update the LLM client's context window if possible
-                    if hasattr(llm_client, 'context_window'):
-                        llm_client.context_window = adjusted_num_ctx
-                    if log_callback:
-                        log_callback("context_adjustment_applied",
-                            f"Adjusted context window to {adjusted_num_ctx} tokens for this chunk")
+                # Apply the calculated context for this chunk
+                if hasattr(llm_client, 'context_window'):
+                    llm_client.context_window = adjusted_num_ctx
 
                 if adjusted_chunk_size != chunk_size:
                     # Note: We can't re-chunk dynamically here, just log the warning
@@ -543,7 +541,8 @@ async def translate_chunks(chunks, source_language, target_language, model_name,
 
             if translated_chunk_text is not None:
                 # Single point of cleaning - applies HTML entity cleanup and whitespace normalization
-                # Note: Does NOT remove TAG placeholders (⟦TAG0⟧) - those are handled by EPUB processor
+                # Note: Does NOT remove TAG placeholders - those are handled by EPUB processor
+                # (placeholder format defined in src/core/epub/constants.py)
                 translated_chunk_text = clean_translated_text(translated_chunk_text)
                 
                 full_translation_parts.append(translated_chunk_text)

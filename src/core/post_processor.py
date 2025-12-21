@@ -7,6 +7,14 @@ from typing import List, Callable, Dict, Any
 from dataclasses import dataclass
 from abc import ABC, abstractmethod
 
+from src.config import (
+    PLACEHOLDER_PATTERN,
+    PLACEHOLDER_DOUBLE_BRACKET_PATTERN,
+    PLACEHOLDER_BARE_PATTERN,
+    ORPHANED_DOUBLE_BRACKETS_PATTERN,
+    ORPHANED_UNICODE_BRACKETS_PATTERN,
+)
+
 
 class PostProcessingRule(ABC):
     """Abstract base class for post-processing rules"""
@@ -27,20 +35,20 @@ class RemoveResidualTagPlaceholdersRule(PostProcessingRule):
     
     def apply(self, text: str) -> str:
         # Remove ⟦TAG0⟧, ⟦TAG1⟧, etc. (using the special Unicode brackets)
-        text = re.sub(r'⟦TAG\d+⟧', '', text)
-        
+        text = re.sub(PLACEHOLDER_PATTERN, '', text)
+
         # Also remove [[TAG0]], [[TAG1]], etc. in case some got converted
-        text = re.sub(r'\[\[TAG\d+\]\]', '', text)
-        
+        text = re.sub(PLACEHOLDER_DOUBLE_BRACKET_PATTERN, '', text)
+
         # Remove TAG followed by number (e.g., TAG1, TAG2)
-        text = re.sub(r'TAG\d+', '', text)
-        
+        text = re.sub(PLACEHOLDER_BARE_PATTERN, '', text)
+
         # Remove orphaned square brackets [[ or ]]
-        text = re.sub(r'\[\[|\]\]', '', text)
-        
+        text = re.sub(ORPHANED_DOUBLE_BRACKETS_PATTERN, '', text)
+
         # Remove orphaned special brackets ⟦ or ⟧
-        text = re.sub(r'⟦|⟧', '', text)
-        
+        text = re.sub(ORPHANED_UNICODE_BRACKETS_PATTERN, '', text)
+
         return text
     
     def description(self) -> str:
