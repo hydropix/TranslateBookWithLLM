@@ -29,14 +29,14 @@ The web interface opens at **http://localhost:5000**
 
 ## Choosing a Model
 
-| VRAM     | Command                    | Parameters |
-|----------|----------------------------|------------|
-| 6-10 GB  | `ollama pull qwen3:8b`     | 8B         |
-| 10-16 GB | `ollama pull qwen3:14b`    | 14B        |
-| 16-24 GB | `ollama pull qwen3:30b`    | 30B        |
-| 48+ GB   | `ollama pull qwen3:235b`   | 235B       |
+| VRAM | Model | Best For |
+|------|-------|----------|
+| 8 GB | `gemma3:12b` | Spanish, Portuguese, European |
+| 16 GB | `gemma3:27b` | Japanese, Korean, Arabic, most languages |
+| 16 GB | `mistral-small:24b` | French |
+| 24 GB | `qwen3:30b` | Chinese (Simplified/Traditional) |
 
-> **Which model for my language?** Check our **[benchmarks wiki](https://github.com/hydropix/TranslateBookWithLLM/wiki)** for detailed scores (accuracy, fluency, style) per language.
+> 📊 **[Full benchmarks](https://github.com/hydropix/TranslateBookWithLLM/wiki)** — 11 models × 19 languages with accuracy, fluency & style scores. Help expand them with `phi4:14b`, `command-r:35b`, `aya-expanse:32b`!
 
 ---
 
