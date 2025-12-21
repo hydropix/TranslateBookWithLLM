@@ -12,6 +12,5 @@ OPENROUTER_INTEGRATION_PLAN.md
 build_installer.bat
 build/
 /dist
-/benchmark_results/
 /wiki/
 .wiki_repo/
