@@ -7,7 +7,7 @@ tqdm
 httpx
 lxml
 python-dotenv
-aiofiles
+aiofiles>=22.0,<25.0
 tiktoken>=0.5.0
 edge-tts>=6.1.9
 pyyaml>=6.0
