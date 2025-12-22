@@ -10,7 +10,7 @@ from src.config import (
     DEFAULT_MODEL, TRANSLATE_TAG_IN, TRANSLATE_TAG_OUT, SENTENCE_TERMINATORS
 )
 from prompts.prompts import generate_translation_prompt, generate_subtitle_block_prompt
-from prompts.examples import ensure_example_ready, ensure_image_example_ready
+from prompts.examples import ensure_example_ready, has_example_for_pair, PLACEHOLDER_EXAMPLES
 from .llm_client import default_client, LLMClient, create_llm_client
 from .llm_providers import ContextOverflowError
 from .post_processor import clean_translated_text
@@ -136,7 +136,8 @@ async def _make_llm_request_with_overflow_handling(
     llm_client,
     log_callback,
     fast_mode: bool,
-    has_images: bool = False
+    has_images: bool = False,
+    prompt_options: dict = None
 ) -> Tuple[Optional[str], str]:
     """
     Make LLM request with automatic chunk reduction on context overflow.
@@ -156,6 +157,7 @@ async def _make_llm_request_with_overflow_handling(
         log_callback: Logging callback function
         fast_mode: If True, uses simplified prompts
         has_images: If True (with fast_mode), includes image placeholder preservation instructions
+        prompt_options: Optional dict with prompt customization options
 
     Returns:
         Tuple of (translated_text or None, actual_content_translated)
@@ -178,7 +180,8 @@ async def _make_llm_request_with_overflow_handling(
                 source_language,
                 target_language,
                 fast_mode=fast_mode,
-                has_images=has_images
+                has_images=has_images,
+                prompt_options=prompt_options
             )
 
             # Log the request
@@ -283,7 +286,8 @@ async def _make_llm_request_with_overflow_handling(
 
 async def generate_translation_request(main_content, context_before, context_after, previous_translation_context,
                                        source_language="English", target_language="Chinese", model=DEFAULT_MODEL,
-                                       llm_client=None, log_callback=None, fast_mode=False, has_images=False):
+                                       llm_client=None, log_callback=None, fast_mode=False, has_images=False,
+                                       prompt_options=None):
     """
     Generate translation request to LLM API with automatic context overflow handling.
 
@@ -299,6 +303,7 @@ async def generate_translation_request(main_content, context_before, context_aft
         log_callback (callable): Logging callback function
         fast_mode (bool): If True, uses simplified prompts without placeholder instructions
         has_images (bool): If True (with fast_mode), includes image placeholder preservation instructions
+        prompt_options (dict): Optional dict with prompt customization options
 
     Returns:
         str: Translated text or None if failed
@@ -321,7 +326,8 @@ async def generate_translation_request(main_content, context_before, context_aft
         llm_client=llm_client,
         log_callback=log_callback,
         fast_mode=fast_mode,
-        has_images=has_images
+        has_images=has_images,
+        prompt_options=prompt_options
     )
 
     if translated_text:
@@ -342,7 +348,7 @@ async def translate_chunks(chunks, source_language, target_language, model_name,
                           openrouter_api_key=None,
                           context_window=2048, auto_adjust_context=True, min_chunk_size=5, fast_mode=False,
                           checkpoint_manager=None, translation_id=None, resume_from_index=0,
-                          has_images=False):
+                          has_images=False, prompt_options=None):
     """
     Translate a list of text chunks
 
@@ -364,6 +370,7 @@ async def translate_chunks(chunks, source_language, target_language, model_name,
         translation_id: Job ID for checkpoint saving
         resume_from_index: Index to resume from (for resumed jobs)
         has_images (bool): If True (with fast_mode), includes image placeholder preservation instructions
+        prompt_options (dict): Optional dict with prompt customization options
 
     Returns:
         list: List of translated chunks
@@ -428,34 +435,19 @@ async def translate_chunks(chunks, source_language, target_language, model_name,
                                     openai_api_key, openrouter_api_key,
                                     context_window=context_window, log_callback=log_callback)
 
-    # Pre-generate examples if missing for this language pair
-    if llm_client:
+    # Pre-generate examples if missing for this language pair (standard mode only)
+    if llm_client and not fast_mode:
         provider = llm_client._get_provider()
         if provider:
-            if fast_mode:
-                # Fast mode: only need image examples (if has_images is True)
-                if has_images:
-                    from prompts.examples import has_image_example_for_pair
-                    image_example_ready = await ensure_image_example_ready(
-                        source_language, target_language, provider
-                    )
-                    if image_example_ready and log_callback:
-                        from prompts.examples import IMAGE_EXAMPLES
-                        key = (source_language.lower(), target_language.lower())
-                        if key not in IMAGE_EXAMPLES:
-                            log_callback("example_generated",
-                                f"Generated image example for {source_language}->{target_language}")
-            else:
-                # Standard mode: need placeholder examples
-                example_ready = await ensure_example_ready(
-                    source_language, target_language, provider
-                )
-                if example_ready and log_callback:
-                    from prompts.examples import has_example_for_pair, PLACEHOLDER_EXAMPLES
-                    key = (source_language.lower(), target_language.lower())
-                    if key not in PLACEHOLDER_EXAMPLES:
-                        log_callback("example_generated",
-                            f"Generated placeholder example for {source_language}->{target_language}")
+            # Standard mode: need placeholder examples
+            example_ready = await ensure_example_ready(
+                source_language, target_language, provider
+            )
+            if example_ready and log_callback:
+                key = (source_language.lower(), target_language.lower())
+                if key not in PLACEHOLDER_EXAMPLES:
+                    log_callback("example_generated",
+                        f"Generated placeholder example for {source_language}->{target_language}")
 
     try:
         iterator = tqdm(chunks, desc=f"Translating {source_language} to {target_language}", unit="seg") if not log_callback else chunks
@@ -566,7 +558,7 @@ async def translate_chunks(chunks, source_language, target_language, model_name,
                 main_content_to_translate, context_before_text, context_after_text,
                 last_successful_llm_context, source_language, target_language,
                 model_name, llm_client=llm_client, log_callback=log_callback,
-                fast_mode=fast_mode, has_images=has_images
+                fast_mode=fast_mode, has_images=has_images, prompt_options=prompt_options
             )
 
             if translated_chunk_text is not None:

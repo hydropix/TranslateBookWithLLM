@@ -1,0 +1,12 @@
+{
+  "korean:french:image": {
+    "source": "해가 떴습니다.\n\n[IMG001]\n\n새들이 노래했습니다.",
+    "correct": "Le soleil s'est levé.\n\n[IMG001]\n\nLes oiseaux ont chanté.",
+    "wrong": "Le soleil s'est levé.\nLes oiseaux ont chanté.\n[IMG001]"
+  },
+  "korean:french:placeholder": {
+    "source": "[TAG0]이것은 중요한 텍스트입니다.[TAG1]",
+    "correct": "Ceci est un texte [TAG0]important[TAG1].",
+    "wrong": "Ceci est un texte important."
+  }
+}

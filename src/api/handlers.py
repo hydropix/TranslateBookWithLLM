@@ -237,7 +237,8 @@ async def perform_actual_translation(translation_id, config, state_manager, outp
                 min_chunk_size=config.get('min_chunk_size', 5),
                 checkpoint_manager=checkpoint_manager,
                 translation_id=translation_id,
-                resume_from_index=resume_from_index
+                resume_from_index=resume_from_index,
+                prompt_options=config.get('prompt_options', {})
             )
             state_manager.set_translation_field(translation_id, 'result', "[EPUB file translated - download to view]")
             
@@ -273,7 +274,8 @@ async def perform_actual_translation(translation_id, config, state_manager, outp
                 min_chunk_size=config.get('min_chunk_size', 5),
                 checkpoint_manager=checkpoint_manager,
                 translation_id=translation_id,
-                resume_from_index=resume_from_index
+                resume_from_index=resume_from_index,
+                prompt_options=config.get('prompt_options', {})
             )
 
             if os.path.exists(output_filepath_on_server) and state_manager.get_translation_field(translation_id, 'status') not in ['error', 'interrupted_before_save']:

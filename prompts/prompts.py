@@ -7,8 +7,6 @@ from prompts.examples import (
     get_subtitle_example,
     build_placeholder_section,
     build_image_placeholder_section,
-    build_cultural_section,
-    has_cultural_examples,
 )
 
 
@@ -91,6 +89,63 @@ def _get_output_format_section(
 
 
 # ============================================================================
+# OPTIONAL PROMPT SECTIONS
+# ============================================================================
+
+# Technical content preservation section (for technical documents)
+TECHNICAL_CONTENT_SECTION = """
+**Technical Content (DO NOT TRANSLATE):**
+- Code snippets and syntax: `function()`, `variable_name`, `class MyClass`
+- Command lines: `npm install`, `git commit -m "message"`
+- File paths: `/usr/bin/`, `C:/Users/Documents/`
+- URLs: `https://example.com`, `www.site.org`
+- Programming identifiers, API names, and technical terms"""
+
+# Text cleanup section (for OCR or poorly formatted source texts)
+TEXT_CLEANUP_SECTION = """
+# TEXT CLEANUP (Source Defects Correction)
+
+The source text may contain OCR errors, formatting artifacts, or typographic defects.
+**CORRECT THESE ISSUES during translation:**
+
+- **Line breaks**: Fix broken words (e.g., "trans-\\nlation" → "translation")
+- **Spacing**: Remove double spaces, fix missing spaces after punctuation
+- **Punctuation**: Correct misplaced or missing punctuation marks
+- **Paragraph flow**: Merge incorrectly split paragraphs, preserve intentional breaks
+
+**DO NOT** add content, remove meaningful text, or alter the author's style."""
+
+
+def _build_optional_prompt_sections(prompt_options: dict) -> str:
+    """
+    Build optional prompt sections based on the provided options.
+
+    Args:
+        prompt_options: Dictionary containing prompt customization flags:
+            - preserve_technical_content: Include technical content preservation instructions
+            - text_cleanup: Include OCR/typographic defect correction instructions
+
+    Returns:
+        str: Concatenated optional sections to include in the system prompt
+    """
+    if prompt_options is None:
+        prompt_options = {}
+
+    sections = []
+
+    # Technical content preservation (for technical documents)
+    if prompt_options.get('preserve_technical_content', False):
+        sections.append(TECHNICAL_CONTENT_SECTION)
+
+    # Text cleanup for OCR or poorly formatted sources
+    if prompt_options.get('text_cleanup', False):
+        sections.append(TEXT_CLEANUP_SECTION)
+
+    # Join sections with double newline for proper separation
+    return '\n\n'.join(sections)
+
+
+# ============================================================================
 # TRANSLATION PROMPT FUNCTIONS
 # ============================================================================
 
@@ -103,7 +158,9 @@ def generate_translation_prompt(
     target_language: str = "Chinese",
     translate_tag_in: str = TRANSLATE_TAG_IN,
     translate_tag_out: str = TRANSLATE_TAG_OUT,
-    fast_mode: bool = False
+    fast_mode: bool = False,
+    has_images: bool = False,
+    prompt_options: dict = None
 ) -> PromptPair:
     """
     Generate the translation prompt with all contextual elements.
@@ -118,10 +175,17 @@ def generate_translation_prompt(
         translate_tag_in: Opening tag for translation output
         translate_tag_out: Closing tag for translation output
         fast_mode: If True, excludes placeholder preservation instructions (for pure text translation)
+        has_images: If True, includes image marker preservation instructions (e.g., [IMG001])
+        prompt_options: Optional dict with prompt customization options:
+            - preserve_technical_content: If True, includes instructions to NOT translate
+              code, paths, URLs, etc. (for technical documents)
 
     Returns:
         PromptPair: A named tuple with 'system' and 'user' prompts
     """
+    # Initialize prompt_options if not provided
+    if prompt_options is None:
+        prompt_options = {}
     # Get target-language-specific example text for output format
     example_texts = {
         "chinese": "您翻译的文本在这里" if fast_mode else "您翻译的文本在这里，所有⟦TAG0⟧标记都精确保留",
@@ -140,13 +204,12 @@ def generate_translation_prompt(
     example_format_text = example_texts.get(target_lang_lower, "Your translated text here")
 
     # Build the output format section outside the f-string to avoid backslash issues in Python 3.11
-    additional_rules_text = "\n6. Do NOT repeat the input text or tags\n7. Preserve all spacing, indentation, and line breaks exactly as in source"
     output_format_section = _get_output_format_section(
         translate_tag_in,
         translate_tag_out,
         INPUT_TAG_IN,
         INPUT_TAG_OUT,
-        additional_rules=additional_rules_text,
+        additional_rules="",
         example_format=example_format_text
     )
 
@@ -156,15 +219,19 @@ def generate_translation_prompt(
     else:
         placeholder_section = build_placeholder_section(source_language, target_language)
 
-    # Build cultural examples section (idiomatic translation guidance)
-    cultural_section = build_cultural_section(source_language, target_language, count=2)
+    # Build image marker preservation section (for fast mode with images)
+    if has_images:
+        image_section = build_image_placeholder_section(source_language, target_language)
+    else:
+        image_section = ""
+
+    # Build optional prompt sections based on prompt_options
+    optional_sections = _build_optional_prompt_sections(prompt_options)
 
     # SYSTEM PROMPT - Role and instructions (stable across requests)
     system_prompt = f"""You are a professional {target_language} translator and writer.
 
 # CRITICAL: TARGET LANGUAGE IS {target_language.upper()}
-
-**YOUR TRANSLATION MUST BE WRITTEN ENTIRELY IN {target_language.upper()}.**
 
 You are translating FROM {source_language} TO {target_language}.
 Your output must be in {target_language} ONLY - do NOT use any other language.
@@ -178,15 +245,9 @@ Your output must be in {target_language} ONLY - do NOT use any other language.
 - Adapt cultural references, idioms, and expressions to {target_language} context
 - Keep the exact text layout, spacing, line breaks, and indentation
 - **WRITE YOUR TRANSLATION IN {target_language.upper()} - THIS IS MANDATORY**
-
-**Technical Content (DO NOT TRANSLATE):**
-- Code snippets and syntax: `function()`, `variable_name`, `class MyClass`
-- Command lines: `npm install`, `git commit -m "message"`
-- File paths: `/usr/bin/`, `C:/Users/Documents/`
-- URLs: `https://example.com`, `www.site.org`
-- Programming identifiers, API names, and technical terms
-{cultural_section}
+{optional_sections}
 {placeholder_section}
+{image_section}
 
 # FINAL REMINDER: YOUR OUTPUT LANGUAGE
 

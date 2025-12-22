@@ -28,6 +28,11 @@ if __name__ == "__main__":
     parser.add_argument("--fast-mode", action="store_true", help="Use fast mode for EPUB (strips formatting, maximum compatibility).")
     parser.add_argument("--no-images", action="store_true", help="Disable image preservation in fast mode (images will be stripped).")
 
+    # Prompt options (optional system prompt instructions)
+    prompt_group = parser.add_argument_group('Prompt Options', 'Optional instructions to include in the translation prompt')
+    prompt_group.add_argument("--preserve-technical", action="store_true", help="Preserve technical content (code, paths, URLs) without translation.")
+    prompt_group.add_argument("--text-cleanup", action="store_true", help="Enable OCR/typographic cleanup (fix broken lines, spacing, punctuation).")
+
     # TTS (Text-to-Speech) arguments
     tts_group = parser.add_argument_group('TTS Options', 'Text-to-Speech audio generation')
     tts_group.add_argument("--tts", action="store_true", default=TTS_ENABLED, help="Generate audio from translated text using Edge-TTS.")
@@ -135,6 +140,12 @@ if __name__ == "__main__":
         config_module.FAST_MODE_PRESERVE_IMAGES = False
         logger.info("Image preservation disabled", LogType.INFO, {'preserve_images': False})
 
+    # Build prompt_options from CLI arguments
+    prompt_options = {
+        'preserve_technical_content': args.preserve_technical,
+        'text_cleanup': args.text_cleanup
+    }
+
     try:
         asyncio.run(translate_file(
             args.input,
@@ -152,7 +163,8 @@ if __name__ == "__main__":
             gemini_api_key=args.gemini_api_key,
             openai_api_key=args.openai_api_key,
             openrouter_api_key=args.openrouter_api_key,
-            fast_mode=args.fast_mode
+            fast_mode=args.fast_mode,
+            prompt_options=prompt_options
         ))
 
         # Log successful completion
