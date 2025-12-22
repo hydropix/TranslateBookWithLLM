@@ -1,0 +1,7 @@
+{
+  "thai:portuguese": {
+    "source": "ดวงอาทิตย์ขึ้น\n\n[IMG001]\n\nนกขับร้อง",
+    "correct": "O sol nasceu.\n\n[IMG001]\n\nOs pássaros cantaram.",
+    "wrong": "O sol nasceu.\nOs pássaros cantaram.\n[IMG001]"
+  }
+}

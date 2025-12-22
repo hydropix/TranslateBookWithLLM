@@ -10,6 +10,7 @@ from src.config import (
     DEFAULT_MODEL, TRANSLATE_TAG_IN, TRANSLATE_TAG_OUT, SENTENCE_TERMINATORS
 )
 from prompts.prompts import generate_translation_prompt, generate_subtitle_block_prompt
+from prompts.examples import ensure_example_ready, ensure_image_example_ready
 from .llm_client import default_client, LLMClient, create_llm_client
 from .llm_providers import ContextOverflowError
 from .post_processor import clean_translated_text
@@ -426,6 +427,35 @@ async def translate_chunks(chunks, source_language, target_language, model_name,
     llm_client = create_llm_client(llm_provider, gemini_api_key, api_endpoint, model_name,
                                     openai_api_key, openrouter_api_key,
                                     context_window=context_window, log_callback=log_callback)
+
+    # Pre-generate examples if missing for this language pair
+    if llm_client:
+        provider = llm_client._get_provider()
+        if provider:
+            if fast_mode:
+                # Fast mode: only need image examples (if has_images is True)
+                if has_images:
+                    from prompts.examples import has_image_example_for_pair
+                    image_example_ready = await ensure_image_example_ready(
+                        source_language, target_language, provider
+                    )
+                    if image_example_ready and log_callback:
+                        from prompts.examples import IMAGE_EXAMPLES
+                        key = (source_language.lower(), target_language.lower())
+                        if key not in IMAGE_EXAMPLES:
+                            log_callback("example_generated",
+                                f"Generated image example for {source_language}->{target_language}")
+            else:
+                # Standard mode: need placeholder examples
+                example_ready = await ensure_example_ready(
+                    source_language, target_language, provider
+                )
+                if example_ready and log_callback:
+                    from prompts.examples import has_example_for_pair, PLACEHOLDER_EXAMPLES
+                    key = (source_language.lower(), target_language.lower())
+                    if key not in PLACEHOLDER_EXAMPLES:
+                        log_callback("example_generated",
+                            f"Generated placeholder example for {source_language}->{target_language}")
 
     try:
         iterator = tqdm(chunks, desc=f"Translating {source_language} to {target_language}", unit="seg") if not log_callback else chunks

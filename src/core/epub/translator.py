@@ -27,6 +27,7 @@ from .tag_preservation import TagPreserver
 from .xml_helpers import rebuild_element_from_translated_content
 from ..translator import generate_translation_request
 from ..post_processor import clean_residual_tag_placeholders
+from prompts.examples import ensure_example_ready
 
 
 async def translate_epub_file(
@@ -310,6 +311,13 @@ async def _translate_jobs(
     # Create LLM client
     from ..llm_client import create_llm_client
     llm_client = create_llm_client(llm_provider, gemini_api_key, cli_api_endpoint, model_name, openai_api_key, openrouter_api_key, log_callback=log_callback)
+
+    # Pre-generate placeholder example if missing for this language pair
+    # Standard EPUB mode uses placeholders, so we need the example
+    if llm_client:
+        provider = llm_client._get_provider()
+        if provider:
+            await ensure_example_ready(source_language, target_language, provider)
 
     last_successful_context = ""
     context_accumulator = []
