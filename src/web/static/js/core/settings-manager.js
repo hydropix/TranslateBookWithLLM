@@ -153,9 +153,12 @@ export const SettingsManager = {
 
         if (!select) return;
 
-        // Check if value exists in options
+        // Check if value exists in options (excluding "Other" which is just a placeholder)
         let found = false;
         for (let option of select.options) {
+            // Skip "Other" option - we only want to match actual language values
+            if (option.value === 'Other') continue;
+
             if (option.value.toLowerCase() === value.toLowerCase()) {
                 select.value = option.value;
                 found = true;
@@ -163,10 +166,14 @@ export const SettingsManager = {
             }
         }
 
+        // If language is not in the predefined list, use "Other" and fill custom input
         if (!found && customInput) {
             select.value = 'Other';
             customInput.value = value;
-            DomHelpers.show(customInput);
+            // Show the custom input - need both class removal AND style change
+            // because HTML has inline style="display: none"
+            customInput.classList.remove('hidden');
+            customInput.style.display = 'block';
         }
     },
 

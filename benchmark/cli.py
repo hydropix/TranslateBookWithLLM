@@ -454,18 +454,15 @@ def cmd_wiki_publish(args: argparse.Namespace) -> int:
         # Step 3: Copy generated files to wiki repo
         print(colored("Step 3/4: Copying files to wiki repository...", Colors.CYAN))
 
-        # Copy all markdown files
+        # Remove old subdirectories (now using flat structure)
+        for old_subdir in ["languages", "models"]:
+            old_dir = wiki_clone_dir / old_subdir
+            if old_dir.exists():
+                shutil.rmtree(old_dir)
+
+        # Copy all markdown files (flat structure)
         for md_file in wiki_output_dir.glob("*.md"):
             shutil.copy2(md_file, wiki_clone_dir / md_file.name)
-
-        # Copy subdirectories (languages, models)
-        for subdir in ["languages", "models"]:
-            src_dir = wiki_output_dir / subdir
-            dst_dir = wiki_clone_dir / subdir
-            if src_dir.exists():
-                if dst_dir.exists():
-                    shutil.rmtree(dst_dir)
-                shutil.copytree(src_dir, dst_dir)
 
         print(colored("Files copied.", Colors.GREEN))
 

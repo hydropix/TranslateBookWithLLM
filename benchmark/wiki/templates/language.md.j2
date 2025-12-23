@@ -15,8 +15,8 @@
 | **Fluency** | {{ avg_fluency|round(1) }}/10 |
 | **Style** | {{ avg_style|round(1) }}/10 |
 | **Total Tests** | {{ total_translations }} |
-| **Best Model** | [{{ best_model }}](../models/{{ best_model_slug }}) |
-| **Worst Model** | [{{ worst_model }}](../models/{{ worst_model_slug }}) |
+| **Best Model** | [{{ best_model }}]({{ best_model_page_name }}) |
+| **Worst Model** | [{{ worst_model }}]({{ worst_model_page_name }}) |
 
 ---
 
@@ -25,7 +25,7 @@
 | Model | Overall | Accuracy | Fluency | Style |
 |-------|---------|----------|---------|-------|
 {% for result in model_results %}
-| [{{ result.model }}](../models/{{ result.model_slug }}) | {{ result.indicator }} {{ result.avg_overall|round(1) }} | {{ result.avg_accuracy|round(1) }} | {{ result.avg_fluency|round(1) }} | {{ result.avg_style|round(1) }} |
+| [{{ result.model }}]({{ result.model_page_name }}) | {{ result.indicator }} {{ result.avg_overall|round(1) }} | {{ result.avg_accuracy|round(1) }} | {{ result.avg_fluency|round(1) }} | {{ result.avg_style|round(1) }} |
 {% endfor %}
 
 ---
@@ -70,4 +70,4 @@
 
 ---
 
-[< Back to Home](../Home) | [All Languages](../All-Languages)
+[← Back to Home](Home) | [All Languages](All-Languages)

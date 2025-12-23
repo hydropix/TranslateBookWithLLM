@@ -22,9 +22,12 @@ function setDefaultLanguage(selectId, customInputId, defaultLanguage) {
 
     if (!select || !customInput) return;
 
-    // Check if the default language is in the dropdown options
+    // Check if the default language is in the dropdown options (excluding "Other")
     let languageFound = false;
     for (let option of select.options) {
+        // Skip "Other" option - we only want to match actual language values
+        if (option.value === 'Other') continue;
+
         if (option.value.toLowerCase() === defaultLanguage.toLowerCase()) {
             select.value = option.value;
             languageFound = true;
@@ -37,7 +40,10 @@ function setDefaultLanguage(selectId, customInputId, defaultLanguage) {
     if (!languageFound) {
         select.value = 'Other';
         customInput.value = defaultLanguage;
-        DomHelpers.show(customInput);
+        // Show the custom input - need both class removal AND style change
+        // because HTML has inline style="display: none"
+        customInput.classList.remove('hidden');
+        customInput.style.display = 'block';
     }
 }
 
