@@ -1,103 +1,103 @@
 # Prompt Optimizer
 
-Outil d'optimisation automatique des prompts de traduction via apprentissage par renforcement.
+Automatic optimization tool for translation prompts using reinforcement learning.
 
-## Principe
+## Principle
 
-L'optimiseur fait evoluer une population de prompts a travers des mutations successives, en gardant les meilleurs candidats a chaque generation. Un systeme de cross-validation empeche l'overfitting sur des textes specifiques.
+The optimizer evolves a population of prompts through successive mutations, keeping the best candidates at each generation. A cross-validation system prevents overfitting on specific texts.
 
-## Demarrage Rapide (Windows)
+## Quick Start (Windows)
 
-Des scripts `.bat` sont fournis pour simplifier l'utilisation:
+`.bat` scripts are provided to simplify usage:
 
 | Script | Description |
 |--------|-------------|
-| `1_check_prerequisites.bat` | Verifie que tout est installe |
-| `2_install_dependencies.bat` | Installe les packages Python |
-| `3_run_optimization.bat` | Lance l'optimisation (config par defaut) |
-| `3_run_optimization_custom.bat` | Lance avec parametres personnalises |
-| `4_dry_run.bat` | Teste la config sans executer |
-| `5_view_results.bat` | Affiche les resultats |
-| `6_open_best_prompt.bat` | Ouvre le meilleur prompt |
+| `1_check_prerequisites.bat` | Checks that everything is installed |
+| `2_install_dependencies.bat` | Installs Python packages |
+| `3_run_optimization.bat` | Runs optimization (default config) |
+| `3_run_optimization_custom.bat` | Runs with custom parameters |
+| `4_dry_run.bat` | Tests config without executing |
+| `5_view_results.bat` | Displays results |
+| `6_open_best_prompt.bat` | Opens the best prompt |
 
-**Workflow recommande:**
+**Recommended workflow:**
 ```
 1_check_prerequisites.bat  -->  2_install_dependencies.bat  -->  4_dry_run.bat  -->  3_run_optimization.bat
 ```
 
-## Prerequis
+## Prerequisites
 
-### 1. Configuration `.env`
+### 1. `.env` Configuration
 
-Assurez-vous que votre fichier `.env` a la racine du projet contient:
+Make sure your `.env` file at the project root contains:
 
 ```env
-# Ollama (LLM de traduction)
+# Ollama (translation LLM)
 API_ENDPOINT=http://localhost:11434/api/generate
 DEFAULT_MODEL=qwen3:4b
 
-# OpenRouter (LLM evaluateur)
+# OpenRouter (evaluator LLM)
 OPENROUTER_API_KEY=sk-or-...
 ```
 
-### 2. Ollama en cours d'execution
+### 2. Ollama Running
 
-Demarrez Ollama avec le modele configure:
+Start Ollama with the configured model:
 ```bash
 ollama run qwen3:4b
 ```
 
-### 3. Dependances Python
+### 3. Python Dependencies
 
 ```bash
 pip install pyyaml python-dotenv requests
 ```
 
-## Utilisation
+## Usage
 
-### Lancement de l'optimisation
+### Running the Optimization
 
 ```bash
 cd c:\Users\bruno\Documents\GitHub\TranslateBookWithLLM
 python -m prompt_optimizer.optimize --config prompt_optimizer/prompt_optimizer_config.yaml --verbose
 ```
 
-### Options disponibles
+### Available Options
 
-| Option | Description | Defaut |
-|--------|-------------|--------|
-| `--iterations N` | Nombre de generations | 10 |
-| `--population N` | Taille de la population | 5 |
-| `--output DIR` | Repertoire de sortie | `prompt_optimization_results/` |
-| `--verbose` | **Affichage detaille avec couleurs** | non |
-| `--dry-run` | Valider config sans executer | non |
+| Option | Description | Default |
+|--------|-------------|---------|
+| `--iterations N` | Number of generations | 10 |
+| `--population N` | Population size | 5 |
+| `--output DIR` | Output directory | `prompt_optimization_results/` |
+| `--verbose` | **Detailed display with colors** | no |
+| `--dry-run` | Validate config without executing | no |
 
-### Affichage coloré
+### Colored Display
 
-Le mode `--verbose` active un affichage coloré détaillé montrant en temps réel:
+The `--verbose` mode enables a detailed colored display showing in real-time:
 
-- **CYAN**: Requêtes et réponses Ollama (traductions qwen3:4b)
-  - Prompt system/user envoyé
-  - Texte traduit reçu
-  - Temps et tokens utilisés
+- **CYAN**: Ollama requests and responses (qwen3:4b translations)
+  - System/user prompt sent
+  - Translated text received
+  - Time and tokens used
 
-- **MAGENTA**: Requêtes et réponses OpenRouter (évaluations Claude Haiku)
-  - Texte source et traduction
-  - Scores détaillés (accuracy, fluency, style, overall)
-  - Feedback de l'évaluateur
+- **MAGENTA**: OpenRouter requests and responses (Claude Haiku evaluations)
+  - Source text and translation
+  - Detailed scores (accuracy, fluency, style, overall)
+  - Evaluator feedback
 
-- **JAUNE**: Mutations LLM (améliorations Claude Haiku)
-  - Stratégie de mutation (CORRECT, SIMPLIFY, REFORMULATE, RADICAL)
-  - Feedbacks utilisés pour guider la mutation
-  - Nouveau prompt généré
-  - Changement de taille (tokens)
+- **YELLOW**: LLM mutations (Claude Haiku improvements)
+  - Mutation strategy (CORRECT, SIMPLIFY, REFORMULATE, RADICAL)
+  - Feedbacks used to guide the mutation
+  - New generated prompt
+  - Size change (tokens)
 
-- **VERT/ROUGE**: Scores et fitness
-  - Vert: bons scores (≥8)
-  - Jaune: scores moyens (6-8)
-  - Rouge: scores faibles (<6)
+- **GREEN/RED**: Scores and fitness
+  - Green: good scores (>=8)
+  - Yellow: average scores (6-8)
+  - Red: low scores (<6)
 
-### Exemple avec options
+### Example with Options
 
 ```bash
 python -m prompt_optimizer.optimize \
@@ -107,66 +107,66 @@ python -m prompt_optimizer.optimize \
   --verbose
 ```
 
-## Processus d'optimisation
+## Optimization Process
 
 ```
-1. Chargement de la configuration et des textes de reference
+1. Load configuration and reference texts
                     |
-2. Initialisation de la population de prompts
+2. Initialize prompt population
                     |
     +---------------+---------------+
-    |           BOUCLE              |
+    |           LOOP                |
     |                               |
-    |  3. Traduction (Ollama)       |
+    |  3. Translation (Ollama)      |
     |              |                |
     |  4. Evaluation (OpenRouter)   |
     |              |                |
-    |  5. Calcul fitness + penalites|
+    |  5. Fitness + penalties calc  |
     |              |                |
-    |  6. Selection des meilleurs   |
+    |  6. Select best candidates    |
     |              |                |
-    |  7. Mutations genetiques      |
+    |  7. Genetic mutations         |
     |              |                |
-    |  8. Rotation cross-validation |
+    |  8. Cross-validation rotation |
     |              |                |
     +---------------+---------------+
                     |
-9. Validation finale sur holdout set
+9. Final validation on holdout set
                     |
-10. Export des meilleurs prompts
+10. Export best prompts
 ```
 
-## Resultats
+## Results
 
-Apres execution, les resultats sont dans `prompt_optimization_results/`:
+After execution, results are in `prompt_optimization_results/`:
 
 ```
 prompt_optimization_results/
-├── iteration_001.json     # Resultats iteration 1
+├── iteration_001.json     # Iteration 1 results
 ├── iteration_002.json     # ...
-├── final_report.json      # Rapport complet
+├── final_report.json      # Complete report
 └── best_prompts/
-    ├── prompt_01.yaml     # Meilleur prompt
-    ├── prompt_02.yaml     # 2eme meilleur
+    ├── prompt_01.yaml     # Best prompt
+    ├── prompt_02.yaml     # 2nd best
     └── ...
 ```
 
-### Utiliser le meilleur prompt
+### Using the Best Prompt
 
-1. Ouvrez `best_prompts/prompt_01.yaml`
-2. Copiez le contenu de `system_prompt` et `user_prompt`
-3. Integrez-les dans votre configuration principale (`config.yaml`)
+1. Open `best_prompts/prompt_01.yaml`
+2. Copy the contents of `system_prompt` and `user_prompt`
+3. Integrate them into your main configuration (`config.yaml`)
 
-## Configuration avancee
+## Advanced Configuration
 
-Editez `prompt_optimizer_config.yaml` pour ajuster:
+Edit `prompt_optimizer_config.yaml` to adjust:
 
-- **texts**: Textes de reference pour l'entrainement
-- **mutation.available_sections**: Sections pouvant etre ajoutees aux prompts
-- **optimization**: Parametres de l'algorithme genetique
-- **cross_validation**: Strategie de validation
+- **texts**: Reference texts for training
+- **mutation.available_sections**: Sections that can be added to prompts
+- **optimization**: Genetic algorithm parameters
+- **cross_validation**: Validation strategy
 
-## Formule de fitness
+## Fitness Formula
 
 ```
 FITNESS = BASE_SCORE - PENALTIES
@@ -174,42 +174,42 @@ FITNESS = BASE_SCORE - PENALTIES
 BASE_SCORE = accuracy*0.35 + fluency*0.30 + style*0.20 + overall*0.15
 
 PENALTIES:
-- Variance entre textes (evite specialisation)
-- Longueur excessive du prompt
-- Termes trop specifiques au texte
-- Ecart train/test (overfitting)
+- Variance between texts (avoids specialization)
+- Excessive prompt length
+- Text-specific terms
+- Train/test gap (overfitting)
 ```
 
-## Strategies de mutation (LLM-based)
+## Mutation Strategies (LLM-based)
 
-L'optimiseur utilise Claude Haiku pour améliorer les prompts via 4 stratégies intelligentes:
+The optimizer uses Claude Haiku to improve prompts via 4 intelligent strategies:
 
-### 1. **CORRECT** - Corriger les faiblesses
+### 1. **CORRECT** - Fix weaknesses
 
-- Utilisée quand: fitness < 6.0
-- Action: Ajoute des instructions pour corriger les problèmes identifiés dans les feedbacks
-- Exemple: Si fluency est faible, ajoute "Prioritize natural expression over literal translation"
+- Used when: fitness < 6.0
+- Action: Adds instructions to correct problems identified in feedbacks
+- Example: If fluency is low, adds "Prioritize natural expression over literal translation"
 
-### 2. **SIMPLIFY** - Réduire et optimiser
+### 2. **SIMPLIFY** - Reduce and optimize
 
-- Utilisée quand: prompt > 300 tokens
-- Action: Retire les instructions redondantes ou inutiles
-- Objectif: Réduire le coût et améliorer la clarté
+- Used when: prompt > 300 tokens
+- Action: Removes redundant or unnecessary instructions
+- Goal: Reduce cost and improve clarity
 
-### 3. **REFORMULATE** - Clarifier
+### 3. **REFORMULATE** - Clarify
 
-- Utilisée quand: fitness moyen
-- Action: Réécrit les instructions de manière plus claire et directe
-- Garde la même longueur ou réduit
+- Used when: average fitness
+- Action: Rewrites instructions more clearly and directly
+- Keeps the same length or reduces
 
-### 4. **RADICAL** - Explorer de nouvelles approches
+### 4. **RADICAL** - Explore new approaches
 
-- Utilisée quand: début d'optimisation (génération < 3)
-- Action: Essaie une structure complètement différente
-- Exemples: minimaliste, basé sur des règles, avec exemples, etc.
+- Used when: early optimization (generation < 3)
+- Action: Tries a completely different structure
+- Examples: minimalist, rule-based, with examples, etc.
 
-**Sélection automatique:** La stratégie est choisie intelligemment selon:
+**Automatic selection:** The strategy is intelligently chosen based on:
 
-- Longueur du prompt actuel
-- Scores de fitness
-- Numéro de génération
+- Current prompt length
+- Fitness scores
+- Generation number
