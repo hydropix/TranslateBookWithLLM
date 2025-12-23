@@ -1446,7 +1446,8 @@ async def translate_text_as_string(
     checkpoint_manager=None,
     translation_id: str = None,
     resume_from_index: int = 0,
-    has_images: bool = False
+    has_images: bool = False,
+    prompt_options: dict = None
 ) -> str:
     """
     Translate a text string using the standard text translation workflow.
@@ -1475,6 +1476,7 @@ async def translate_text_as_string(
         translation_id: ID of the translation job
         resume_from_index: Index to resume from
         has_images: If True, includes image placeholder preservation instructions in prompts
+        prompt_options: Optional dict with prompt customization options
 
     Returns:
         Translated text string
@@ -1533,7 +1535,8 @@ async def translate_text_as_string(
         checkpoint_manager=checkpoint_manager,
         translation_id=translation_id,
         resume_from_index=resume_from_index,
-        has_images=has_images  # Pass image flag to include image marker preservation in prompt
+        has_images=has_images,  # Pass image flag to include image marker preservation in prompt
+        prompt_options=prompt_options
     )
 
     if progress_callback:

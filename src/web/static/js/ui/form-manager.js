@@ -227,6 +227,22 @@ export const FormManager = {
     },
 
     /**
+     * Toggle prompt options panel
+     */
+    togglePromptOptions() {
+        const section = DomHelpers.getElement('promptOptionsSection');
+        const icon = DomHelpers.getElement('promptOptionsIcon');
+
+        if (!section || !icon) return;
+
+        const isHidden = section.classList.toggle('hidden');
+        icon.style.transform = isHidden ? 'rotate(0deg)' : 'rotate(180deg)';
+
+        // Update state
+        StateManager.setState('ui.isPromptOptionsOpen', !isHidden);
+    },
+
+    /**
      * Handle fast mode toggle
      * @param {boolean} isChecked - Whether fast mode is checked
      */
@@ -452,6 +468,11 @@ export const FormManager = {
             max_attempts: parseInt(DomHelpers.getValue('maxAttempts')),
             retry_delay: parseInt(DomHelpers.getValue('retryDelay')),
             fast_mode: DomHelpers.getElement('fastMode')?.checked || false,
+            // Prompt options (optional system prompt instructions)
+            prompt_options: {
+                preserve_technical_content: DomHelpers.getElement('preserveTechnicalContent')?.checked || false,
+                text_cleanup: DomHelpers.getElement('textCleanup')?.checked || false
+            },
             // TTS configuration
             tts_enabled: ttsEnabled,
             tts_voice: ttsEnabled ? (DomHelpers.getValue('ttsVoice') || '') : '',

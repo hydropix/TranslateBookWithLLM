@@ -321,6 +321,7 @@ window.resetFiles = () => {
 
 // Form Manager
 window.toggleAdvanced = FormManager.toggleAdvanced.bind(FormManager);
+window.togglePromptOptions = FormManager.togglePromptOptions.bind(FormManager);
 window.checkCustomSourceLanguage = (element) => FormManager.checkCustomSourceLanguage(element);
 window.checkCustomTargetLanguage = (element) => FormManager.checkCustomTargetLanguage(element);
 window.resetForm = FormManager.resetForm.bind(FormManager);

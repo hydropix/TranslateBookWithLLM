@@ -27,6 +27,7 @@ from .tag_preservation import TagPreserver
 from .xml_helpers import rebuild_element_from_translated_content
 from ..translator import generate_translation_request
 from ..post_processor import clean_residual_tag_placeholders
+from prompts.examples import ensure_example_ready
 
 
 async def translate_epub_file(
@@ -51,7 +52,8 @@ async def translate_epub_file(
     min_chunk_size: int = 5,
     checkpoint_manager = None,
     translation_id: Optional[str] = None,
-    resume_from_index: int = 0
+    resume_from_index: int = 0,
+    prompt_options: Optional[Dict] = None
 ) -> None:
     """
     Translate an EPUB file using LLM
@@ -81,6 +83,7 @@ async def translate_epub_file(
         checkpoint_manager: Checkpoint manager for resume functionality
         translation_id: ID of the translation job
         resume_from_index: Index to resume from
+        prompt_options: Optional dict with prompt customization options
     """
     if not os.path.exists(input_filepath):
         err_msg = f"ERROR: Input EPUB file '{input_filepath}' not found."
@@ -99,7 +102,8 @@ async def translate_epub_file(
             check_interruption_callback,
             llm_provider, gemini_api_key, openai_api_key, openrouter_api_key,
             context_window, auto_adjust_context, min_chunk_size,
-            checkpoint_manager, translation_id, resume_from_index
+            checkpoint_manager, translation_id, resume_from_index,
+            prompt_options
         )
         return
 
@@ -128,7 +132,8 @@ async def translate_epub_file(
                 jobs, source_language, target_language, model_name,
                 cli_api_endpoint, llm_provider, gemini_api_key, openai_api_key,
                 openrouter_api_key,
-                progress_callback, log_callback, stats_callback, check_interruption_callback
+                progress_callback, log_callback, stats_callback, check_interruption_callback,
+                prompt_options
             )
 
             if progress_callback:
@@ -282,7 +287,8 @@ async def _translate_jobs(
     progress_callback: Optional[Callable],
     log_callback: Optional[Callable],
     stats_callback: Optional[Callable],
-    check_interruption_callback: Optional[Callable]
+    check_interruption_callback: Optional[Callable],
+    prompt_options: Optional[Dict] = None
 ) -> tuple[int, int]:
     """
     Translate all collected jobs
@@ -300,6 +306,7 @@ async def _translate_jobs(
         log_callback: Logging callback
         stats_callback: Statistics callback
         check_interruption_callback: Interruption check callback
+        prompt_options: Optional dict with prompt customization options
 
     Returns:
         Tuple of (completed_count, failed_count)
@@ -310,6 +317,13 @@ async def _translate_jobs(
     # Create LLM client
     from ..llm_client import create_llm_client
     llm_client = create_llm_client(llm_provider, gemini_api_key, cli_api_endpoint, model_name, openai_api_key, openrouter_api_key, log_callback=log_callback)
+
+    # Pre-generate placeholder example if missing for this language pair
+    # Standard EPUB mode uses placeholders, so we need the example
+    if llm_client:
+        provider = llm_client._get_provider()
+        if provider:
+            await ensure_example_ready(source_language, target_language, provider)
 
     last_successful_context = ""
     context_accumulator = []
@@ -331,7 +345,7 @@ async def _translate_jobs(
         translated_parts = await _translate_epub_chunks_with_context(
             job['sub_chunks'], source_language, target_language,
             model_name, llm_client, last_successful_context,
-            log_callback, check_interruption_callback
+            log_callback, check_interruption_callback, prompt_options
         )
 
         # Join translated parts
@@ -370,7 +384,8 @@ async def _translate_epub_chunks_with_context(
     llm_client: Any,
     previous_context: str,
     log_callback: Optional[Callable],
-    check_interruption_callback: Optional[Callable]
+    check_interruption_callback: Optional[Callable],
+    prompt_options: Optional[Dict] = None
 ) -> List[str]:
     """
     Translate EPUB chunks with previous translation context for consistency
@@ -384,6 +399,7 @@ async def _translate_epub_chunks_with_context(
         previous_context: Previous translation for context
         log_callback: Logging callback
         check_interruption_callback: Interruption check callback
+        prompt_options: Optional dict with prompt customization options
 
     Returns:
         List of translated chunks
@@ -413,7 +429,8 @@ async def _translate_epub_chunks_with_context(
         translated_chunk = await generate_translation_request(
             main_content, context_before, context_after,
             previous_context, source_language, target_language,
-            model_name, llm_client=llm_client, log_callback=log_callback
+            model_name, llm_client=llm_client, log_callback=log_callback,
+            prompt_options=prompt_options
         )
 
         if translated_chunk is not None:
@@ -423,7 +440,7 @@ async def _translate_epub_chunks_with_context(
                     translated_chunk, source_placeholders, main_content,
                     context_before, context_after, previous_context,
                     source_language, target_language, model_name,
-                    llm_client, log_callback
+                    llm_client, log_callback, prompt_options
                 )
 
             translated_parts.append(translated_chunk)
@@ -449,7 +466,8 @@ async def _validate_placeholders_and_retry(
     target_language: str,
     model_name: str,
     llm_client: Any,
-    log_callback: Optional[Callable]
+    log_callback: Optional[Callable],
+    prompt_options: Optional[Dict] = None
 ) -> str:
     """
     Validate placeholders in translation and retry if missing
@@ -466,6 +484,7 @@ async def _validate_placeholders_and_retry(
         model_name: Model name
         llm_client: LLM client
         log_callback: Logging callback
+        prompt_options: Optional dict with prompt customization options
 
     Returns:
         Validated/retried translation
@@ -482,7 +501,8 @@ async def _validate_placeholders_and_retry(
         retry_text = await generate_translation_request(
             main_content, context_before, context_after,
             previous_context, source_language, target_language,
-            model_name, llm_client=llm_client, log_callback=log_callback
+            model_name, llm_client=llm_client, log_callback=log_callback,
+            prompt_options=prompt_options
         )
 
         if retry_text is not None:
@@ -753,7 +773,8 @@ async def _translate_epub_fast_mode(
     min_chunk_size: int,
     checkpoint_manager = None,
     translation_id: Optional[str] = None,
-    resume_from_index: int = 0
+    resume_from_index: int = 0,
+    prompt_options: Optional[Dict] = None
 ) -> None:
     """
     Translate EPUB in fast mode (extract text, translate, rebuild)
@@ -849,7 +870,8 @@ async def _translate_epub_fast_mode(
             checkpoint_manager=checkpoint_manager,
             translation_id=translation_id,
             resume_from_index=resume_from_index,
-            has_images=text_has_images  # Enable image marker preservation instructions in prompt
+            has_images=text_has_images,  # Enable image marker preservation instructions in prompt
+            prompt_options=prompt_options
         )
 
         # Check if translation was interrupted (partial result)

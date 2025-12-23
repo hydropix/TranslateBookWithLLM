@@ -84,6 +84,7 @@
                             <option value="French">French</option>
                             <option value="German">German</option>
                             <option value="Italian">Italian</option>
+                            <option value="Korean">Korean</option>
                             <option value="Other">Other (Specify)</option>
                         </select>
                         <input type="text" class="form-control" id="customSourceLang" placeholder="Enter custom source language" style="margin-top: 10px; display: none;">
@@ -98,6 +99,7 @@
                             <option value="Spanish">Spanish</option>
                             <option value="German">German</option>
                             <option value="Italian">Italian</option>
+                            <option value="Korean">Korean</option>
                             <option value="Other">Other (Specify)</option>
                         </select>
                         <input type="text" class="form-control" id="customTargetLang" placeholder="Enter custom target language" style="margin-top: 10px; display: none;">
@@ -128,6 +130,43 @@
                         <p style="margin: 0; font-size: 14px; color: #92400e;">
                             <strong>💡 Recommendation:</strong> Your selected model appears to be ≤12B parameters. For EPUB translation, we strongly recommend enabling <strong>Fast Mode</strong> to avoid tag management issues common with smaller models.
                         </p>
+                    </div>
+                </div>
+
+                <!-- Prompt Options (Foldable) -->
+                <div class="prompt-options-toggle" onclick="togglePromptOptions()" style="cursor: pointer; padding: 15px; background: linear-gradient(90deg, #1A1A1A, #2C2C2C); border-radius: 8px; margin-bottom: 15px; display: flex; align-items: center; justify-content: space-between; border: 1px solid #333333; color: #A3ADB3; transition: background 0.3s;">
+                    <span style="font-weight: 500;">📝 Prompt Options</span>
+                    <span id="promptOptionsIcon" style="transition: transform 0.2s; color: #79CDDE;">▼</span>
+                </div>
+                <div id="promptOptionsSection" class="hidden" style="padding: 20px; background: #1A1A1A; border: 1px solid #333333; border-radius: 8px; margin-bottom: 15px;">
+                    <p style="margin: 0 0 15px 0; font-size: 13px; color: #A3ADB3;">
+                        Optional instructions to include in the translation prompt. Enable these for specific document types.
+                    </p>
+
+                    <!-- Technical Content Preservation -->
+                    <div class="form-group" style="margin-bottom: 10px;">
+                        <label style="display: flex; align-items: flex-start; gap: 10px; cursor: pointer;">
+                            <input type="checkbox" id="preserveTechnicalContent" style="width: auto; margin-top: 3px; accent-color: #79CDDE;">
+                            <div>
+                                <span style="font-weight: 500; color: #E0E6E9;">Preserve Technical Content</span>
+                                <p style="margin: 5px 0 0 0; font-size: 13px; color: #A3ADB3;">
+                                    For technical documents. Instructs the LLM to NOT translate: code snippets, command lines, file paths, URLs, and programming terms.
+                                </p>
+                            </div>
+                        </label>
+                    </div>
+
+                    <!-- Text Cleanup (OCR/Typographic Correction) -->
+                    <div class="form-group" style="margin-bottom: 10px;">
+                        <label style="display: flex; align-items: flex-start; gap: 10px; cursor: pointer;">
+                            <input type="checkbox" id="textCleanup" style="width: auto; margin-top: 3px; accent-color: #79CDDE;">
+                            <div>
+                                <span style="font-weight: 500; color: #E0E6E9;">Text Cleanup (OCR Correction)</span>
+                                <p style="margin: 5px 0 0 0; font-size: 13px; color: #A3ADB3;">
+                                    For poorly formatted or OCR-scanned texts. Instructs the LLM to fix: broken line breaks, double spaces, punctuation errors, and merge incorrectly split paragraphs.
+                                </p>
+                            </div>
+                        </label>
                     </div>
                 </div>
 

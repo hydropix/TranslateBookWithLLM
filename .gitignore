@@ -14,3 +14,4 @@ build/
 /dist
 /wiki/
 .wiki_repo/
+/prompt_optimization_results

@@ -1,0 +1,169 @@
+# Prompt Optimizer Configuration
+# ================================
+# This file configures the prompt optimization process for translation prompts.
+
+# Default Languages (used when not specified per-text)
+default_source_language: English
+default_target_language: French
+
+# =============================================================================
+# LLM Configuration
+# =============================================================================
+
+# Ollama - Test LLM (performs translations)
+ollama:
+  endpoint: http://ai_server.mds.com:11434/api/generate
+  model: qwen3:8b
+  timeout: 120
+  num_ctx: 4096
+
+# OpenRouter - Evaluator & Mutator LLM (scores translations + improves prompts)
+# API key can be set here or in .env file (OPENROUTER_API_KEY)
+openrouter:
+  endpoint: https://openrouter.ai/api/v1/chat/completions
+  model: anthropic/claude-haiku-4.5
+  timeout: 90  # Longer timeout for mutation requests
+  # api_key: sk-or-...  # Or set OPENROUTER_API_KEY in .env
+
+# =============================================================================
+# Initial Prompts to Optimize
+# =============================================================================
+
+# System prompt - instructions for the translator
+# Supports placeholders: {source_language}, {target_language}
+initial_system_prompt: |
+  You are an expert literary translator specializing in {source_language} to {target_language} translation.
+
+  # CORE PRINCIPLES
+
+  1. **Accuracy**: Preserve the exact meaning of the original text
+  2. **Fluency**: The translation should read naturally in {target_language}
+  3. **Style**: Maintain the author's voice, tone, and literary style
+
+  # GUIDELINES
+
+  - Preserve sentence structure when possible, but prioritize natural {target_language} expression
+  - Keep the same level of formality as the original
+  - Translate idioms to equivalent expressions, not literally
+  - Maintain any irony, humor, or subtle meanings
+
+  # OUTPUT
+
+  Provide ONLY the translation, without explanations or notes.
+
+# User prompt - the actual translation request
+# Supports placeholders: {text}, {source_language}, {target_language}
+initial_user_prompt: |
+  Translate the following {source_language} text to {target_language}:
+
+  {text}
+
+# =============================================================================
+# Reference Texts for Evaluation
+# =============================================================================
+
+texts:
+  # Each text can specify its own source_language and target_language
+  # If not specified, defaults from above will be used
+
+  - id: pride_prejudice
+    title: "Pride and Prejudice"
+    author: "Jane Austen"
+    style: "Prose narrative with irony"
+    source_language: English
+    target_language: French
+    text: |
+      It is a truth universally acknowledged, that a single man in possession of a good fortune, must be in want of a wife. However little known the feelings or views of such a man may be on his first entering a neighbourhood, this truth is so well fixed in the minds of the surrounding families, that he is considered as the rightful property of some one or other of their daughters.
+
+  - id: dorian_gray
+    title: "The Picture of Dorian Gray"
+    author: "Oscar Wilde"
+    style: "Sensory description and aestheticism"
+    source_language: English
+    target_language: French
+    text: |
+      The studio was filled with the rich odour of roses, and when the light summer wind stirred amidst the trees of the garden, there came through the open door the heavy scent of the lilac, or the more delicate perfume of the pink-flowering thorn. From the corner of the divan of Persian saddle-bags on which he was lying, smoking, as was his custom, innumerable cigarettes, Lord Henry Wotton could just catch the gleam of the honey-sweet and honey-coloured blossoms of a laburnum.
+
+  - id: study_scarlet
+    title: "A Study in Scarlet"
+    author: "Arthur Conan Doyle"
+    style: "Dialogue and character introduction"
+    source_language: English
+    target_language: Spanish
+    text: |
+      "You have been in Afghanistan, I perceive." "How on earth did you know that?" I asked in astonishment. "Never mind," said he, chuckling to himself. "The question now is about haemoglobin. No doubt you see the significance of this discovery of mine?" "It is interesting, chemically, no doubt," I answered, "but practically—" "Why, man, it is the most practical medico-legal discovery for years. Don't you see that it gives us an infallible test for blood stains?"
+
+  - id: walden
+    title: "Walden"
+    author: "Henry David Thoreau"
+    style: "Philosophical prose and nature writing"
+    source_language: English
+    target_language: German
+    text: |
+      I went to the woods because I wished to live deliberately, to front only the essential facts of life, and see if I could not learn what it had to teach, and not, when I came to die, discover that I had not lived. I did not wish to live what was not life, living is so dear; nor did I wish to practise resignation, unless it was quite necessary. I wanted to live deep and suck out all the marrow of life.
+
+  - id: moby_dick
+    title: "Moby-Dick"
+    author: "Herman Melville"
+    style: "Archaic literary prose"
+    source_language: English
+    target_language: Italian
+    text: |
+      Call me Ishmael. Some years ago—never mind how long precisely—having little or no money in my purse, and nothing particular to interest me on shore, I thought I would sail about a little and see the watery part of the world. It is a way I have of driving off the spleen and regulating the circulation. Whenever I find myself growing grim about the mouth; whenever it is a damp, drizzly November in my soul, I account it high time to get to sea as soon as I can.
+
+# =============================================================================
+# Optimization Parameters
+# =============================================================================
+
+optimization:
+  iterations: 10        # Number of optimization iterations
+  population_size: 5    # Number of prompts in population
+  elite_count: 2        # Best prompts to keep unchanged
+  tournament_size: 3    # Selection tournament size
+
+# =============================================================================
+# Cross-Validation Settings
+# =============================================================================
+
+cross_validation:
+  k_folds: 3            # Number of folds for rotation
+  holdout_final: true   # Reserve one text for final validation
+  holdout_index: 0      # Index of text to use as holdout (pride_prejudice)
+
+# =============================================================================
+# Fitness Calculation
+# =============================================================================
+
+fitness:
+  # Score weights (should sum to 1.0)
+  accuracy_weight: 0.35
+  fluency_weight: 0.30
+  style_weight: 0.20
+  overall_weight: 0.15
+
+  # Penalty settings
+  variance_penalty_weight: 0.1      # Penalize inconsistent performance
+  length_penalty_threshold: 500     # Start penalizing prompts longer than this
+  length_penalty_rate: 0.001        # Penalty per character over threshold
+  specificity_penalty_rate: 0.05    # Penalty for text-specific terms
+  generalization_gap_weight: 0.5    # Penalize train/test score gap
+
+# =============================================================================
+# Mutation Settings (LLM-based)
+# =============================================================================
+# Mutations are now performed by the frontier LLM (OpenRouter) using 4 strategies:
+#   - CORRECT: Fix identified weaknesses based on evaluation feedback
+#   - SIMPLIFY: Remove unnecessary instructions, reduce token cost
+#   - REFORMULATE: Rewrite for clarity, same length or shorter
+#   - RADICAL: Try a completely different approach
+#
+# Strategy selection is automatic based on:
+#   - Prompt length (long prompts -> more SIMPLIFY)
+#   - Fitness score (low scores -> more CORRECT)
+#   - Generation number (early -> more RADICAL exploration)
+
+# =============================================================================
+# Output Settings
+# =============================================================================
+
+output_dir: prompt_optimization_results

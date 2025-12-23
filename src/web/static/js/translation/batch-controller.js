@@ -65,6 +65,12 @@ function getTranslationConfig(file) {
 
     const provider = DomHelpers.getValue('llmProvider');
 
+    // Build prompt options object
+    const promptOptions = {
+        preserve_technical_content: DomHelpers.getElement('preserveTechnicalContent')?.checked || false,
+        text_cleanup: DomHelpers.getElement('textCleanup')?.checked || false
+    };
+
     const config = {
         source_language: sourceLanguageVal,
         target_language: targetLanguageVal,
@@ -83,7 +89,8 @@ function getTranslationConfig(file) {
         retry_delay: parseInt(DomHelpers.getValue('retryDelay')),
         output_filename: file.outputFilename,
         file_type: file.fileType,
-        fast_mode: DomHelpers.getElement('fastMode')?.checked || false
+        fast_mode: DomHelpers.getElement('fastMode')?.checked || false,
+        prompt_options: promptOptions
     };
 
     // Handle file input based on type

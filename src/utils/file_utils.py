@@ -71,7 +71,7 @@ async def translate_text_file_with_callbacks(input_filepath, output_filepath,
                                              fast_mode=False, checkpoint_manager=None, translation_id=None,
                                              resume_from_index=0,
                                              use_token_chunking=None, max_tokens_per_chunk=None,
-                                             soft_limit_ratio=None):
+                                             soft_limit_ratio=None, prompt_options=None):
     """
     Translate a text file with callback support
 
@@ -91,6 +91,7 @@ async def translate_text_file_with_callbacks(input_filepath, output_filepath,
         use_token_chunking (bool): If True, use token-based chunking instead of line-based
         max_tokens_per_chunk (int): Maximum tokens per chunk (token mode)
         soft_limit_ratio (float): Soft limit ratio for token chunking (default 0.8)
+        prompt_options (dict): Optional dict with prompt customization options
     """
     if not os.path.exists(input_filepath):
         err_msg = f"ERROR: Input file '{input_filepath}' not found."
@@ -185,7 +186,8 @@ async def translate_text_file_with_callbacks(input_filepath, output_filepath,
         fast_mode=fast_mode,
         checkpoint_manager=checkpoint_manager,
         translation_id=translation_id,
-        resume_from_index=resume_from_index
+        resume_from_index=resume_from_index,
+        prompt_options=prompt_options
     )
 
     if progress_callback:
@@ -225,10 +227,11 @@ async def translate_srt_file_with_callbacks(input_filepath, output_filepath,
                                            check_interruption_callback=None,
                                            llm_provider="ollama", gemini_api_key=None, openai_api_key=None,
                                            openrouter_api_key=None,
-                                           checkpoint_manager=None, translation_id=None, resume_from_block_index=0):
+                                           checkpoint_manager=None, translation_id=None, resume_from_block_index=0,
+                                           prompt_options=None):
     """
     Translate an SRT subtitle file with callback support
-    
+
     Args:
         input_filepath (str): Path to input SRT file
         output_filepath (str): Path to output SRT file
@@ -241,7 +244,10 @@ async def translate_srt_file_with_callbacks(input_filepath, output_filepath,
         log_callback (callable): Logging callback
         stats_callback (callable): Statistics callback
         check_interruption_callback (callable): Interruption check callback
+        prompt_options (dict): Optional prompt customization options (not yet used for SRT)
     """
+    # Note: prompt_options is accepted but not yet propagated to subtitle translation
+    # SRT uses a specialized prompt (generate_subtitle_block_prompt) that doesn't use prompt_options yet
     if not os.path.exists(input_filepath):
         err_msg = f"ERROR: SRT file '{input_filepath}' not found."
         if log_callback:
@@ -372,7 +378,7 @@ async def translate_file(input_filepath, output_filepath,
                         llm_provider="ollama", gemini_api_key=None, openai_api_key=None,
                         openrouter_api_key=None,
                         context_window=2048, auto_adjust_context=True, min_chunk_size=5,
-                        fast_mode=False):
+                        fast_mode=False, prompt_options=None):
     """
     Translate a file (auto-detect format)
 
@@ -388,7 +394,10 @@ async def translate_file(input_filepath, output_filepath,
         log_callback (callable): Logging callback
         stats_callback (callable): Statistics callback
         check_interruption_callback (callable): Interruption check callback
+        prompt_options (dict): Optional prompt customization options
     """
+    if prompt_options is None:
+        prompt_options = {}
     _, ext = os.path.splitext(input_filepath.lower())
 
     if ext == '.epub':
@@ -402,7 +411,8 @@ async def translate_file(input_filepath, output_filepath,
                                   gemini_api_key=gemini_api_key,
                                   openai_api_key=openai_api_key,
                                   openrouter_api_key=openrouter_api_key,
-                                  fast_mode=fast_mode)
+                                  fast_mode=fast_mode,
+                                  prompt_options=prompt_options)
     elif ext == '.srt':
         await translate_srt_file_with_callbacks(
             input_filepath, output_filepath,
@@ -414,7 +424,8 @@ async def translate_file(input_filepath, output_filepath,
             llm_provider=llm_provider,
             gemini_api_key=gemini_api_key,
             openai_api_key=openai_api_key,
-            openrouter_api_key=openrouter_api_key
+            openrouter_api_key=openrouter_api_key,
+            prompt_options=prompt_options
         )
     else:
         # For .txt files, always use fast mode (no placeholder preservation needed)
@@ -432,7 +443,8 @@ async def translate_file(input_filepath, output_filepath,
             context_window=context_window,
             auto_adjust_context=auto_adjust_context,
             min_chunk_size=min_chunk_size,
-            fast_mode=True
+            fast_mode=True,
+            prompt_options=prompt_options
         )
 
 

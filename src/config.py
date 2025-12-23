@@ -148,6 +148,16 @@ FORMAT_HR_MARKER = "[HR]"
 DEFAULT_SOURCE_LANGUAGE = os.getenv('DEFAULT_SOURCE_LANGUAGE', 'English')
 DEFAULT_TARGET_LANGUAGE = os.getenv('DEFAULT_TARGET_LANGUAGE', 'Chinese')
 
+# ============================================================================
+# PROMPT OPTIONS CONFIGURATION
+# ============================================================================
+# These options control which optional sections are included in the system prompt.
+# Each option can be enabled/disabled via the web interface or CLI.
+
+# Technical Content Preservation (for technical documents)
+# When enabled, instructs the LLM to NOT translate code, paths, URLs, etc.
+PROMPT_PRESERVE_TECHNICAL_CONTENT = os.getenv('PROMPT_PRESERVE_TECHNICAL_CONTENT', 'false').lower() == 'true'
+
 # Server configuration
 HOST = os.getenv('HOST', '127.0.0.1')
 OUTPUT_DIR = os.getenv('OUTPUT_DIR', 'translated_files')
