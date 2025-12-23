@@ -1,13 +1,10 @@
-from typing import List, Tuple, NamedTuple
-from src.config import (
-    TRANSLATE_TAG_IN, TRANSLATE_TAG_OUT, INPUT_TAG_IN, INPUT_TAG_OUT,
-)
-from prompts.examples import (
-    get_output_format_example,
-    get_subtitle_example,
-    build_placeholder_section,
-    build_image_placeholder_section,
-)
+from typing import List, NamedTuple, Tuple
+
+from prompts.examples import (build_image_placeholder_section,
+                              build_placeholder_section,
+                              get_output_format_example, get_subtitle_example)
+from src.config import (INPUT_TAG_IN, INPUT_TAG_OUT, TRANSLATE_TAG_IN,
+                        TRANSLATE_TAG_OUT)
 
 
 class PromptPair(NamedTuple):
@@ -231,17 +228,12 @@ def generate_translation_prompt(
     # SYSTEM PROMPT - Role and instructions (stable across requests)
     system_prompt = f"""You are a professional {target_language} translator and writer.
 
-# CRITICAL: TARGET LANGUAGE IS {target_language.upper()}
-
-You are translating FROM {source_language} TO {target_language}.
-Your output must be in {target_language} ONLY - do NOT use any other language.
-
 # TRANSLATION PRINCIPLES
 
 Translate {source_language} to {target_language}. Output only the translation.
 
 **PRIORITY ORDER:**
-1. Preserve exact names, numbers, dates, technical terms
+1. Preserve exact names
 2. Match original tone and formality
 3. Use natural {target_language} phrasing - never word-for-word
 4. Fix grammar/spelling errors in output
@@ -252,7 +244,7 @@ Translate {source_language} to {target_language}. Output only the translation.
 - Are all details from the original included?
 - Does punctuation follow {target_language} conventions?
 
-If unsure between literal and natural phrasing: choose natural.
+If unsure between literal and natural phrasing: **choose natural**.
 
 **LAYOUT PRESERVATION:**
 - Keep the exact text layout, spacing, line breaks, and indentation
