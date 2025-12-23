@@ -152,12 +152,20 @@ class WikiGenerator:
         }
 
     def _slugify(self, text: str) -> str:
-        """Convert text to URL-safe slug."""
+        """Convert text to URL-safe slug for GitHub wiki page names."""
         slug = text.lower()
         slug = re.sub(r"[^a-z0-9\-_]", "-", slug)
         slug = re.sub(r"-+", "-", slug)
         slug = slug.strip("-")
         return slug
+
+    def _language_page_name(self, language_name: str) -> str:
+        """Generate wiki page name for a language (flat structure for GitHub wiki)."""
+        return f"Language-{self._slugify(language_name)}"
+
+    def _model_page_name(self, model_name: str) -> str:
+        """Generate wiki page name for a model (flat structure for GitHub wiki)."""
+        return f"Model-{self._slugify(model_name)}"
 
     def _calculate_score_distribution(self, scores: list[float]) -> dict:
         """Calculate score distribution buckets."""
@@ -194,10 +202,8 @@ class WikiGenerator:
         if run is None:
             raise ValueError("No benchmark run found")
 
-        # Ensure output directories exist
+        # Ensure output directory exists (flat structure for GitHub wiki)
         self.output_dir.mkdir(parents=True, exist_ok=True)
-        (self.output_dir / "languages").mkdir(exist_ok=True)
-        (self.output_dir / "models").mkdir(exist_ok=True)
 
         # Generate all pages
         self._generate_home(run)
@@ -218,7 +224,7 @@ class WikiGenerator:
         for stats in sorted(model_stats, key=lambda x: x.avg_overall, reverse=True):
             model_rankings.append({
                 "name": stats.model,
-                "slug": self._slugify(stats.model),
+                "page_name": self._model_page_name(stats.model),
                 "avg_overall": stats.avg_overall,
                 "avg_accuracy": stats.avg_accuracy,
                 "avg_fluency": stats.avg_fluency,
@@ -235,7 +241,7 @@ class WikiGenerator:
             language_rankings.append({
                 "name": lang_info["name"],
                 "native_name": lang_info["native_name"],
-                "slug": self._slugify(lang_info["name"]),
+                "page_name": self._language_page_name(lang_info["name"]),
                 "avg_overall": stats.avg_overall,
                 "indicator": get_score_indicator(stats.avg_overall),
                 "best_model": stats.best_model or "N/A",
@@ -269,8 +275,9 @@ class WikiGenerator:
         for stats in sorted(language_stats, key=lambda x: x.avg_overall, reverse=True):
             lang_info = self._get_language_info(stats.language_code)
             indicator = get_score_indicator(stats.avg_overall)
+            page_name = self._language_page_name(lang_info['name'])
             rows.append([
-                f"[{lang_info['name']}](languages/{self._slugify(lang_info['name'])})",
+                f"[{lang_info['name']}]({page_name})",
                 lang_info['native_name'],
                 lang_info['category'],
                 f"{indicator} {stats.avg_overall:.1f}",
@@ -278,7 +285,7 @@ class WikiGenerator:
             ])
 
         table = format_markdown_table(headers, rows)
-        content = f"# All Languages\n\n{table}\n\n---\n\n[< Back to Home](Home)\n"
+        content = f"# All Languages\n\n{table}\n\n---\n\n[← Back to Home](Home)\n"
 
         (self.output_dir / "All-Languages.md").write_text(content, encoding="utf-8")
 
@@ -291,8 +298,9 @@ class WikiGenerator:
 
         for stats in sorted(model_stats, key=lambda x: x.avg_overall, reverse=True):
             indicator = get_score_indicator(stats.avg_overall)
+            page_name = self._model_page_name(stats.model)
             rows.append([
-                f"[{stats.model}](models/{self._slugify(stats.model)})",
+                f"[{stats.model}]({page_name})",
                 f"{indicator} {stats.avg_overall:.1f}",
                 f"{stats.avg_accuracy:.1f}",
                 f"{stats.avg_fluency:.1f}",
@@ -301,7 +309,7 @@ class WikiGenerator:
             ])
 
         table = format_markdown_table(headers, rows)
-        content = f"# All Models\n\n{table}\n\n---\n\n[< Back to Home](Home)\n"
+        content = f"# All Models\n\n{table}\n\n---\n\n[← Back to Home](Home)\n"
 
         (self.output_dir / "All-Models.md").write_text(content, encoding="utf-8")
 
@@ -340,7 +348,7 @@ class WikiGenerator:
                 if m_scores:
                     model_results.append({
                         "model": model,
-                        "model_slug": self._slugify(model),
+                        "model_page_name": self._model_page_name(model),
                         "avg_overall": sum(s.overall for s in m_scores) / len(m_scores),
                         "avg_accuracy": sum(s.accuracy for s in m_scores) / len(m_scores),
                         "avg_fluency": sum(s.fluency for s in m_scores) / len(m_scores),
@@ -367,16 +375,17 @@ class WikiGenerator:
                 total_translations=len(results),
                 model_results=model_results,
                 best_model=best_model,
-                best_model_slug=self._slugify(best_model),
+                best_model_page_name=self._model_page_name(best_model),
                 worst_model=worst_model,
-                worst_model_slug=self._slugify(worst_model),
+                worst_model_page_name=self._model_page_name(worst_model),
                 examples=examples,
                 score_dist=self._calculate_score_distribution(scores),
                 indicators=self.INDICATORS,
             )
 
-            filename = f"{self._slugify(lang_info['name'])}.md"
-            (self.output_dir / "languages" / filename).write_text(content, encoding="utf-8")
+            # Write to flat directory structure (GitHub wiki doesn't support subdirectories)
+            filename = f"{self._language_page_name(lang_info['name'])}.md"
+            (self.output_dir / filename).write_text(content, encoding="utf-8")
 
     def _generate_model_pages(self, run: BenchmarkRun) -> None:
         """Generate individual model pages."""
@@ -414,7 +423,7 @@ class WikiGenerator:
                     language_results.append({
                         "code": lang_code,
                         "name": lang_info["name"],
-                        "slug": self._slugify(lang_info["name"]),
+                        "page_name": self._language_page_name(lang_info["name"]),
                         "category": lang_info["category"],
                         "avg_overall": lang_avg,
                         "avg_accuracy": sum(s.accuracy for s in l_scores) / len(l_scores),
@@ -453,10 +462,10 @@ class WikiGenerator:
                 language_results=language_results,
                 categories=categories,
                 best_language=best_lang["name"] if best_lang else "N/A",
-                best_language_slug=self._slugify(best_lang["name"]) if best_lang else "",
+                best_language_page_name=self._language_page_name(best_lang["name"]) if best_lang else "",
                 best_language_score=best_lang["avg_overall"] if best_lang else 0,
                 worst_language=worst_lang["name"] if worst_lang else "N/A",
-                worst_language_slug=self._slugify(worst_lang["name"]) if worst_lang else "",
+                worst_language_page_name=self._language_page_name(worst_lang["name"]) if worst_lang else "",
                 worst_language_score=worst_lang["avg_overall"] if worst_lang else 0,
                 best_example=best_example,
                 worst_example=worst_example,
@@ -465,8 +474,9 @@ class WikiGenerator:
                 avg_translation_time_ms=avg_translation_time,
             )
 
-            filename = f"{self._slugify(model_name)}.md"
-            (self.output_dir / "models" / filename).write_text(content, encoding="utf-8")
+            # Write to flat directory structure (GitHub wiki doesn't support subdirectories)
+            filename = f"{self._model_page_name(model_name)}.md"
+            (self.output_dir / filename).write_text(content, encoding="utf-8")
 
     def _group_languages_by_category(self, language_rankings: list[dict]) -> list[dict]:
         """Group language rankings by category."""

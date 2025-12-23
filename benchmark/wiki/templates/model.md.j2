@@ -14,8 +14,8 @@
 | **Style** | {{ avg_style|round(1) }}/10 |
 | **Languages Tested** | {{ total_languages }} |
 | **Total Translations** | {{ total_translations }} |
-| **Best Language** | [{{ best_language }}](../languages/{{ best_language_slug }}) ({{ best_language_score|round(1) }}) |
-| **Worst Language** | [{{ worst_language }}](../languages/{{ worst_language_slug }}) ({{ worst_language_score|round(1) }}) |
+| **Best Language** | [{{ best_language }}]({{ best_language_page_name }}) ({{ best_language_score|round(1) }}) |
+| **Worst Language** | [{{ worst_language }}]({{ worst_language_page_name }}) ({{ worst_language_score|round(1) }}) |
 
 ---
 
@@ -26,7 +26,7 @@
 | Rank | Language | Overall | Accuracy | Fluency | Style |
 |------|----------|---------|----------|---------|-------|
 {% for lang in language_results[:10] %}
-| {{ loop.index }} | [{{ lang.name }}](../languages/{{ lang.slug }}) | {{ lang.indicator }} {{ lang.avg_overall|round(1) }} | {{ lang.avg_accuracy|round(1) }} | {{ lang.avg_fluency|round(1) }} | {{ lang.avg_style|round(1) }} |
+| {{ loop.index }} | [{{ lang.name }}]({{ lang.page_name }}) | {{ lang.indicator }} {{ lang.avg_overall|round(1) }} | {{ lang.avg_accuracy|round(1) }} | {{ lang.avg_fluency|round(1) }} | {{ lang.avg_style|round(1) }} |
 {% endfor %}
 
 {% if language_results|length > 10 %}
@@ -36,7 +36,7 @@
 | Rank | Language | Overall | Accuracy | Fluency | Style |
 |------|----------|---------|----------|---------|-------|
 {% for lang in language_results %}
-| {{ loop.index }} | [{{ lang.name }}](../languages/{{ lang.slug }}) | {{ lang.indicator }} {{ lang.avg_overall|round(1) }} | {{ lang.avg_accuracy|round(1) }} | {{ lang.avg_fluency|round(1) }} | {{ lang.avg_style|round(1) }} |
+| {{ loop.index }} | [{{ lang.name }}]({{ lang.page_name }}) | {{ lang.indicator }} {{ lang.avg_overall|round(1) }} | {{ lang.avg_accuracy|round(1) }} | {{ lang.avg_fluency|round(1) }} | {{ lang.avg_style|round(1) }} |
 {% endfor %}
 
 </details>
@@ -52,7 +52,7 @@
 | Language | Overall | Accuracy | Fluency | Style |
 |----------|---------|----------|---------|-------|
 {% for lang in category.languages %}
-| [{{ lang.name }}](../languages/{{ lang.slug }}) | {{ lang.indicator }} {{ lang.avg_overall|round(1) }} | {{ lang.avg_accuracy|round(1) }} | {{ lang.avg_fluency|round(1) }} | {{ lang.avg_style|round(1) }} |
+| [{{ lang.name }}]({{ lang.page_name }}) | {{ lang.indicator }} {{ lang.avg_overall|round(1) }} | {{ lang.avg_accuracy|round(1) }} | {{ lang.avg_fluency|round(1) }} | {{ lang.avg_style|round(1) }} |
 {% endfor %}
 
 **Category Average:** {{ category.indicator }} {{ category.avg_overall|round(1) }}
@@ -130,4 +130,4 @@
 
 ---
 
-[< Back to Home](../Home) | [All Models](../All-Models)
+[← Back to Home](Home) | [All Models](All-Models)

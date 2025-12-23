@@ -23,7 +23,7 @@ Overall performance across all tested languages:
 | Rank | Model | Avg Score | Accuracy | Fluency | Style | Languages Tested |
 |------|-------|-----------|----------|---------|-------|------------------|
 {% for model in model_rankings %}
-| {{ loop.index }} | [{{ model.name }}](models/{{ model.slug }}) | {{ model.indicator }} {{ model.avg_overall|round(1) }} | {{ model.avg_accuracy|round(1) }} | {{ model.avg_fluency|round(1) }} | {{ model.avg_style|round(1) }} | {{ model.languages_tested }} |
+| {{ loop.index }} | [{{ model.name }}]({{ model.page_name }}) | {{ model.indicator }} {{ model.avg_overall|round(1) }} | {{ model.avg_accuracy|round(1) }} | {{ model.avg_fluency|round(1) }} | {{ model.avg_style|round(1) }} | {{ model.languages_tested }} |
 {% endfor %}
 
 ---
@@ -35,7 +35,7 @@ Best translation quality by target language:
 | Rank | Language | Native | Avg Score | Best Model | Tests |
 |------|----------|--------|-----------|------------|-------|
 {% for lang in language_rankings[:15] %}
-| {{ loop.index }} | [{{ lang.name }}](languages/{{ lang.slug }}) | {{ lang.native_name }} | {{ lang.indicator }} {{ lang.avg_overall|round(1) }} | {{ lang.best_model }} | {{ lang.total_translations }} |
+| {{ loop.index }} | [{{ lang.name }}]({{ lang.page_name }}) | {{ lang.native_name }} | {{ lang.indicator }} {{ lang.avg_overall|round(1) }} | {{ lang.best_model }} | {{ lang.total_translations }} |
 {% endfor %}
 
 {% if language_rankings|length > 15 %}
@@ -64,7 +64,7 @@ Best translation quality by target language:
 | Language | Avg Score | Best Model |
 |----------|-----------|------------|
 {% for lang in category.languages %}
-| [{{ lang.name }}](languages/{{ lang.slug }}) | {{ lang.indicator }} {{ lang.avg_overall|round(1) }} | {{ lang.best_model }} |
+| [{{ lang.name }}]({{ lang.page_name }}) | {{ lang.indicator }} {{ lang.avg_overall|round(1) }} | {{ lang.best_model }} |
 {% endfor %}
 
 {% endfor %}

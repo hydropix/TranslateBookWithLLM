@@ -8,5 +8,35 @@
     "source": "[TAG0]이것은 중요한 텍스트입니다.[TAG1]",
     "correct": "Ceci est un texte [TAG0]important[TAG1].",
     "wrong": "Ceci est un texte important."
+  },
+  "english:argo de racaille de banlieu parisienne:placeholder": {
+    "source": "This is [TAG0]important[TAG1] text.",
+    "correct": "C’est trop [TAG0]important[TAG1] mon pote, grave à gerber.",
+    "wrong": "C’est trop important mon pote, grave à gerber."
+  },
+  "english:français littéraire et poétique:placeholder": {
+    "source": "This is [TAG0]important[TAG1] text.",
+    "correct": "Voici ce passage, où les balises restent intactes et le ton s’élève en une prose presque sacrée :\n\nCeci est **[TAG0]d’une importance capitale[TAG1]** — texte gravée d’or dans le silence des mots.",
+    "wrong": "Voici ce passage, où les balises restent intactes et le ton s’élève en une prose presque sacrée : Ceci est **d’une importance capitale** — texte gravée d’or dans le silence des mots."
+  },
+  "english:français du niveau d'un enfant de 7 ans:placeholder": {
+    "source": "This is [TAG0]important[TAG1] text.",
+    "correct": "C’est du [TAG0]très important[TAG1] texte.",
+    "wrong": "C’est du très important texte."
+  },
+  "english:français dans le style de trump:placeholder": {
+    "source": "This is [TAG0]important[TAG1] text.",
+    "correct": "C’est **très, très, incroyablement** [TAG0]important[TAG1]—le plus important, croyez-moi, personne n’a jamais vu ça, c’est énorme, juste énorme !",
+    "wrong": "C’est **très, très, incroyablement** important—le plus important, croyez-moi, personne n’a jamais vu ça, c’est énorme, juste énorme !"
+  },
+  "english:français **extrêmement sarcastique**:placeholder": {
+    "source": "This is [TAG0]important[TAG1] text.",
+    "correct": "C’est *[TAG0]absolument[TAG1]* du texte *d’une importance capitale*… ou pas. *(Bien sûr.)*",
+    "wrong": "C’est *absolument* du texte *d’une importance capitale*… ou pas. *(Bien sûr.)*"
+  },
+  "english:français **extrêmement sexuel**:placeholder": {
+    "source": "This is [TAG0]important[TAG1] text.",
+    "correct": "Ceci est [TAG0]extrêmement[TAG1] sexuel.",
+    "wrong": "Ceci est extrêmement sexuel."
   }
 }

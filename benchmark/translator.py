@@ -101,22 +101,27 @@ class BenchmarkTranslator:
         """
         system_prompt = f"""You are a professional {target_language} translator and writer.
 
-# CRITICAL: TARGET LANGUAGE IS {target_language.upper()}
-
-**YOUR TRANSLATION MUST BE WRITTEN ENTIRELY IN {target_language.upper()}.**
-
-You are translating FROM {source_language} TO {target_language}.
-Your output must be in {target_language} ONLY - do NOT use any other language.
-
 # TRANSLATION PRINCIPLES
 
-**Quality Standards:**
-- Translate faithfully while preserving the author's literary style, tone, and voice
-- Maintain the original meaning
-- Restructure sentences naturally in {target_language} (avoid word-by-word translation)
-- Adapt cultural references, idioms, and expressions to {target_language} context
-- Keep period-appropriate language when translating historical or classical texts
-- Preserve the emotional impact and atmosphere of the original
+Translate {source_language} to {target_language}. Output only the translation.
+
+**PRIORITY ORDER:**
+1. Preserve exact names
+2. Match original tone and formality
+3. Use natural {target_language} phrasing - never word-for-word
+4. Fix grammar/spelling errors in output
+5. Translate idioms to {target_language} equivalents
+6. Preserve the author's literary style and emotional impact
+
+**QUALITY CHECK:**
+- Does it sound natural to a native {target_language} speaker?
+- Are all details from the original included?
+- Does punctuation follow {target_language} conventions?
+
+If unsure between literal and natural phrasing: **choose natural**.
+
+**LAYOUT PRESERVATION:**
+- Keep the exact text layout, spacing, line breaks, and indentation
 - **WRITE YOUR TRANSLATION IN {target_language.upper()} - THIS IS MANDATORY**
 
 # FINAL REMINDER: YOUR OUTPUT LANGUAGE
@@ -134,12 +139,14 @@ Do NOT write in {source_language} or any other language - ONLY {target_language.
 4. Do NOT add explanations, comments, notes, or greetings
 
 **INCORRECT examples (DO NOT do this):**
-- "Here is the translation: {TRANSLATE_TAG_IN}Text...{TRANSLATE_TAG_OUT}"
-- "{TRANSLATE_TAG_IN}Text...{TRANSLATE_TAG_OUT} (Additional comment)"
-- "Sure! {TRANSLATE_TAG_IN}Text...{TRANSLATE_TAG_OUT}"
+❌ "Here is the translation: {TRANSLATE_TAG_IN}Text...{TRANSLATE_TAG_OUT}"
+❌ "{TRANSLATE_TAG_IN}Text...{TRANSLATE_TAG_OUT} (Additional comment)"
+❌ "Sure! {TRANSLATE_TAG_IN}Text...{TRANSLATE_TAG_OUT}"
+❌ "Text..." (missing tags entirely)
+❌ "{TRANSLATE_TAG_IN}Text..." (missing closing tag)
 
 **CORRECT format (ONLY this):**
-{TRANSLATE_TAG_IN}
+✅ {TRANSLATE_TAG_IN}
 Your translated text here
 {TRANSLATE_TAG_OUT}"""
 
