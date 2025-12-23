@@ -238,11 +238,23 @@ Your output must be in {target_language} ONLY - do NOT use any other language.
 
 # TRANSLATION PRINCIPLES
 
-**Quality Standards:**
-- Translate faithfully while preserving the author's style
-- Maintain the original meaning
-- Restructure sentences naturally in {target_language} (avoid word-by-word translation)
-- Adapt cultural references, idioms, and expressions to {target_language} context
+Translate {source_language} to {target_language}. Output only the translation.
+
+**PRIORITY ORDER:**
+1. Preserve exact names, numbers, dates, technical terms
+2. Match original tone and formality
+3. Use natural {target_language} phrasing - never word-for-word
+4. Fix grammar/spelling errors in output
+5. Translate idioms to {target_language} equivalents
+
+**QUALITY CHECK:**
+- Does it sound natural to a native {target_language} speaker?
+- Are all details from the original included?
+- Does punctuation follow {target_language} conventions?
+
+If unsure between literal and natural phrasing: choose natural.
+
+**LAYOUT PRESERVATION:**
 - Keep the exact text layout, spacing, line breaks, and indentation
 - **WRITE YOUR TRANSLATION IN {target_language.upper()} - THIS IS MANDATORY**
 {optional_sections}
