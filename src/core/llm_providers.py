@@ -138,19 +138,23 @@ class LLMProvider(ABC):
 
 
 class OllamaProvider(LLMProvider):
-    """Ollama API provider"""
+    """Ollama API provider - uses /api/chat for proper think parameter support"""
 
     def __init__(self, api_endpoint: str = API_ENDPOINT, model: str = DEFAULT_MODEL,
                  context_window: int = OLLAMA_NUM_CTX, log_callback: Optional[Callable] = None):
         super().__init__(model)
-        self.api_endpoint = api_endpoint
+        # Convert /api/generate endpoint to /api/chat for proper think support
+        self.api_endpoint = api_endpoint.replace('/api/generate', '/api/chat')
         self.context_window = context_window
         self.log_callback = log_callback
 
     async def generate(self, prompt: str, timeout: int = REQUEST_TIMEOUT,
                       system_prompt: Optional[str] = None) -> Optional[str]:
         """
-        Generate text using Ollama API.
+        Generate text using Ollama Chat API.
+
+        Uses /api/chat instead of /api/generate because the think parameter
+        only works correctly with the chat API (verified with Ollama 0.13.5).
 
         Args:
             prompt: The user prompt (content to translate)
@@ -160,22 +164,25 @@ class OllamaProvider(LLMProvider):
         Returns:
             Generated text or None if failed
         """
+        # Build messages array for chat API
+        messages = []
+        if system_prompt:
+            messages.append({"role": "system", "content": system_prompt})
+        messages.append({"role": "user", "content": prompt})
+
         payload = {
             "model": self.model,
-            "prompt": prompt,
+            "messages": messages,
             "stream": False,
             "options": {
                 "num_ctx": self.context_window,
                 "truncate": False
             },
-            # Disable thinking/reasoning mode for models like Qwen3
-            # This prevents the model from generating <think>...</think> blocks
-            "think": False
+            # Enable thinking mode so Ollama separates thinking into a dedicated field
+            # With think:true, the 'content' field is clean and 'thinking' contains reasoning
+            # With think:false, Qwen3 still outputs reasoning but mixed into 'content'
+            "think": True
         }
-
-        # Add system prompt if provided (Ollama supports 'system' field)
-        if system_prompt:
-            payload["system"] = system_prompt
 
         client = await self._get_client()
         for attempt in range(MAX_TRANSLATION_ATTEMPTS):
@@ -193,7 +200,9 @@ class OllamaProvider(LLMProvider):
                         f"Tokens: prompt={prompt_tokens}, response={response_tokens}, "
                         f"total={total_tokens} (num_ctx={self.context_window})")
 
-                return response_json.get("response", "")
+                # Extract content from chat API response format
+                message = response_json.get("message", {})
+                return message.get("content", "")
 
             except httpx.TimeoutException:
                 if attempt < MAX_TRANSLATION_ATTEMPTS - 1:
@@ -239,7 +248,8 @@ class OllamaProvider(LLMProvider):
         """
         try:
             client = await self._get_client()
-            show_endpoint = self.api_endpoint.replace('/api/generate', '/api/show')
+            # Build /api/show endpoint from chat endpoint
+            show_endpoint = self.api_endpoint.replace('/api/chat', '/api/show').replace('/api/generate', '/api/show')
 
             response = await client.post(
                 show_endpoint,

@@ -96,7 +96,7 @@ MAX_CHUNK_SIZE = int(os.getenv("MAX_CHUNK_SIZE", "100"))
 # Token-based chunking configuration
 # When enabled, uses tiktoken to count tokens instead of lines for more consistent chunk sizes
 USE_TOKEN_CHUNKING = os.getenv('USE_TOKEN_CHUNKING', 'true').lower() == 'true'
-MAX_TOKENS_PER_CHUNK = int(os.getenv('MAX_TOKENS_PER_CHUNK', '800'))
+MAX_TOKENS_PER_CHUNK = int(os.getenv('MAX_TOKENS_PER_CHUNK', '450'))
 SOFT_LIMIT_RATIO = float(os.getenv('SOFT_LIMIT_RATIO', '0.8'))
 
 # LLM Provider configuration
