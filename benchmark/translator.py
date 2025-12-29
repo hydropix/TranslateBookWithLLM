@@ -187,7 +187,7 @@ Provide your translation now:"""
             )
 
             # Make the translation request
-            response = await provider.generate(
+            llm_response = await provider.generate(
                 prompt=user_prompt,
                 timeout=self.config.ollama.timeout,
                 system_prompt=system_prompt
@@ -195,7 +195,7 @@ Provide your translation now:"""
 
             elapsed_ms = int((time.perf_counter() - start_time) * 1000)
 
-            if not response:
+            if not llm_response:
                 return TranslationResult(
                     source_text_id=request.text.id,
                     target_language=request.target_language,
@@ -205,13 +205,16 @@ Provide your translation now:"""
                     error="No response from Ollama"
                 )
 
+            # Extract response content from LLMResponse object
+            response_content = llm_response.content
+
             # Extract translation from response
-            translated_text = provider.extract_translation(response)
+            translated_text = provider.extract_translation(response_content)
 
             if not translated_text:
                 # Fallback: use the raw response if extraction fails
                 self._log("warning", f"Could not extract translation tags, using raw response")
-                translated_text = response.strip()
+                translated_text = response_content.strip()
 
             return TranslationResult(
                 source_text_id=request.text.id,

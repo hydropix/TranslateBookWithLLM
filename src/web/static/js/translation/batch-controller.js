@@ -68,7 +68,8 @@ function getTranslationConfig(file) {
     // Build prompt options object
     const promptOptions = {
         preserve_technical_content: DomHelpers.getElement('preserveTechnicalContent')?.checked || false,
-        text_cleanup: DomHelpers.getElement('textCleanup')?.checked || false
+        text_cleanup: DomHelpers.getElement('textCleanup')?.checked || false,
+        refine: DomHelpers.getElement('refineTranslation')?.checked || false
     };
 
     const config = {

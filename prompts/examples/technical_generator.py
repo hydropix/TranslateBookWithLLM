@@ -27,15 +27,15 @@ def get_cached_technical_example(
     example_type: str  # "placeholder"
 ) -> Optional[Dict[str, str]]:
     """
-    Get the static technical example.
+    Get a cached technical example for the language pair.
 
-    Always returns the same English example regardless of language pair.
+    Returns None to allow fallback to language-specific examples
+    in placeholder_examples.py which have properly translated content.
 
     Returns:
-        Dict with "source", "correct", "wrong".
+        None - defers to static examples in placeholder_examples.py
     """
-    if example_type == "placeholder":
-        return STATIC_PLACEHOLDER_EXAMPLE
+    # Return None to use the properly translated examples from placeholder_examples.py
     return None
 
 

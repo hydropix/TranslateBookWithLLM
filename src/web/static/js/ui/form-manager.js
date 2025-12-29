@@ -477,7 +477,8 @@ export const FormManager = {
             // Prompt options (optional system prompt instructions)
             prompt_options: {
                 preserve_technical_content: DomHelpers.getElement('preserveTechnicalContent')?.checked || false,
-                text_cleanup: DomHelpers.getElement('textCleanup')?.checked || false
+                text_cleanup: DomHelpers.getElement('textCleanup')?.checked || false,
+                refine: DomHelpers.getElement('refineTranslation')?.checked || false
             },
             // TTS configuration
             tts_enabled: ttsEnabled,

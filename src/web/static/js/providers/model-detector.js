@@ -1,8 +1,10 @@
 /**
- * Model Detector - Detect model size and show recommendations
+ * Model Detector - Detect model size, thinking behavior, and show recommendations
  *
  * Analyzes model names to determine parameter size and recommends
  * fast mode for models ≤12B parameters when translating EPUBs.
+ *
+ * Also checks for uncontrollable thinking models and displays warnings.
  */
 
 import { DomHelpers } from '../ui/dom-helpers.js';
@@ -25,6 +27,42 @@ function extractModelSize(modelName) {
     }
 
     return null;
+}
+
+/**
+ * Check if model is an uncontrollable thinking model and show warning
+ * @param {string} modelName - Model name
+ */
+async function checkThinkingModelWarning(modelName) {
+    const warningDiv = document.getElementById('thinkingModelWarning');
+    const warningText = document.getElementById('thinkingModelWarningText');
+
+    if (!warningDiv || !warningText) {
+        return;
+    }
+
+    if (!modelName) {
+        warningDiv.style.display = 'none';
+        return;
+    }
+
+    try {
+        // Get API endpoint for cache differentiation
+        const endpoint = DomHelpers.getValue('apiEndpoint') || '';
+
+        const response = await fetch(`/api/model/warning?model=${encodeURIComponent(modelName)}&endpoint=${encodeURIComponent(endpoint)}`);
+        const data = await response.json();
+
+        if (data.warning && data.is_uncontrollable) {
+            warningText.textContent = data.warning;
+            warningDiv.style.display = 'block';
+        } else {
+            warningDiv.style.display = 'none';
+        }
+    } catch (error) {
+        console.warn('Failed to check thinking model warning:', error);
+        warningDiv.style.display = 'none';
+    }
 }
 
 /**
@@ -66,6 +104,17 @@ export const ModelDetector = {
         } else {
             if (recommendationDiv) recommendationDiv.style.display = 'none';
         }
+
+        // Also check for thinking model warning (async, non-blocking)
+        checkThinkingModelWarning(modelName);
+    },
+
+    /**
+     * Check for thinking model warning only (called on model change)
+     * @param {string} modelName - Model name to check
+     */
+    async checkThinkingWarning(modelName) {
+        await checkThinkingModelWarning(modelName);
     },
 
     /**

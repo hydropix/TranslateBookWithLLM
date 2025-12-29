@@ -8,7 +8,7 @@ This module provides unified access to technical examples:
 from typing import Any, Dict, Optional, Tuple
 
 from .constants import TAG0, TAG1, TAG2, IMG_MARKER
-from .placeholder_examples import PLACEHOLDER_EXAMPLES
+from .placeholder_examples import get_example_for_pair
 from .subtitle_examples import SUBTITLE_EXAMPLES
 from .output_examples import OUTPUT_FORMAT_EXAMPLES
 
@@ -20,41 +20,14 @@ def get_placeholder_example(
     """
     Get placeholder preservation example for a language pair.
 
-    Priority:
-    1. Dynamically generated cache (technical_generator)
-    2. Static fallback examples
-    3. English->target or source->English fallback
+    Generates examples dynamically for any language pair using
+    pre-translated sentences in each supported language.
 
     Returns:
         Tuple of (example_dict, actual_source_lang, actual_target_lang).
     """
-    key = (source_lang.lower(), target_lang.lower())
-
-    # 1. Check dynamic cache first
-    try:
-        from .technical_generator import get_cached_technical_example
-        cached = get_cached_technical_example(source_lang, target_lang, "placeholder")
-        if cached:
-            return cached, source_lang, target_lang
-    except ImportError:
-        pass
-
-    # 2. Static fallback examples
-    if key in PLACEHOLDER_EXAMPLES:
-        return PLACEHOLDER_EXAMPLES[key], source_lang, target_lang
-
-    # 3. Fallback: English as source
-    fallback_key = ("english", target_lang.lower())
-    if fallback_key in PLACEHOLDER_EXAMPLES:
-        return PLACEHOLDER_EXAMPLES[fallback_key], "English", target_lang
-
-    # 4. Fallback: target is English
-    fallback_key = (source_lang.lower(), "english")
-    if fallback_key in PLACEHOLDER_EXAMPLES:
-        return PLACEHOLDER_EXAMPLES[fallback_key], source_lang, "English"
-
-    # 5. Ultimate fallback
-    return PLACEHOLDER_EXAMPLES[("english", "chinese")], "English", "Chinese"
+    example = get_example_for_pair(source_lang, target_lang)
+    return example, source_lang, target_lang
 
 
 def get_subtitle_example(target_lang: str) -> str:
@@ -100,11 +73,11 @@ These represent HTML/XML tags that have been temporarily replaced.
 3. Maintain their EXACT position in the sentence structure
 4. Do NOT add spaces around them unless present in the source
 
-**Example ({actual_source.title()} -> {actual_target.title()}):**
+**Example ({actual_source.title()} → {actual_target.title()}):**
 
-{actual_source.title()}: "{example['source']}"
-Correct: "{example['correct']}"
-WRONG: "{example['wrong']}" (placeholders removed)
+Source: "{example['source']}"
+✅ Correct: "{example['correct']}"
+❌ WRONG: "{example['wrong']}" (placeholders removed)
 """
 
 
@@ -129,22 +102,12 @@ Markers like {IMG_MARKER} represent images in the text.
 
 
 def has_example_for_pair(source_lang: str, target_lang: str) -> bool:
-    """Check if a placeholder example exists for the given language pair."""
-    key = (source_lang.lower(), target_lang.lower())
+    """Check if a placeholder example exists for the given language pair.
 
-    # Check static examples
-    if key in PLACEHOLDER_EXAMPLES:
-        return True
-
-    # Check dynamic cache
-    try:
-        from .technical_generator import get_cached_technical_example
-        if get_cached_technical_example(source_lang, target_lang, "placeholder"):
-            return True
-    except ImportError:
-        pass
-
-    return False
+    Always returns True since examples are generated dynamically
+    with fallback to English for unsupported languages.
+    """
+    return True
 
 
 async def ensure_example_ready(
@@ -155,23 +118,7 @@ async def ensure_example_ready(
     """
     Ensure a placeholder example exists for the language pair.
 
-    If no example exists and a provider is given, generates one dynamically.
-
-    Returns:
-        True if an example exists or was generated successfully.
+    Always returns True since examples are generated dynamically
+    with fallback to English for unsupported languages.
     """
-    if has_example_for_pair(source_lang, target_lang):
-        return True
-
-    if provider is None:
-        return False
-
-    try:
-        from .technical_generator import generate_placeholder_example_async
-        result = await generate_placeholder_example_async(source_lang, target_lang, provider)
-        return result is not None
-    except ImportError:
-        return False
-    except Exception as e:
-        print(f"[WARNING] Failed to generate example: {e}")
-        return False
+    return True

@@ -484,6 +484,49 @@ def create_config_blueprint():
             "error": f"Ollama is not accessible at {ollama_base_from_ui} or an error occurred. Verify that Ollama is running ('ollama serve') and the endpoint is correct."
         })
 
+    @bp.route('/api/model/warning', methods=['GET'])
+    def get_model_warning():
+        """
+        Get thinking model warning for a specific model (instant lookup).
+
+        This endpoint checks if a model is an uncontrollable thinking model
+        and returns an appropriate warning message for the UI.
+
+        Query params:
+            model: Model name (e.g., "qwen3:30b")
+            endpoint: Optional API endpoint (for cache differentiation)
+
+        Returns:
+            JSON with warning message if applicable, or null if no warning
+        """
+        model = request.args.get('model', '')
+        endpoint = request.args.get('endpoint', '')
+
+        if not model:
+            return jsonify({"warning": None, "behavior": None})
+
+        try:
+            from src.core.llm_providers import (
+                get_model_warning_message,
+                get_thinking_behavior_sync,
+                ThinkingBehavior
+            )
+
+            warning = get_model_warning_message(model, endpoint)
+            behavior = get_thinking_behavior_sync(model, endpoint)
+
+            return jsonify({
+                "warning": warning,
+                "behavior": behavior.value if behavior else None,
+                "is_uncontrollable": behavior == ThinkingBehavior.UNCONTROLLABLE if behavior else False,
+                "is_thinking_model": behavior in [ThinkingBehavior.CONTROLLABLE, ThinkingBehavior.UNCONTROLLABLE] if behavior else False
+            })
+
+        except Exception as e:
+            if DEBUG_MODE:
+                logger.debug(f"Error getting model warning: {e}")
+            return jsonify({"warning": None, "behavior": None, "error": str(e)})
+
     def _get_env_file_path():
         """Get the path to the .env file"""
         config_path = get_config_path()

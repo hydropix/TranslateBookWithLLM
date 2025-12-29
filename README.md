@@ -12,7 +12,7 @@ Translate books, subtitles, and documents using AI - locally or in the cloud.
 
 ---
 
-## Quick Start (Windows)
+## Quick Start
 
 **Prerequisites:** [Python 3.8+](https://www.python.org/downloads/), [Ollama](https://ollama.com/), [Git](https://git-scm.com/)
 
@@ -20,7 +20,12 @@ Translate books, subtitles, and documents using AI - locally or in the cloud.
 git clone https://github.com/hydropix/TranslateBookWithLLM.git
 cd TranslateBookWithLLM
 ollama pull qwen3:14b    # Download a model
-start.bat                # Launch (auto-installs dependencies)
+
+# Windows
+start.bat
+
+# Mac/Linux
+chmod +x start.sh && ./start.sh
 ```
 
 The web interface opens at **http://localhost:5000**

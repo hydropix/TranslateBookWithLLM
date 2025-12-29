@@ -106,6 +106,12 @@ async def perform_actual_translation(translation_id, config, state_manager, outp
                 logger.info("LLM Request", LogType.LLM_REQUEST, data)
             elif log_type == 'llm_response':
                 logger.info("LLM Response", LogType.LLM_RESPONSE, data)
+            elif log_type == 'refinement_request':
+                # Refinement uses same log type as LLM request for UI display
+                logger.info("Refinement Request", LogType.LLM_REQUEST, data)
+            elif log_type == 'refinement_response':
+                # Refinement uses same log type as LLM response for UI display
+                logger.info("Refinement Response", LogType.LLM_RESPONSE, data)
             elif log_type == 'progress':
                 logger.info("Progress Update", LogType.PROGRESS, data)
             else:
@@ -272,6 +278,7 @@ async def perform_actual_translation(translation_id, config, state_manager, outp
                 context_window=config.get('context_window', 2048),
                 auto_adjust_context=config.get('auto_adjust_context', True),
                 min_chunk_size=config.get('min_chunk_size', 5),
+                fast_mode=True,  # TXT files never have placeholders
                 checkpoint_manager=checkpoint_manager,
                 translation_id=translation_id,
                 resume_from_index=resume_from_index,
