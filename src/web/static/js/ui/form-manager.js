@@ -9,6 +9,7 @@ import { StateManager } from '../core/state-manager.js';
 import { ApiClient } from '../core/api-client.js';
 import { DomHelpers } from './dom-helpers.js';
 import { MessageLogger } from './message-logger.js';
+import { ApiKeyUtils } from '../utils/api-key-utils.js';
 
 /**
  * Set default language in select/input
@@ -145,76 +146,6 @@ export const FormManager = {
         }
     },
 
-    /**
-     * Setup API key field with proper placeholder/indicator and status badge
-     * @param {string} fieldId - Input field ID
-     * @param {boolean} isConfigured - Whether key is configured in .env
-     * @param {string} maskedValue - Masked value (e.g., "***1234") if configured
-     * @private
-     */
-    _setupApiKeyField(fieldId, isConfigured, maskedValue) {
-        const field = DomHelpers.getElement(fieldId);
-        if (!field) return;
-
-        // Map field IDs to their status span IDs
-        const statusIdMap = {
-            'geminiApiKey': 'geminiKeyStatus',
-            'openaiApiKey': 'openaiKeyStatus',
-            'openrouterApiKey': 'openrouterKeyStatus'
-        };
-        const statusSpan = DomHelpers.getElement(statusIdMap[fieldId]);
-
-        if (isConfigured) {
-            // Key is configured in .env - show masked indicator as placeholder
-            field.value = '';
-            field.placeholder = maskedValue
-                ? `Using .env key (${maskedValue})`
-                : 'Using .env key';
-            field.dataset.envConfigured = 'true';
-
-            // Update status badge
-            if (statusSpan) {
-                statusSpan.textContent = '✓ Configured';
-                statusSpan.className = 'key-status configured';
-            }
-        } else {
-            // Key is NOT configured - show instruction placeholder
-            field.value = '';
-            field.dataset.envConfigured = 'false';
-            // Keep original placeholder from HTML
-
-            // Update status badge
-            if (statusSpan) {
-                statusSpan.textContent = '⚠ Not set';
-                statusSpan.className = 'key-status not-configured';
-            }
-        }
-    },
-
-    /**
-     * Get API key value from field, handling .env configured keys
-     * @param {string} fieldId - Field ID
-     * @returns {string} API key value or '__USE_ENV__' marker
-     * @private
-     */
-    _getApiKeyValue(fieldId) {
-        const field = DomHelpers.getElement(fieldId);
-        if (!field) return '';
-
-        const value = field.value.trim();
-
-        // If user entered a value, use it
-        if (value) {
-            return value;
-        }
-
-        // If field is empty but .env has a key configured, tell backend to use .env key
-        if (field.dataset.envConfigured === 'true') {
-            return '__USE_ENV__';
-        }
-
-        return '';
-    },
 
     /**
      * Toggle advanced settings panel
@@ -323,9 +254,9 @@ export const FormManager = {
                 DomHelpers.setValue('retryDelay', config.retry_delay);
             }
             // Handle API keys - show indicator if configured in .env, otherwise keep placeholder
-            this._setupApiKeyField('geminiApiKey', config.gemini_api_key_configured, config.gemini_api_key);
-            this._setupApiKeyField('openaiApiKey', config.openai_api_key_configured, config.openai_api_key);
-            this._setupApiKeyField('openrouterApiKey', config.openrouter_api_key_configured, config.openrouter_api_key);
+            ApiKeyUtils.setupField('geminiApiKey', config.gemini_api_key_configured, config.gemini_api_key);
+            ApiKeyUtils.setupField('openaiApiKey', config.openai_api_key_configured, config.openai_api_key);
+            ApiKeyUtils.setupField('openrouterApiKey', config.openrouter_api_key_configured, config.openrouter_api_key);
 
             // Store in state
             StateManager.setState('ui.defaultConfig', config);
@@ -452,9 +383,9 @@ export const FormManager = {
         }
 
         // Get API keys - use helper to handle .env configured keys
-        const geminiApiKey = provider === 'gemini' ? this._getApiKeyValue('geminiApiKey') : '';
-        const openaiApiKey = provider === 'openai' ? this._getApiKeyValue('openaiApiKey') : '';
-        const openrouterApiKey = provider === 'openrouter' ? this._getApiKeyValue('openrouterApiKey') : '';
+        const geminiApiKey = provider === 'gemini' ? ApiKeyUtils.getValue('geminiApiKey') : '';
+        const openaiApiKey = provider === 'openai' ? ApiKeyUtils.getValue('openaiApiKey') : '';
+        const openrouterApiKey = provider === 'openrouter' ? ApiKeyUtils.getValue('openrouterApiKey') : '';
 
         // Get TTS configuration
         const ttsEnabled = DomHelpers.getElement('ttsEnabled')?.checked || false;
@@ -490,20 +421,6 @@ export const FormManager = {
     },
 
     /**
-     * Check if API key is available (either user entered or configured in .env)
-     * @param {string} fieldId - Field ID
-     * @returns {boolean} True if key is available
-     * @private
-     */
-    _isApiKeyAvailable(fieldId) {
-        const field = DomHelpers.getElement(fieldId);
-        if (!field) return false;
-
-        // Key is available if: user entered a value OR .env has it configured
-        return field.value.trim() !== '' || field.dataset.envConfigured === 'true';
-    },
-
-    /**
      * Validate form configuration
      * @returns {Object} { valid: boolean, message: string }
      */
@@ -526,23 +443,10 @@ export const FormManager = {
             return { valid: false, message: 'API endpoint cannot be empty.' };
         }
 
-        // Validate API keys for cloud providers
-        // Note: _isApiKeyAvailable checks both user input AND .env configuration
-        if (config.llm_provider === 'gemini' && !this._isApiKeyAvailable('geminiApiKey')) {
-            return { valid: false, message: 'Gemini API key is required when using Gemini provider.' };
-        }
-
-        // OpenAI API key is only required for official OpenAI endpoint
-        // Local servers (llama.cpp, LM Studio, vLLM, etc.) don't need an API key
-        if (config.llm_provider === 'openai' && !this._isApiKeyAvailable('openaiApiKey')) {
-            const isOfficialEndpoint = config.llm_api_endpoint && config.llm_api_endpoint.includes('api.openai.com');
-            if (isOfficialEndpoint) {
-                return { valid: false, message: 'API key is required when using OpenAI cloud API.' };
-            }
-        }
-
-        if (config.llm_provider === 'openrouter' && !this._isApiKeyAvailable('openrouterApiKey')) {
-            return { valid: false, message: 'OpenRouter API key is required when using OpenRouter provider.' };
+        // Validate API keys for cloud providers using shared utility
+        const apiKeyValidation = ApiKeyUtils.validateForProvider(config.llm_provider, config.llm_api_endpoint);
+        if (!apiKeyValidation.valid) {
+            return apiKeyValidation;
         }
 
         return { valid: true, message: '' };

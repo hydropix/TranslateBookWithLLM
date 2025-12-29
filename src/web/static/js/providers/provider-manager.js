@@ -11,7 +11,7 @@ import { MessageLogger } from '../ui/message-logger.js';
 import { DomHelpers } from '../ui/dom-helpers.js';
 import { ModelDetector } from './model-detector.js';
 import { SettingsManager } from '../core/settings-manager.js';
-import { FormManager } from '../ui/form-manager.js';
+import { ApiKeyUtils } from '../utils/api-key-utils.js';
 
 /**
  * Common OpenAI models list
@@ -377,8 +377,8 @@ export const ProviderManager = {
         modelSelect.innerHTML = '<option value="">Loading Gemini models...</option>';
 
         try {
-            // Use FormManager to get API key (returns '__USE_ENV__' if configured in .env)
-            const apiKey = FormManager._getApiKeyValue('geminiApiKey');
+            // Use ApiKeyUtils to get API key (returns '__USE_ENV__' if configured in .env)
+            const apiKey = ApiKeyUtils.getValue('geminiApiKey');
             const data = await ApiClient.getModels('gemini', { apiKey });
 
             if (data.models && data.models.length > 0) {
@@ -430,7 +430,7 @@ export const ProviderManager = {
             modelSelect.innerHTML = '<option value="">Loading models from local server...</option>';
 
             try {
-                const apiKey = FormManager._getApiKeyValue('openaiApiKey');
+                const apiKey = ApiKeyUtils.getValue('openaiApiKey');
                 const data = await ApiClient.getModels('openai', { apiKey, apiEndpoint });
 
                 if (data.models && data.models.length > 0) {
@@ -486,8 +486,8 @@ export const ProviderManager = {
         modelSelect.innerHTML = '<option value="">Loading OpenRouter models...</option>';
 
         try {
-            // Use FormManager to get API key (returns '__USE_ENV__' if configured in .env)
-            const apiKey = FormManager._getApiKeyValue('openrouterApiKey');
+            // Use ApiKeyUtils to get API key (returns '__USE_ENV__' if configured in .env)
+            const apiKey = ApiKeyUtils.getValue('openrouterApiKey');
             const data = await ApiClient.getModels('openrouter', { apiKey });
 
             if (data.models && data.models.length > 0) {

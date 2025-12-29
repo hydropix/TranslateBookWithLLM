@@ -10,6 +10,7 @@ import { ApiClient } from '../core/api-client.js';
 import { MessageLogger } from '../ui/message-logger.js';
 import { DomHelpers } from '../ui/dom-helpers.js';
 import { Validators } from '../utils/validators.js';
+import { ApiKeyUtils } from '../utils/api-key-utils.js';
 import { ProgressManager } from './progress-manager.js';
 
 /**
@@ -22,30 +23,6 @@ function earlyValidationFail(message) {
     return false;
 }
 
-/**
- * Get API key value from field, handling .env configured keys
- * If field is empty but configured in .env, returns special marker for backend
- * @param {string} fieldId - Field ID
- * @returns {string} API key value or '__USE_ENV__' marker
- */
-function getApiKeyValue(fieldId) {
-    const field = DomHelpers.getElement(fieldId);
-    if (!field) return '';
-
-    const value = field.value.trim();
-
-    // If user entered a value, use it
-    if (value) {
-        return value;
-    }
-
-    // If field is empty but .env has a key configured, tell backend to use .env key
-    if (field.dataset.envConfigured === 'true') {
-        return '__USE_ENV__';
-    }
-
-    return '';
-}
 
 /**
  * Get translation configuration from form
@@ -80,9 +57,9 @@ function getTranslationConfig(file) {
                          DomHelpers.getValue('openaiEndpoint') :
                          DomHelpers.getValue('apiEndpoint'),
         llm_provider: provider,
-        gemini_api_key: provider === 'gemini' ? getApiKeyValue('geminiApiKey') : '',
-        openai_api_key: provider === 'openai' ? getApiKeyValue('openaiApiKey') : '',
-        openrouter_api_key: provider === 'openrouter' ? getApiKeyValue('openrouterApiKey') : '',
+        gemini_api_key: provider === 'gemini' ? ApiKeyUtils.getValue('geminiApiKey') : '',
+        openai_api_key: provider === 'openai' ? ApiKeyUtils.getValue('openaiApiKey') : '',
+        openrouter_api_key: provider === 'openrouter' ? ApiKeyUtils.getValue('openrouterApiKey') : '',
         chunk_size: parseInt(DomHelpers.getValue('chunkSize')),
         timeout: parseInt(DomHelpers.getValue('timeout')),
         context_window: parseInt(DomHelpers.getValue('contextWindow')),
@@ -249,48 +226,18 @@ export const BatchController = {
         MessageLogger.addLog(`▶️ Starting translation for: ${fileToTranslate.name} (${fileToTranslate.fileType.toUpperCase()})`);
         updateFileStatusInList(fileToTranslate.name, 'Preparing...');
 
-        // Validate API keys for cloud providers
-        // Key is valid if: user entered a value OR key is configured in .env
+        // Validate API keys for cloud providers using shared utility
         const provider = DomHelpers.getValue('llmProvider');
+        const endpoint = provider === 'openai' ? DomHelpers.getValue('openaiEndpoint') : '';
+        const apiKeyValidation = ApiKeyUtils.validateForProvider(provider, endpoint);
 
-        if (provider === 'gemini') {
-            const apiKeyValue = getApiKeyValue('geminiApiKey');
-            if (!apiKeyValue) {
-                MessageLogger.addLog('❌ Error: Gemini API key is required when using Gemini provider');
-                MessageLogger.showMessage('Please enter your Gemini API key', 'error');
-                updateFileStatusInList(fileToTranslate.name, 'Error: Missing API key');
-                StateManager.setState('translation.currentJob', null);
-                this.processNextFileInQueue();
-                return;
-            }
-        }
-
-        if (provider === 'openai') {
-            const apiKeyValue = getApiKeyValue('openaiApiKey');
-            // Check if it's a local endpoint (llama.cpp, LM Studio, vLLM, etc.) - no API key required
-            const openaiEndpoint = DomHelpers.getValue('openaiEndpoint') || '';
-            const isLocalEndpoint = openaiEndpoint.includes('localhost') || openaiEndpoint.includes('127.0.0.1');
-
-            if (!apiKeyValue && !isLocalEndpoint) {
-                MessageLogger.addLog('❌ Error: API key is required when using OpenAI cloud API');
-                MessageLogger.showMessage('Please enter your API key for OpenAI cloud', 'error');
-                updateFileStatusInList(fileToTranslate.name, 'Error: Missing API key');
-                StateManager.setState('translation.currentJob', null);
-                this.processNextFileInQueue();
-                return;
-            }
-        }
-
-        if (provider === 'openrouter') {
-            const apiKeyValue = getApiKeyValue('openrouterApiKey');
-            if (!apiKeyValue) {
-                MessageLogger.addLog('❌ Error: OpenRouter API key is required when using OpenRouter provider');
-                MessageLogger.showMessage('Please enter your OpenRouter API key', 'error');
-                updateFileStatusInList(fileToTranslate.name, 'Error: Missing API key');
-                StateManager.setState('translation.currentJob', null);
-                this.processNextFileInQueue();
-                return;
-            }
+        if (!apiKeyValidation.valid) {
+            MessageLogger.addLog(`❌ Error: ${apiKeyValidation.message}`);
+            MessageLogger.showMessage(apiKeyValidation.message, 'error');
+            updateFileStatusInList(fileToTranslate.name, 'Error: Missing API key');
+            StateManager.setState('translation.currentJob', null);
+            this.processNextFileInQueue();
+            return;
         }
 
         // Validate file path
