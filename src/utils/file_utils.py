@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Optional, Callable, Tuple
 
 from src.core.text_processor import split_text_into_chunks_with_context, split_text_into_chunks
-from src.core.translator import translate_chunks
+from src.core.translator import translate_chunks, refine_chunks
 from src.core.subtitle_translator import translate_subtitles, translate_subtitles_in_blocks
 from src.core.epub import translate_epub_file
 from src.core.srt_processor import SRTProcessor
@@ -165,6 +165,23 @@ async def translate_text_file_with_callbacks(input_filepath, output_filepath,
         else:
             log_callback("txt_translation_info_chunks2", f"Target size per segment: ~{chunk_target_lines_cli} lines.")
 
+    # Check if refinement is enabled
+    enable_refinement = prompt_options.get('refine', False) if prompt_options else False
+
+    if log_callback:
+        log_callback("refinement_config", f"✨ Refinement pass: {'ENABLED' if enable_refinement else 'disabled'}")
+        if enable_refinement:
+            log_callback("refinement_info", "📝 Translation will use 2-pass mode: translate → refine")
+
+    # Adjust progress for refinement (translation = 0-50%, refinement = 50-100%)
+    def translation_progress(pct):
+        if progress_callback:
+            if enable_refinement:
+                # Translation is first half (0-50%)
+                progress_callback(pct * 0.5)
+            else:
+                progress_callback(pct)
+
     # Translate chunks
     translated_parts = await translate_chunks(
         structured_chunks,
@@ -172,7 +189,7 @@ async def translate_text_file_with_callbacks(input_filepath, output_filepath,
         target_language,
         model_name,
         cli_api_endpoint,
-        progress_callback=progress_callback,
+        progress_callback=translation_progress,
         log_callback=log_callback,
         stats_callback=stats_callback,
         check_interruption_callback=check_interruption_callback,
@@ -189,6 +206,37 @@ async def translate_text_file_with_callbacks(input_filepath, output_filepath,
         resume_from_index=resume_from_index,
         prompt_options=prompt_options
     )
+
+    # Refinement pass (if enabled and not interrupted)
+    # Check if translation was interrupted before starting refinement
+    was_interrupted = check_interruption_callback and check_interruption_callback()
+
+    if enable_refinement and translated_parts and not was_interrupted:
+        if log_callback:
+            log_callback("refinement_phase_start", "✨ Starting refinement pass to polish translation quality...")
+
+        translated_parts = await refine_chunks(
+            translated_chunks=translated_parts,
+            original_chunks=structured_chunks,
+            target_language=target_language,
+            model_name=model_name,
+            api_endpoint=cli_api_endpoint,
+            progress_callback=progress_callback,
+            log_callback=log_callback,
+            stats_callback=stats_callback,
+            check_interruption_callback=check_interruption_callback,
+            llm_provider=llm_provider,
+            gemini_api_key=gemini_api_key,
+            openai_api_key=openai_api_key,
+            openrouter_api_key=openrouter_api_key,
+            context_window=context_window,
+            auto_adjust_context=auto_adjust_context,
+            fast_mode=fast_mode,
+            prompt_options=prompt_options
+        )
+    elif enable_refinement and was_interrupted:
+        if log_callback:
+            log_callback("refinement_skipped", "⏭️ Refinement pass skipped (translation was interrupted)")
 
     if progress_callback:
         progress_callback(100)

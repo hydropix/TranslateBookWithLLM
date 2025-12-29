@@ -9,11 +9,12 @@ import os
 import asyncio
 import logging
 import threading
+import time
 import uuid
 from flask import Blueprint, request, jsonify, current_app
 from werkzeug.utils import secure_filename
 
-from src.tts.tts_config import TTSConfig, CHATTERBOX_VOICES, DEFAULT_VOICES
+from src.tts.tts_config import TTSConfig, DEFAULT_VOICES
 from src.tts.providers import (
     is_chatterbox_available,
     get_gpu_status,
@@ -39,8 +40,49 @@ def create_tts_blueprint(output_dir, socketio):
     bp = Blueprint('tts', __name__)
     file_service = FileService(output_dir)
 
-    # Track active TTS jobs
+    # Track active TTS jobs with timestamps for cleanup
+    # Format: {job_id: {'status': ..., 'created_at': timestamp, ...}}
     tts_jobs = {}
+    tts_jobs_lock = threading.Lock()
+
+    # Configuration for job cleanup
+    TTS_JOB_TTL_SECONDS = 3600  # Keep completed/failed jobs for 1 hour
+    TTS_MAX_JOBS = 100  # Maximum number of jobs to keep in memory
+
+    def _cleanup_old_jobs():
+        """Remove old completed/failed jobs to prevent memory leak"""
+        with tts_jobs_lock:
+            if len(tts_jobs) <= TTS_MAX_JOBS:
+                return
+
+            current_time = time.time()
+            jobs_to_remove = []
+
+            for job_id, job_data in tts_jobs.items():
+                # Only cleanup completed or failed jobs
+                if job_data.get('status') in ('completed', 'failed'):
+                    created_at = job_data.get('created_at', 0)
+                    if current_time - created_at > TTS_JOB_TTL_SECONDS:
+                        jobs_to_remove.append(job_id)
+
+            # If still over limit, remove oldest completed/failed jobs
+            if len(tts_jobs) - len(jobs_to_remove) > TTS_MAX_JOBS:
+                completed_jobs = [
+                    (jid, jdata.get('created_at', 0))
+                    for jid, jdata in tts_jobs.items()
+                    if jdata.get('status') in ('completed', 'failed') and jid not in jobs_to_remove
+                ]
+                completed_jobs.sort(key=lambda x: x[1])  # Sort by age
+
+                excess = len(tts_jobs) - len(jobs_to_remove) - TTS_MAX_JOBS
+                for jid, _ in completed_jobs[:excess]:
+                    jobs_to_remove.append(jid)
+
+            for job_id in jobs_to_remove:
+                del tts_jobs[job_id]
+
+            if jobs_to_remove:
+                logger.debug(f"Cleaned up {len(jobs_to_remove)} old TTS jobs")
 
     def run_tts_async(job_id, filepath, target_language, tts_config):
         """Run TTS generation in a separate thread with async loop"""
@@ -100,11 +142,13 @@ def create_tts_blueprint(output_dir, socketio):
                     'filename': audio_filename
                 }, namespace='/')
 
-                tts_jobs[job_id] = {
-                    'status': 'completed',
-                    'audio_path': audio_path,
-                    'audio_filename': audio_filename
-                }
+                with tts_jobs_lock:
+                    tts_jobs[job_id] = {
+                        'status': 'completed',
+                        'audio_path': audio_path,
+                        'audio_filename': audio_filename,
+                        'created_at': time.time()
+                    }
             else:
                 socketio.emit('tts_update', {
                     'job_id': job_id,
@@ -113,10 +157,12 @@ def create_tts_blueprint(output_dir, socketio):
                     'message': f'TTS generation failed: {message}'
                 }, namespace='/')
 
-                tts_jobs[job_id] = {
-                    'status': 'failed',
-                    'error': message
-                }
+                with tts_jobs_lock:
+                    tts_jobs[job_id] = {
+                        'status': 'failed',
+                        'error': message,
+                        'created_at': time.time()
+                    }
 
         except Exception as e:
             error_msg = str(e)
@@ -129,10 +175,12 @@ def create_tts_blueprint(output_dir, socketio):
                 'message': f'TTS generation error: {error_msg}'
             }, namespace='/')
 
-            tts_jobs[job_id] = {
-                'status': 'failed',
-                'error': error_msg
-            }
+            with tts_jobs_lock:
+                tts_jobs[job_id] = {
+                    'status': 'failed',
+                    'error': error_msg,
+                    'created_at': time.time()
+                }
 
         finally:
             loop.close()
@@ -204,12 +252,17 @@ def create_tts_blueprint(output_dir, socketio):
             # Generate job ID
             job_id = str(uuid.uuid4())[:8]
 
-            # Store job info
-            tts_jobs[job_id] = {
-                'status': 'starting',
-                'filename': filename,
-                'filepath': filepath
-            }
+            # Cleanup old jobs before adding new one
+            _cleanup_old_jobs()
+
+            # Store job info with timestamp
+            with tts_jobs_lock:
+                tts_jobs[job_id] = {
+                    'status': 'starting',
+                    'filename': filename,
+                    'filepath': filepath,
+                    'created_at': time.time()
+                }
 
             # Start TTS in background thread
             thread = threading.Thread(
@@ -232,10 +285,11 @@ def create_tts_blueprint(output_dir, socketio):
     @bp.route('/api/tts/status/<job_id>', methods=['GET'])
     def get_tts_status(job_id):
         """Get the status of a TTS job"""
-        if job_id not in tts_jobs:
-            return jsonify({"error": "Job not found"}), 404
-
-        return jsonify(tts_jobs[job_id])
+        with tts_jobs_lock:
+            if job_id not in tts_jobs:
+                return jsonify({"error": "Job not found"}), 404
+            # Return a copy to prevent external modification
+            return jsonify(dict(tts_jobs[job_id]))
 
     @bp.route('/api/tts/voices', methods=['GET'])
     def list_voices():

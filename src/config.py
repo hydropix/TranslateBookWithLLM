@@ -83,20 +83,69 @@ PORT = int(os.getenv('PORT', '5000'))
 MAIN_LINES_PER_CHUNK = int(os.getenv('MAIN_LINES_PER_CHUNK', '25'))
 REQUEST_TIMEOUT = int(os.getenv('REQUEST_TIMEOUT', '900'))
 OLLAMA_NUM_CTX = int(os.getenv('OLLAMA_NUM_CTX', '2048'))
+
+# =============================================================================
+# THINKING MODEL CONFIGURATION
+# =============================================================================
+# Models are classified based on their behavior with the 'think' parameter:
+#
+# 1. UNCONTROLLABLE: Models that think even with think=false (need WARNING)
+# 2. CONTROLLABLE: Models that respect think=false (no warning needed)
+# 3. STANDARD: Models that don't think at all (no think param needed)
+#
+# Auto-detection at runtime will classify models by testing with think=true/false
+
+# Models that CANNOT be prevented from thinking - show WARNING to user
+# These models either ignore think=false or don't support the param but still think
+UNCONTROLLABLE_THINKING_MODELS = [
+    "qwen3:30b",      # Qwen3 30B ignores think=false (tested)
+    "qwen3-vl",       # Qwen3 Vision models ignore think=false
+    "phi4-reasoning", # Phi4 reasoning doesn't support think param but always thinks
+    "deepseek-r1",    # DeepSeek R1 reasoning model
+    "qwq",            # Qwen QwQ reasoning model
+    "marco-o1",       # Alibaba reasoning model
+    "exaone-deep",    # LG reasoning model
+]
+
+# Models that respect think=false - controllable, no warning needed
+CONTROLLABLE_THINKING_MODELS = [
+    "qwen3:8b",       # Respects think=false (tested)
+    "qwen3:14b",      # Respects think=false (tested)
+    "qwen3:4b",       # Smaller Qwen3 models likely controllable
+    "qwen3:1.7b",     # Smaller Qwen3 models likely controllable
+    "qwen3:0.6b",     # Smaller Qwen3 models likely controllable
+]
+
+# Legacy alias for backward compatibility
+THINKING_MODELS = UNCONTROLLABLE_THINKING_MODELS + CONTROLLABLE_THINKING_MODELS
 MAX_TRANSLATION_ATTEMPTS = int(os.getenv('MAX_TRANSLATION_ATTEMPTS', '2'))
 RETRY_DELAY_SECONDS = int(os.getenv('RETRY_DELAY_SECONDS', '2'))
 
-# Context optimization settings
+# Adaptive context optimization settings
+# The new strategy starts at a small context and grows as needed based on actual token usage
+AUTO_ADJUST_CONTEXT = os.getenv("AUTO_ADJUST_CONTEXT", "true").lower() == "true"
+ADAPTIVE_CONTEXT_INITIAL = int(os.getenv("ADAPTIVE_CONTEXT_INITIAL", "2048"))  # Starting context size
+ADAPTIVE_CONTEXT_INITIAL_THINKING = int(os.getenv("ADAPTIVE_CONTEXT_INITIAL_THINKING", "6144"))  # Starting context for thinking models (need more space for reasoning)
+ADAPTIVE_CONTEXT_STEP = int(os.getenv("ADAPTIVE_CONTEXT_STEP", "2048"))  # Step size for increases
+ADAPTIVE_CONTEXT_STABILITY_WINDOW = int(os.getenv("ADAPTIVE_CONTEXT_STABILITY_WINDOW", "5"))  # Chunks to track before reducing
+
+# Repetition loop detection settings
+# Thinking models may have natural repetitions in their reasoning, so we use higher thresholds
+REPETITION_MIN_PHRASE_LENGTH = int(os.getenv("REPETITION_MIN_PHRASE_LENGTH", "5"))  # Min phrase length to detect
+REPETITION_MIN_COUNT = int(os.getenv("REPETITION_MIN_COUNT", "10"))  # Min repetitions for standard models
+REPETITION_MIN_COUNT_THINKING = int(os.getenv("REPETITION_MIN_COUNT_THINKING", "15"))  # Min repetitions for thinking models (more lenient)
+REPETITION_MIN_COUNT_STREAMING = int(os.getenv("REPETITION_MIN_COUNT_STREAMING", "12"))  # Min repetitions during streaming (early detection)
+
+# Legacy settings (kept for compatibility)
 MIN_RECOMMENDED_NUM_CTX = 4096  # Minimum recommended context for chunk_size=25
 SAFETY_MARGIN = 1.1  # 10% safety margin for token estimation
-AUTO_ADJUST_CONTEXT = os.getenv("AUTO_ADJUST_CONTEXT", "true").lower() == "true"
 MIN_CHUNK_SIZE = int(os.getenv("MIN_CHUNK_SIZE", "5"))
 MAX_CHUNK_SIZE = int(os.getenv("MAX_CHUNK_SIZE", "100"))
 
 # Token-based chunking configuration
 # When enabled, uses tiktoken to count tokens instead of lines for more consistent chunk sizes
 USE_TOKEN_CHUNKING = os.getenv('USE_TOKEN_CHUNKING', 'true').lower() == 'true'
-MAX_TOKENS_PER_CHUNK = int(os.getenv('MAX_TOKENS_PER_CHUNK', '800'))
+MAX_TOKENS_PER_CHUNK = int(os.getenv('MAX_TOKENS_PER_CHUNK', '450'))
 SOFT_LIMIT_RATIO = float(os.getenv('SOFT_LIMIT_RATIO', '0.8'))
 
 # LLM Provider configuration

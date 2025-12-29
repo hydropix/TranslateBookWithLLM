@@ -4,10 +4,10 @@ Centralized LLM client for all API communication
 from typing import Optional, Dict, Any
 
 from src.config import API_ENDPOINT, DEFAULT_MODEL
-from src.core.llm_providers import create_llm_provider, LLMProvider, ContextOverflowError
+from src.core.llm_providers import create_llm_provider, LLMProvider, ContextOverflowError, RepetitionLoopError, LLMResponse
 
 # Re-export for convenience
-__all__ = ['LLMClient', 'default_client', 'create_llm_client', 'ContextOverflowError']
+__all__ = ['LLMClient', 'default_client', 'create_llm_client', 'ContextOverflowError', 'RepetitionLoopError', 'LLMResponse']
 
 
 class LLMClient:
@@ -32,8 +32,26 @@ class LLMClient:
             self._provider = create_llm_provider(self.provider_type, **self.provider_kwargs)
         return self._provider
     
+    @property
+    def context_window(self) -> int:
+        """Get the current context window size from the provider"""
+        if self._provider and hasattr(self._provider, 'context_window'):
+            return self._provider.context_window
+        return self.provider_kwargs.get('context_window', 2048)
+
+    @context_window.setter
+    def context_window(self, value: int):
+        """Set the context window size on the provider"""
+        old_value = self.context_window
+        if self._provider and hasattr(self._provider, 'context_window'):
+            self._provider.context_window = value
+            print(f"[DEBUG] Updated provider context_window: {old_value} → {value}")
+        else:
+            print(f"[DEBUG] Provider not ready, storing in kwargs: {old_value} → {value}")
+        self.provider_kwargs['context_window'] = value
+
     async def make_request(self, prompt: str, model: Optional[str] = None,
-                    timeout: int = None, system_prompt: Optional[str] = None) -> Optional[str]:
+                    timeout: int = None, system_prompt: Optional[str] = None) -> Optional[LLMResponse]:
         """
         Make a request to the LLM API with error handling and retries
 
@@ -44,7 +62,7 @@ class LLMClient:
             system_prompt: Optional system prompt (role/instructions)
 
         Returns:
-            Raw response text or None if failed
+            LLMResponse with content and token usage info, or None if failed
         """
         provider = self._get_provider()
 
@@ -94,6 +112,35 @@ class LLMClient:
         if self._provider:
             await self._provider.close()
             self._provider = None
+
+    def get_is_thinking_model(self) -> Optional[bool]:
+        """
+        Get the thinking model status from the provider (if available).
+
+        Returns:
+            True if model produces thinking output, False if not, None if unknown/not detected yet
+        """
+        if self._provider and hasattr(self._provider, '_is_thinking_model'):
+            return self._provider._is_thinking_model
+        return None
+
+    async def detect_thinking_model(self) -> Optional[bool]:
+        """
+        Trigger thinking model detection (for Ollama provider).
+
+        This sends a simple test prompt to detect if the model produces
+        thinking output, and caches the result for future use.
+
+        Returns:
+            True if model produces thinking output, False if not, None if detection not supported
+        """
+        provider = self._get_provider()
+        if hasattr(provider, '_detect_thinking_model'):
+            # Trigger detection if not already done
+            if provider._is_thinking_model is None:
+                provider._is_thinking_model = await provider._detect_thinking_model()
+            return provider._is_thinking_model
+        return None
 
 
 # Global instance for backward compatibility

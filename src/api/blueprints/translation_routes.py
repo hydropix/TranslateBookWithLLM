@@ -64,6 +64,9 @@ def create_translation_blueprint(state_manager, start_translation_job):
         # Generate unique translation ID
         translation_id = f"trans_{int(time.time() * 1000)}"
 
+        # Debug: Log received prompt_options
+        print(f"[DEBUG] Received prompt_options: {data.get('prompt_options', {})}")
+
         # Build configuration
         config = {
             'source_language': data['source_language'],

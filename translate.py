@@ -32,6 +32,7 @@ if __name__ == "__main__":
     prompt_group = parser.add_argument_group('Prompt Options', 'Optional instructions to include in the translation prompt')
     prompt_group.add_argument("--preserve-technical", action="store_true", help="Preserve technical content (code, paths, URLs) without translation.")
     prompt_group.add_argument("--text-cleanup", action="store_true", help="Enable OCR/typographic cleanup (fix broken lines, spacing, punctuation).")
+    prompt_group.add_argument("--refine", action="store_true", help="Enable refinement pass: runs a second pass to polish translation quality and literary style.")
 
     # TTS (Text-to-Speech) arguments
     tts_group = parser.add_argument_group('TTS Options', 'Text-to-Speech audio generation')
@@ -143,7 +144,8 @@ if __name__ == "__main__":
     # Build prompt_options from CLI arguments
     prompt_options = {
         'preserve_technical_content': args.preserve_technical,
-        'text_cleanup': args.text_cleanup
+        'text_cleanup': args.text_cleanup,
+        'refine': args.refine
     }
 
     try:

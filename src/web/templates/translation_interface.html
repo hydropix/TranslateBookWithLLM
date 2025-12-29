@@ -56,6 +56,10 @@
                         <select class="form-control" id="model">
                             <option value="">Loading...</option>
                         </select>
+                        <!-- Thinking model warning - shown when uncontrollable thinking model selected -->
+                        <div id="thinkingModelWarning" style="display: none; margin-top: 8px; padding: 8px 10px; background: #fef2f2; border-left: 3px solid #ef4444; border-radius: 4px;">
+                            <p id="thinkingModelWarningText" style="margin: 0; font-size: 13px; color: #991b1b; white-space: pre-line;"></p>
+                        </div>
                     </div>
 
                     <div class="form-group" style="margin-bottom: 0;">
@@ -78,14 +82,63 @@
                     <div class="form-group" style="margin-bottom: 0;">
                         <label>Source Language</label>
                         <select class="form-control" id="sourceLang">
-                            <option value="English">English</option>
-                            <option value="Chinese">Chinese</option>
-                            <option value="Spanish">Spanish</option>
-                            <option value="French">French</option>
-                            <option value="German">German</option>
-                            <option value="Italian">Italian</option>
-                            <option value="Korean">Korean</option>
-                            <option value="Other">Other (Specify)</option>
+                            <optgroup label="Most Common">
+                                <option value="English">English</option>
+                                <option value="Chinese">Chinese</option>
+                                <option value="Spanish">Spanish</option>
+                                <option value="French">French</option>
+                                <option value="German">German</option>
+                                <option value="Japanese">Japanese</option>
+                                <option value="Korean">Korean</option>
+                                <option value="Portuguese">Portuguese</option>
+                                <option value="Russian">Russian</option>
+                                <option value="Arabic">Arabic</option>
+                            </optgroup>
+                            <optgroup label="European">
+                                <option value="Italian">Italian</option>
+                                <option value="Dutch">Dutch</option>
+                                <option value="Polish">Polish</option>
+                                <option value="Swedish">Swedish</option>
+                                <option value="Norwegian">Norwegian</option>
+                                <option value="Danish">Danish</option>
+                                <option value="Finnish">Finnish</option>
+                                <option value="Greek">Greek</option>
+                                <option value="Hungarian">Hungarian</option>
+                                <option value="Czech">Czech</option>
+                                <option value="Slovak">Slovak</option>
+                                <option value="Romanian">Romanian</option>
+                                <option value="Bulgarian">Bulgarian</option>
+                                <option value="Croatian">Croatian</option>
+                                <option value="Serbian">Serbian</option>
+                                <option value="Ukrainian">Ukrainian</option>
+                                <option value="Catalan">Catalan</option>
+                            </optgroup>
+                            <optgroup label="Asian">
+                                <option value="Hindi">Hindi</option>
+                                <option value="Bengali">Bengali</option>
+                                <option value="Urdu">Urdu</option>
+                                <option value="Punjabi">Punjabi</option>
+                                <option value="Tamil">Tamil</option>
+                                <option value="Telugu">Telugu</option>
+                                <option value="Marathi">Marathi</option>
+                                <option value="Gujarati">Gujarati</option>
+                                <option value="Vietnamese">Vietnamese</option>
+                                <option value="Thai">Thai</option>
+                                <option value="Indonesian">Indonesian</option>
+                                <option value="Malay">Malay</option>
+                                <option value="Tagalog">Tagalog</option>
+                                <option value="Burmese">Burmese</option>
+                            </optgroup>
+                            <optgroup label="Middle East & Africa">
+                                <option value="Persian">Persian</option>
+                                <option value="Turkish">Turkish</option>
+                                <option value="Hebrew">Hebrew</option>
+                                <option value="Swahili">Swahili</option>
+                                <option value="Amharic">Amharic</option>
+                            </optgroup>
+                            <optgroup label="Custom">
+                                <option value="Other">Other (Specify)</option>
+                            </optgroup>
                         </select>
                         <input type="text" class="form-control" id="customSourceLang" placeholder="Enter custom source language" style="margin-top: 10px; display: none;">
                     </div>
@@ -93,14 +146,63 @@
                     <div class="form-group" style="margin-bottom: 0;">
                         <label>Target Language</label>
                         <select class="form-control" id="targetLang">
-                            <option value="Chinese">Chinese</option>
-                            <option value="English">English</option>
-                            <option value="French">French</option>
-                            <option value="Spanish">Spanish</option>
-                            <option value="German">German</option>
-                            <option value="Italian">Italian</option>
-                            <option value="Korean">Korean</option>
-                            <option value="Other">Other (Specify)</option>
+                            <optgroup label="Most Common">
+                                <option value="Chinese">Chinese</option>
+                                <option value="English">English</option>
+                                <option value="Spanish">Spanish</option>
+                                <option value="French">French</option>
+                                <option value="German">German</option>
+                                <option value="Japanese">Japanese</option>
+                                <option value="Korean">Korean</option>
+                                <option value="Portuguese">Portuguese</option>
+                                <option value="Russian">Russian</option>
+                                <option value="Arabic">Arabic</option>
+                            </optgroup>
+                            <optgroup label="European">
+                                <option value="Italian">Italian</option>
+                                <option value="Dutch">Dutch</option>
+                                <option value="Polish">Polish</option>
+                                <option value="Swedish">Swedish</option>
+                                <option value="Norwegian">Norwegian</option>
+                                <option value="Danish">Danish</option>
+                                <option value="Finnish">Finnish</option>
+                                <option value="Greek">Greek</option>
+                                <option value="Hungarian">Hungarian</option>
+                                <option value="Czech">Czech</option>
+                                <option value="Slovak">Slovak</option>
+                                <option value="Romanian">Romanian</option>
+                                <option value="Bulgarian">Bulgarian</option>
+                                <option value="Croatian">Croatian</option>
+                                <option value="Serbian">Serbian</option>
+                                <option value="Ukrainian">Ukrainian</option>
+                                <option value="Catalan">Catalan</option>
+                            </optgroup>
+                            <optgroup label="Asian">
+                                <option value="Hindi">Hindi</option>
+                                <option value="Bengali">Bengali</option>
+                                <option value="Urdu">Urdu</option>
+                                <option value="Punjabi">Punjabi</option>
+                                <option value="Tamil">Tamil</option>
+                                <option value="Telugu">Telugu</option>
+                                <option value="Marathi">Marathi</option>
+                                <option value="Gujarati">Gujarati</option>
+                                <option value="Vietnamese">Vietnamese</option>
+                                <option value="Thai">Thai</option>
+                                <option value="Indonesian">Indonesian</option>
+                                <option value="Malay">Malay</option>
+                                <option value="Tagalog">Tagalog</option>
+                                <option value="Burmese">Burmese</option>
+                            </optgroup>
+                            <optgroup label="Middle East & Africa">
+                                <option value="Persian">Persian</option>
+                                <option value="Turkish">Turkish</option>
+                                <option value="Hebrew">Hebrew</option>
+                                <option value="Swahili">Swahili</option>
+                                <option value="Amharic">Amharic</option>
+                            </optgroup>
+                            <optgroup label="Custom">
+                                <option value="Other">Other (Specify)</option>
+                            </optgroup>
                         </select>
                         <input type="text" class="form-control" id="customTargetLang" placeholder="Enter custom target language" style="margin-top: 10px; display: none;">
                     </div>
@@ -164,6 +266,19 @@
                                 <span style="font-weight: 500; color: #E0E6E9;">Text Cleanup (OCR Correction)</span>
                                 <p style="margin: 5px 0 0 0; font-size: 13px; color: #A3ADB3;">
                                     For poorly formatted or OCR-scanned texts. Instructs the LLM to fix: broken line breaks, double spaces, punctuation errors, and merge incorrectly split paragraphs.
+                                </p>
+                            </div>
+                        </label>
+                    </div>
+
+                    <!-- Polish Translation (Refinement Pass) -->
+                    <div class="form-group" style="margin-bottom: 10px;">
+                        <label style="display: flex; align-items: flex-start; gap: 10px; cursor: pointer;">
+                            <input type="checkbox" id="refineTranslation" style="width: auto; margin-top: 3px; accent-color: #79CDDE;">
+                            <div>
+                                <span style="font-weight: 500; color: #E0E6E9;">✨ Polish Translation (2nd Pass)</span>
+                                <p style="margin: 5px 0 0 0; font-size: 13px; color: #A3ADB3;">
+                                    Runs a second refinement pass after translation. The LLM rewrites the first-pass translation to improve literary quality, natural flow, and stylistic elegance. Doubles the translation time but significantly improves output quality.
                                 </p>
                             </div>
                         </label>
