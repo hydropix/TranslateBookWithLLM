@@ -20,7 +20,7 @@ Runs models locally on your machine.
 |------|-------|------|
 | 6-10 GB | `qwen3:8b` | 5.2 GB |
 | 10-16 GB | `qwen3:14b` | 9.3 GB |
-| 16-24 GB | `qwen3:30b` | 19 GB |
+| 16-24 GB | `qwen3:30b-instruct` | 19 GB |
 | 48+ GB | `qwen3:235b` | 142 GB |
 
 Browse models: [ollama.com/search](https://ollama.com/search)

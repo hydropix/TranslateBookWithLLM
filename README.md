@@ -39,7 +39,7 @@ The web interface opens at **http://localhost:5000**
 | 8 GB | `gemma3:12b` | Spanish, Portuguese, European |
 | 24 GB | `mistral-small:24b` | French |
 | 24 GB | `gemma3:27b` | Japanese, Korean, Arabic, most languages |
-| 24 GB | `qwen3:30b` | Chinese (Simplified/Traditional) |
+| 24 GB | `qwen3:30b-instruct` | Chinese (Simplified/Traditional) |
 
 > 📊 **[Full benchmarks](https://github.com/hydropix/TranslateBookWithLLM/wiki)** — 11 models × 19 languages with accuracy, fluency & style scores.
 
