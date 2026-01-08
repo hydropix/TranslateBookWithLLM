@@ -215,26 +215,6 @@
                     <small>Example: `translated_{originalName}_to_FR.{ext}`</small>
                 </div>
 
-                <!-- Fast Mode Option -->
-                <div class="form-group" style="margin-bottom: 15px;">
-                    <label style="display: flex; align-items: center; gap: 10px;">
-                        <input type="checkbox" id="fastMode" style="width: auto;">
-                        Fast Mode (EPUB only - removes all formatting, maximum reliability)
-                    </label>
-                    <div id="fastModeInfo" style="display: none; margin-top: 10px; padding: 10px; background: #eff6ff; border-left: 3px solid #3b82f6; border-radius: 4px;">
-                        <p style="margin: 0; font-size: 14px; color: #1e40af;">
-                            <strong>ℹ️ Fast Mode:</strong> Extracts pure text from EPUB, translates it without HTML tags, and rebuilds a clean EPUB.
-                            <br><strong>✅ Benefits:</strong> No placeholder errors, works with weak models, maximum reliability.
-                            <br><strong>⚠️ Trade-off:</strong> Loses inline formatting (italic, bold, etc.) but preserves all text content.
-                        </p>
-                    </div>
-                    <div id="smallModelRecommendation" style="display: none; margin-top: 10px; padding: 10px; background: #fef3c7; border-left: 3px solid #f59e0b; border-radius: 4px;">
-                        <p style="margin: 0; font-size: 14px; color: #92400e;">
-                            <strong>💡 Recommendation:</strong> Your selected model appears to be ≤12B parameters. For EPUB translation, we strongly recommend enabling <strong>Fast Mode</strong> to avoid tag management issues common with smaller models.
-                        </p>
-                    </div>
-                </div>
-
                 <!-- Prompt Options (Foldable) -->
                 <div class="prompt-options-toggle" onclick="togglePromptOptions()" style="cursor: pointer; padding: 15px; background: linear-gradient(90deg, #1A1A1A, #2C2C2C); border-radius: 8px; margin-bottom: 15px; display: flex; align-items: center; justify-content: space-between; border: 1px solid #333333; color: #A3ADB3; transition: background 0.3s;">
                     <span style="font-weight: 500;">📝 Prompt Options</span>

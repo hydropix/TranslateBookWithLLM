@@ -136,7 +136,7 @@ async def _make_llm_request_with_adaptive_context(
     model: str,
     llm_client,
     log_callback,
-    fast_mode: bool,
+    has_placeholders: bool,
     has_images: bool = False,
     prompt_options: dict = None,
     context_manager: AdaptiveContextManager = None
@@ -159,8 +159,8 @@ async def _make_llm_request_with_adaptive_context(
         model: LLM model name
         llm_client: LLM client instance
         log_callback: Logging callback function
-        fast_mode: If True, uses simplified prompts
-        has_images: If True (with fast_mode), includes image placeholder preservation instructions
+        has_placeholders: If True, includes placeholder preservation instructions (for EPUB HTML tags)
+        has_images: If True, includes image placeholder preservation instructions
         prompt_options: Optional dict with prompt customization options
         context_manager: AdaptiveContextManager for context sizing
 
@@ -183,7 +183,7 @@ async def _make_llm_request_with_adaptive_context(
                 previous_translation_context,
                 source_language,
                 target_language,
-                fast_mode=fast_mode,
+                has_placeholders=has_placeholders,
                 has_images=has_images,
                 prompt_options=prompt_options
             )
@@ -360,7 +360,7 @@ async def _make_llm_request_with_overflow_handling(
     model: str,
     llm_client,
     log_callback,
-    fast_mode: bool,
+    has_placeholders: bool,
     has_images: bool = False,
     prompt_options: dict = None
 ) -> Tuple[Optional[str], str]:
@@ -368,14 +368,14 @@ async def _make_llm_request_with_overflow_handling(
     result, content, _ = await _make_llm_request_with_adaptive_context(
         main_content, context_before, context_after, previous_translation_context,
         source_language, target_language, model, llm_client, log_callback,
-        fast_mode, has_images, prompt_options, context_manager=None
+        has_placeholders, has_images, prompt_options, context_manager=None
     )
     return result, content
 
 
 async def generate_translation_request(main_content, context_before, context_after, previous_translation_context,
                                        source_language="English", target_language="Chinese", model=DEFAULT_MODEL,
-                                       llm_client=None, log_callback=None, fast_mode=False, has_images=False,
+                                       llm_client=None, log_callback=None, has_placeholders=False, has_images=False,
                                        prompt_options=None):
     """
     Generate translation request to LLM API with automatic context overflow handling.
@@ -390,8 +390,8 @@ async def generate_translation_request(main_content, context_before, context_aft
         model (str): LLM model name
         llm_client: LLM client instance
         log_callback (callable): Logging callback function
-        fast_mode (bool): If True, uses simplified prompts without placeholder instructions
-        has_images (bool): If True (with fast_mode), includes image placeholder preservation instructions
+        has_placeholders (bool): If True, includes placeholder preservation instructions
+        has_images (bool): If True, includes image placeholder preservation instructions
         prompt_options (dict): Optional dict with prompt customization options
 
     Returns:
@@ -414,7 +414,7 @@ async def generate_translation_request(main_content, context_before, context_aft
         model=model,
         llm_client=llm_client,
         log_callback=log_callback,
-        fast_mode=fast_mode,
+        has_placeholders=has_placeholders,
         has_images=has_images,
         prompt_options=prompt_options
     )
@@ -435,7 +435,7 @@ async def translate_chunks(chunks, source_language, target_language, model_name,
                           stats_callback=None, check_interruption_callback=None,
                           llm_provider="ollama", gemini_api_key=None, openai_api_key=None,
                           openrouter_api_key=None,
-                          context_window=2048, auto_adjust_context=True, min_chunk_size=5, fast_mode=False,
+                          context_window=2048, auto_adjust_context=True, min_chunk_size=5,
                           checkpoint_manager=None, translation_id=None, resume_from_index=0,
                           has_images=False, prompt_options=None):
     """
@@ -454,11 +454,10 @@ async def translate_chunks(chunks, source_language, target_language, model_name,
         context_window (int): Initial context window size (num_ctx) - will be adapted
         auto_adjust_context (bool): Enable adaptive context adjustment
         min_chunk_size (int): Minimum chunk size when auto-adjusting
-        fast_mode (bool): If True, uses simplified prompts without placeholder instructions
         checkpoint_manager: CheckpointManager instance for saving progress
         translation_id: Job ID for checkpoint saving
         resume_from_index: Index to resume from (for resumed jobs)
-        has_images (bool): If True (with fast_mode), includes image placeholder preservation instructions
+        has_images (bool): If True, includes image placeholder preservation instructions
         prompt_options (dict): Optional dict with prompt customization options
 
     Returns:
@@ -553,20 +552,6 @@ async def translate_chunks(chunks, source_language, target_language, model_name,
                 f"🎯 Adaptive context enabled ({model_type} model): starting at {initial_context} tokens, "
                 f"max={MAX_CONTEXT_SIZE}, step={CONTEXT_STEP}")
 
-    # Pre-generate examples if missing for this language pair (standard mode only)
-    if llm_client and not fast_mode:
-        provider = llm_client._get_provider()
-        if provider:
-            # Standard mode: need placeholder examples
-            example_ready = await ensure_example_ready(
-                source_language, target_language, provider
-            )
-            if example_ready and log_callback:
-                key = (source_language.lower(), target_language.lower())
-                if key not in PLACEHOLDER_EXAMPLES:
-                    log_callback("example_generated",
-                        f"Generated placeholder example for {source_language}->{target_language}")
-
     # Detect thinking model status before translation loop
     if llm_client and llm_provider == "ollama":
         await llm_client.detect_thinking_model()
@@ -650,7 +635,7 @@ async def translate_chunks(chunks, source_language, target_language, model_name,
                 model=model_name,
                 llm_client=llm_client,
                 log_callback=log_callback,
-                fast_mode=fast_mode,
+                has_placeholders=False,
                 has_images=has_images,
                 prompt_options=prompt_options,
                 context_manager=context_manager
@@ -725,7 +710,7 @@ async def _make_refinement_request(
     model: str,
     llm_client,
     log_callback,
-    fast_mode: bool,
+    has_placeholders: bool,
     has_images: bool = False,
     prompt_options: dict = None,
     context_manager: AdaptiveContextManager = None
@@ -744,7 +729,7 @@ async def _make_refinement_request(
         model: LLM model name
         llm_client: LLM client instance
         log_callback: Logging callback function
-        fast_mode: If True, uses simplified prompts
+        has_placeholders: If True, includes placeholder preservation instructions
         has_images: If True, includes image placeholder preservation
         prompt_options: Optional dict with prompt customization options
         context_manager: AdaptiveContextManager for context sizing
@@ -760,7 +745,7 @@ async def _make_refinement_request(
             context_after=context_after,
             previous_refined_context=previous_refined_context,
             target_language=target_language,
-            fast_mode=fast_mode,
+            has_placeholders=False,
             has_images=has_images,
             prompt_options=prompt_options
         )
@@ -845,7 +830,6 @@ async def refine_chunks(
     openrouter_api_key=None,
     context_window=2048,
     auto_adjust_context=True,
-    fast_mode=False,
     has_images=False,
     prompt_options=None
 ) -> List[str]:
@@ -872,7 +856,6 @@ async def refine_chunks(
         openrouter_api_key: OpenRouter API key
         context_window: Initial context window size
         auto_adjust_context: Enable adaptive context adjustment
-        fast_mode: If True, uses simplified prompts
         has_images: If True, includes image placeholder preservation
         prompt_options: Optional dict with prompt customization options
 
@@ -992,7 +975,7 @@ async def refine_chunks(
                 model=model_name,
                 llm_client=llm_client,
                 log_callback=log_callback,
-                fast_mode=fast_mode,
+                has_placeholders=False,
                 has_images=has_images,
                 prompt_options=prompt_options,
                 context_manager=context_manager

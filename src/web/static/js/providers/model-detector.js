@@ -1,9 +1,7 @@
 /**
  * Model Detector - Detect model size, thinking behavior, and show recommendations
  *
- * Analyzes model names to determine parameter size and recommends
- * fast mode for models ≤12B parameters when translating EPUBs.
- *
+ * Analyzes model names to determine parameter size.
  * Also checks for uncontrollable thinking models and displays warnings.
  */
 
@@ -82,30 +80,12 @@ function isSmallModel(modelName) {
 
 export const ModelDetector = {
     /**
-     * Check if model is small and show recommendation for fast mode
-     * Called when model selection changes or fast mode checkbox changes
+     * Check for thinking model warning
+     * Called when model selection changes
      */
     checkAndShowRecommendation() {
-        const modelSelect = DomHelpers.getElement('model');
-        const fastModeCheckbox = DomHelpers.getElement('fastMode');
-        const recommendationDiv = DomHelpers.getElement('smallModelRecommendation');
-
-        if (!modelSelect || !fastModeCheckbox || !recommendationDiv) {
-            console.warn('Model detector: Required elements not found');
-            return;
-        }
-
         const modelName = DomHelpers.getValue('model');
-        const isFastModeEnabled = fastModeCheckbox.checked;
-
-        // Show recommendation if small model and not already in fast mode (use inline style)
-        if (isSmallModel(modelName) && !isFastModeEnabled) {
-            if (recommendationDiv) recommendationDiv.style.display = 'block';
-        } else {
-            if (recommendationDiv) recommendationDiv.style.display = 'none';
-        }
-
-        // Also check for thinking model warning (async, non-blocking)
+        // Check for thinking model warning (async, non-blocking)
         checkThinkingModelWarning(modelName);
     },
 
@@ -136,40 +116,13 @@ export const ModelDetector = {
     },
 
     /**
-     * Get recommendation message for a given model
-     * @param {string} modelName - Model name
-     * @returns {string|null} Recommendation message, or null if no recommendation
-     */
-    getRecommendation(modelName) {
-        const size = extractModelSize(modelName);
-
-        if (size === null) {
-            return null;
-        }
-
-        if (size <= 12) {
-            return `This model (${size}B parameters) may struggle with complex EPUB formatting. ` +
-                   `Consider enabling "Fast Mode" for better results.`;
-        }
-
-        return null;
-    },
-
-    /**
      * Initialize model detector event listeners
      */
     initialize() {
         const modelSelect = DomHelpers.getElement('model');
-        const fastModeCheckbox = DomHelpers.getElement('fastMode');
 
         if (modelSelect) {
             modelSelect.addEventListener('change', () => {
-                this.checkAndShowRecommendation();
-            });
-        }
-
-        if (fastModeCheckbox) {
-            fastModeCheckbox.addEventListener('change', () => {
                 this.checkAndShowRecommendation();
             });
         }

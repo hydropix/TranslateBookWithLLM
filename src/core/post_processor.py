@@ -9,10 +9,11 @@ from abc import ABC, abstractmethod
 
 from src.config import (
     PLACEHOLDER_PATTERN,
-    PLACEHOLDER_DOUBLE_BRACKET_PATTERN,
+    PLACEHOLDER_SINGLE_BRACKET_PATTERN,
     PLACEHOLDER_BARE_PATTERN,
     ORPHANED_DOUBLE_BRACKETS_PATTERN,
     ORPHANED_UNICODE_BRACKETS_PATTERN,
+    LEGACY_PLACEHOLDER_PATTERN,
 )
 
 
@@ -31,28 +32,28 @@ class PostProcessingRule(ABC):
 
 
 class RemoveResidualTagPlaceholdersRule(PostProcessingRule):
-    """Remove residual TAG placeholders that might remain after tag restoration"""
-    
+    """Remove residual tag placeholders that might remain after tag restoration"""
+
     def apply(self, text: str) -> str:
-        # Remove ⟦TAG0⟧, ⟦TAG1⟧, etc. (using the special Unicode brackets)
+        # Remove [[0]], [[1]], etc. (current format)
         text = re.sub(PLACEHOLDER_PATTERN, '', text)
 
-        # Also remove [[TAG0]], [[TAG1]], etc. in case some got converted
-        text = re.sub(PLACEHOLDER_DOUBLE_BRACKET_PATTERN, '', text)
+        # Remove [0], [1], etc. (single bracket mutation)
+        text = re.sub(PLACEHOLDER_SINGLE_BRACKET_PATTERN, '', text)
 
-        # Remove TAG followed by number (e.g., TAG1, TAG2)
-        text = re.sub(PLACEHOLDER_BARE_PATTERN, '', text)
+        # Remove legacy [TAG0], [TAG1], etc. format
+        text = re.sub(LEGACY_PLACEHOLDER_PATTERN, '', text)
 
         # Remove orphaned square brackets [[ or ]]
         text = re.sub(ORPHANED_DOUBLE_BRACKETS_PATTERN, '', text)
 
-        # Remove orphaned special brackets ⟦ or ⟧
+        # Remove orphaned special brackets ⟦ or ⟧ (legacy format)
         text = re.sub(ORPHANED_UNICODE_BRACKETS_PATTERN, '', text)
 
         return text
-    
+
     def description(self) -> str:
-        return "Remove residual TAG placeholders after restoration"
+        return "Remove residual tag placeholders after restoration"
 
 
 

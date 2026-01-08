@@ -173,26 +173,6 @@ PROJECT_NAME = "TranslateBook with LLM (TBL)"
 PROJECT_GITHUB = "https://github.com/hydropix/TranslateBookWithLLM"
 SIGNATURE_VERSION = "1.0"
 
-# Fast Mode Image Preservation
-# When enabled, images from the original EPUB are preserved in fast mode output
-FAST_MODE_PRESERVE_IMAGES = os.getenv('FAST_MODE_PRESERVE_IMAGES', 'true').lower() == 'true'
-# Marker used to track image positions in text (sent to LLM, must be preserved)
-# Format: [IMG001] - minimal format for maximum LLM reliability
-IMAGE_MARKER_PREFIX = "[IMG"
-IMAGE_MARKER_SUFFIX = "]"
-
-# Fast Mode Formatting Preservation
-# When enabled, inline formatting (bold, italic) is preserved using markers
-FAST_MODE_PRESERVE_FORMATTING = os.getenv('FAST_MODE_PRESERVE_FORMATTING', 'true').lower() == 'true'
-# Markers for inline formatting - designed to be simple and LLM-friendly
-# These wrap text that should be formatted: [I]italic text[/I], [B]bold text[/B]
-FORMAT_ITALIC_START = "[I]"
-FORMAT_ITALIC_END = "[/I]"
-FORMAT_BOLD_START = "[B]"
-FORMAT_BOLD_END = "[/B]"
-# Horizontal rule marker (standalone, no content)
-FORMAT_HR_MARKER = "[HR]"
-
 # Default languages from environment
 DEFAULT_SOURCE_LANGUAGE = os.getenv('DEFAULT_SOURCE_LANGUAGE', 'English')
 DEFAULT_TARGET_LANGUAGE = os.getenv('DEFAULT_TARGET_LANGUAGE', 'Chinese')
@@ -246,34 +226,44 @@ INPUT_TAG_OUT = "</SOURCE_TEXT>"
 # ============================================================================
 # These placeholders are used to temporarily replace HTML/XML tags during
 # translation. The LLM must preserve them exactly in its output.
+#
+# Format: [[0]], [[1]], [[2]], etc.
+# - Compact format reduces token usage
+# - Adjacent tags are grouped into single placeholders
+# - Strict validation ensures placeholder integrity
 
-PLACEHOLDER_TAG_KEYWORD = "TAG"
-"""The keyword used in placeholders (e.g., TAG in [TAG0])"""
+PLACEHOLDER_PREFIX = "[["
+"""Prefix for tag placeholders (e.g., [[ in [[0]])"""
 
-PLACEHOLDER_PREFIX = f"[{PLACEHOLDER_TAG_KEYWORD}"
-"""Prefix for tag placeholders (e.g., [TAG in [TAG0])"""
+PLACEHOLDER_SUFFIX = "]]"
+"""Suffix for tag placeholders (e.g., ]] in [[0]])"""
 
-PLACEHOLDER_SUFFIX = "]"
-"""Suffix for tag placeholders (e.g., ] in [TAG0])"""
+PLACEHOLDER_PATTERN = r'\[\[\d+\]\]'
+"""Regex pattern for detecting tag placeholders in translated text (e.g., [[0]])"""
 
-PLACEHOLDER_PATTERN = rf'\[{PLACEHOLDER_TAG_KEYWORD}\d+\]'
-"""Regex pattern for detecting tag placeholders in translated text (e.g., [TAG0])"""
+# Maximum retries for placeholder validation before falling back to source text
+MAX_PLACEHOLDER_RETRIES = 0
+"""Number of retry attempts when placeholder validation fails"""
+
+MAX_PLACEHOLDER_CORRECTION_ATTEMPTS = 2
+"""Number of LLM correction attempts before falling back to proportional insertion"""
 
 # Mutation patterns - alternative formats LLMs might produce
-PLACEHOLDER_DOUBLE_BRACKET_PATTERN = rf'\[\[{PLACEHOLDER_TAG_KEYWORD}\d+\]\]'
-"""Pattern for double bracket mutation (e.g., [[TAG0]])"""
+# These patterns detect common LLM transformations of placeholders
+PLACEHOLDER_SINGLE_BRACKET_PATTERN = r'\[\d+\]'
+"""Pattern for single bracket mutation (e.g., [0])"""
 
-PLACEHOLDER_SINGLE_BRACKET_PATTERN = rf'\[{PLACEHOLDER_TAG_KEYWORD}\d+\]'
-"""Pattern for single bracket mutation (e.g., [TAG0])"""
+PLACEHOLDER_CURLY_BRACE_PATTERN = r'\{\d+\}'
+"""Pattern for curly brace mutation (e.g., {0})"""
 
-PLACEHOLDER_CURLY_BRACE_PATTERN = rf'\{{{PLACEHOLDER_TAG_KEYWORD}\d+\}}'
-"""Pattern for curly brace mutation (e.g., {TAG0})"""
+PLACEHOLDER_ANGLE_BRACKET_PATTERN = r'<\d+>'
+"""Pattern for angle bracket mutation (e.g., <0>)"""
 
-PLACEHOLDER_ANGLE_BRACKET_PATTERN = rf'<{PLACEHOLDER_TAG_KEYWORD}\d+>'
-"""Pattern for angle bracket mutation (e.g., <TAG0>)"""
+PLACEHOLDER_PAREN_PATTERN = r'\(\d+\)'
+"""Pattern for parenthesis mutation (e.g., (0))"""
 
-PLACEHOLDER_BARE_PATTERN = rf'{PLACEHOLDER_TAG_KEYWORD}\d+'
-"""Pattern for bare TAG without brackets (e.g., TAG0)"""
+PLACEHOLDER_BARE_PATTERN = r'(?<!\[)(?<!\d)\d+(?!\d)(?!\])'
+"""Pattern for bare number without brackets (e.g., 0) - with negative lookahead/behind"""
 
 # Orphaned bracket patterns for cleanup
 ORPHANED_DOUBLE_BRACKETS_PATTERN = r'\[\[|\]\]'
@@ -283,7 +273,14 @@ ORPHANED_UNICODE_BRACKETS_PATTERN = r'⟦|⟧'
 """Pattern for orphaned Unicode brackets (legacy format)"""
 
 ORPHANED_SINGLE_BRACKETS_PATTERN = r'(?<!\[)\[(?!\[)|(?<!\])\](?!\])'
-"""Pattern for orphaned single brackets (current format)"""
+"""Pattern for orphaned single brackets"""
+
+# Legacy compatibility - kept for potential migration from old format
+PLACEHOLDER_TAG_KEYWORD = "TAG"
+"""Legacy keyword (kept for backward compatibility with existing translations)"""
+
+LEGACY_PLACEHOLDER_PATTERN = rf'\[{PLACEHOLDER_TAG_KEYWORD}\d+\]'
+"""Legacy pattern for old-format placeholders (e.g., [TAG0])"""
 
 
 def create_placeholder(tag_num: int) -> str:
@@ -301,20 +298,20 @@ def get_mutation_variants(tag_num) -> list:
     Get all possible mutation variants for a given tag number.
 
     These are alternative formats that LLMs might produce instead of
-    the correct placeholder format.
+    the correct placeholder format [[N]].
 
     Args:
-        tag_num: The tag number (e.g., 0 for TAG0) - can be int or str
+        tag_num: The tag number (e.g., 0 for [[0]]) - can be int or str
 
     Returns:
         List of possible mutation strings
     """
     return [
-        f"[[{PLACEHOLDER_TAG_KEYWORD}{tag_num}]]",   # Double brackets
-        f"{{{PLACEHOLDER_TAG_KEYWORD}{tag_num}}}",   # Curly braces
-        f"<{PLACEHOLDER_TAG_KEYWORD}{tag_num}>",     # Angle brackets
-        f"⟦{PLACEHOLDER_TAG_KEYWORD}{tag_num}⟧",     # Unicode brackets (legacy)
-        f"{PLACEHOLDER_TAG_KEYWORD}{tag_num}",       # No brackets (check last)
+        f"[{tag_num}]",      # Single brackets: [0]
+        f"{{{tag_num}}}",    # Curly braces: {0}
+        f"<{tag_num}>",      # Angle brackets: <0>
+        f"({tag_num})",      # Parentheses: (0)
+        f"{tag_num}",        # Bare number: 0 (check last)
     ]
 
 

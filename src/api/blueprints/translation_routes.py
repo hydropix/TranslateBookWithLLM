@@ -83,7 +83,6 @@ def create_translation_blueprint(state_manager, start_translation_job):
             'gemini_api_key': _resolve_api_key(data.get('gemini_api_key'), 'GEMINI_API_KEY'),
             'openai_api_key': _resolve_api_key(data.get('openai_api_key'), 'OPENAI_API_KEY'),
             'openrouter_api_key': _resolve_api_key(data.get('openrouter_api_key'), 'OPENROUTER_API_KEY'),
-            'fast_mode': data.get('fast_mode', False),
             # Prompt options (optional instructions to include in the system prompt)
             'prompt_options': data.get('prompt_options', {}),
             # TTS configuration

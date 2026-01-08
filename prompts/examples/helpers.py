@@ -7,7 +7,7 @@ This module provides unified access to technical examples:
 
 from typing import Any, Dict, Optional, Tuple
 
-from .constants import TAG0, TAG1, TAG2, IMG_MARKER
+from .constants import TAG0, TAG1, TAG2
 from .placeholder_examples import get_example_for_pair
 from .subtitle_examples import SUBTITLE_EXAMPLES
 from .output_examples import OUTPUT_FORMAT_EXAMPLES
@@ -38,17 +38,17 @@ def get_subtitle_example(target_lang: str) -> str:
     )
 
 
-def get_output_format_example(target_lang: str, fast_mode: bool = False) -> str:
+def get_output_format_example(target_lang: str, has_placeholders: bool = True) -> str:
     """Get output format example for a target language."""
     lang_key = target_lang.lower()
-    mode_key = "fast_mode" if fast_mode else "standard"
+    mode_key = "standard" if has_placeholders else "plain"
 
     if lang_key in OUTPUT_FORMAT_EXAMPLES:
         return OUTPUT_FORMAT_EXAMPLES[lang_key][mode_key]
 
-    if fast_mode:
-        return "Your translated text here"
-    return f"Your translated text here, with all {TAG0} markers preserved exactly"
+    if has_placeholders:
+        return f"Your translated text here, with all {TAG0} markers preserved exactly"
+    return "Your translated text here"
 
 
 def build_placeholder_section(
@@ -90,9 +90,9 @@ def build_image_placeholder_section(
 
     Returns formatted instructions for preserving image markers.
     """
-    return f"""# IMAGE MARKERS - PRESERVE EXACTLY
+    return """# IMAGE MARKERS - PRESERVE EXACTLY
 
-Markers like {IMG_MARKER} represent images in the text.
+Markers like [IMG001] represent images in the text.
 
 **MANDATORY RULES:**
 1. Keep ALL image markers EXACTLY as they appear (e.g., [IMG001], [IMG002])

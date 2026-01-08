@@ -28,7 +28,6 @@ const LOCAL_SETTINGS = [
     'lastTargetLanguage',
     'lastApiEndpoint',
     'lastOpenaiEndpoint',
-    'fastMode',
     'ttsEnabled'
 ];
 
@@ -116,19 +115,6 @@ export const SettingsManager = {
             }
         }
 
-        // Apply Fast Mode setting
-        if (prefs.fastMode !== undefined) {
-            const fastModeCheckbox = DomHelpers.getElement('fastMode');
-            if (fastModeCheckbox) {
-                fastModeCheckbox.checked = prefs.fastMode;
-                // Show/hide the info panel based on checkbox state
-                const fastModeInfo = DomHelpers.getElement('fastModeInfo');
-                if (fastModeInfo) {
-                    fastModeInfo.style.display = prefs.fastMode ? 'block' : 'none';
-                }
-            }
-        }
-
         // Apply TTS Enabled setting
         if (prefs.ttsEnabled !== undefined) {
             const ttsEnabledCheckbox = DomHelpers.getElement('ttsEnabled');
@@ -181,8 +167,6 @@ export const SettingsManager = {
      * Save current form state to local preferences
      */
     saveCurrentState() {
-        // Get checkbox values
-        const fastModeCheckbox = DomHelpers.getElement('fastMode');
         const ttsEnabledCheckbox = DomHelpers.getElement('ttsEnabled');
 
         const prefs = {
@@ -192,7 +176,6 @@ export const SettingsManager = {
             lastTargetLanguage: this._getLanguageValue('targetLang', 'customTargetLang'),
             lastApiEndpoint: DomHelpers.getValue('apiEndpoint'),
             lastOpenaiEndpoint: DomHelpers.getValue('openaiEndpoint'),
-            fastMode: fastModeCheckbox ? fastModeCheckbox.checked : false,
             ttsEnabled: ttsEnabledCheckbox ? ttsEnabledCheckbox.checked : false
         };
 

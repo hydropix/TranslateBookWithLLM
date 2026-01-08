@@ -61,25 +61,11 @@ See [docs/PROVIDERS.md](docs/PROVIDERS.md) for detailed setup instructions.
 
 ---
 
-## EPUB Translation Modes
-
-| Mode | Use When |
-|------|----------|
-| **Standard** (default) | Large model (>12B), formatting is important |
-| **Fast Mode** (`--fast-mode`) | Small model (≤12B), reader compatibility issues, simpler is better |
-
-Fast Mode strips HTML and outputs EPUB 2.0 for maximum compatibility. See [docs/FAST_MODE.md](docs/FAST_MODE.md) for details.
-
----
-
 ## Command Line
 
 ```bash
 # Basic
 python translate.py -i book.epub -o book_zh.epub -sl English -tl Chinese
-
-# With Fast Mode
-python translate.py -i book.epub -o book_zh.epub --fast-mode
 
 # With OpenRouter
 python translate.py -i book.txt -o book_fr.txt --provider openrouter \
@@ -108,7 +94,6 @@ python translate.py -i book.txt -o book_fr.txt --provider openai \
 | `-tl, --target_lang` | Target language | Chinese |
 | `-m, --model` | Model name | mistral-small:24b |
 | `--provider` | ollama/openrouter/openai/gemini | ollama |
-| `--fast-mode` | Fast Mode for EPUB | Off |
 
 See [docs/CLI.md](docs/CLI.md) for all options and examples.
 
@@ -156,8 +141,8 @@ See [DOCKER.md](DOCKER.md) for more options.
 | Ollama won't connect | Check Ollama is running, test `curl http://localhost:11434/api/tags` |
 | Model not found | Run `ollama list`, then `ollama pull model-name` |
 | Timeouts | Increase `REQUEST_TIMEOUT` or reduce `MAIN_LINES_PER_CHUNK` |
-| EPUB won't open | Try `--fast-mode` |
-| Placeholders in output (⟦TAG0⟧) | Use `--fast-mode` |
+| EPUB won't open | Try a larger model |
+| Placeholders in output (⟦TAG0⟧) | Try a larger model |
 
 See [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) for more solutions.
 
@@ -168,7 +153,6 @@ See [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) for more solutions.
 | Guide | Description |
 |-------|-------------|
 | [docs/PROVIDERS.md](docs/PROVIDERS.md) | Detailed provider setup (Ollama, LM Studio, OpenRouter, OpenAI, Gemini) |
-| [docs/FAST_MODE.md](docs/FAST_MODE.md) | EPUB Fast Mode explained |
 | [docs/CLI.md](docs/CLI.md) | Complete CLI reference |
 | [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) | Problem solutions |
 | [DOCKER.md](DOCKER.md) | Docker deployment guide |

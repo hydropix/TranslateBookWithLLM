@@ -5,7 +5,12 @@ from prompts.examples import (build_image_placeholder_section,
                               get_output_format_example, get_subtitle_example,
                               TAG0)
 from src.config import (INPUT_TAG_IN, INPUT_TAG_OUT, TRANSLATE_TAG_IN,
-                        TRANSLATE_TAG_OUT)
+                        TRANSLATE_TAG_OUT, PLACEHOLDER_PREFIX, PLACEHOLDER_SUFFIX,
+                        create_placeholder)
+
+# Tags for placeholder correction responses
+CORRECTED_TAG_IN = "<CORRECTED_TAG_IN>"
+CORRECTED_TAG_OUT = "<CORRECTED_TAG_OUT>"
 
 
 class PromptPair(NamedTuple):
@@ -135,7 +140,7 @@ def generate_translation_prompt(
     target_language: str = "Chinese",
     translate_tag_in: str = TRANSLATE_TAG_IN,
     translate_tag_out: str = TRANSLATE_TAG_OUT,
-    fast_mode: bool = False,
+    has_placeholders: bool = True,
     has_images: bool = False,
     prompt_options: dict = None
 ) -> PromptPair:
@@ -151,7 +156,7 @@ def generate_translation_prompt(
         target_language: Target language name
         translate_tag_in: Opening tag for translation output
         translate_tag_out: Closing tag for translation output
-        fast_mode: If True, excludes placeholder preservation instructions (for pure text translation)
+        has_placeholders: If True, includes placeholder preservation instructions (for EPUB HTML tags)
         has_images: If True, includes image marker preservation instructions (e.g., [IMG001])
         prompt_options: Optional dict with prompt customization options:
             - preserve_technical_content: If True, includes instructions to NOT translate
@@ -165,15 +170,15 @@ def generate_translation_prompt(
         prompt_options = {}
     # Get target-language-specific example text for output format
     example_texts = {
-        "chinese": "您翻译的文本在这里" if fast_mode else f"您翻译的文本在这里，所有{TAG0}标记都精确保留",
-        "french": "Votre texte traduit ici" if fast_mode else f"Votre texte traduit ici, tous les marqueurs {TAG0} sont préservés exactement",
-        "spanish": "Su texto traducido aquí" if fast_mode else f"Su texto traducido aquí, todos los marcadores {TAG0} se preservan exactamente",
-        "german": "Ihr übersetzter Text hier" if fast_mode else f"Ihr übersetzter Text hier, alle {TAG0}-Markierungen werden genau beibehalten",
-        "japanese": "翻訳されたテキストはこちら" if fast_mode else f"翻訳されたテキストはこちら、すべての{TAG0}マーカーは正確に保持されます",
-        "italian": "Il tuo testo tradotto qui" if fast_mode else f"Il tuo testo tradotto qui, tutti i marcatori {TAG0} sono conservati esattamente",
-        "portuguese": "Seu texto traduzido aqui" if fast_mode else f"Seu texto traduzido aqui, todos os marcadores {TAG0} são preservados exatamente",
-        "russian": "Ваш переведенный текст здесь" if fast_mode else f"Ваш переведенный текст здесь, все маркеры {TAG0} сохранены точно",
-        "korean": "번역된 텍스트는 여기에" if fast_mode else f"번역된 텍스트는 여기에, 모든 {TAG0} 마커는 정확히 보존됩니다",
+        "chinese": "您翻译的文本在这里" if not has_placeholders else f"您翻译的文本在这里，所有{TAG0}标记都精确保留",
+        "french": "Votre texte traduit ici" if not has_placeholders else f"Votre texte traduit ici, tous les marqueurs {TAG0} sont préservés exactement",
+        "spanish": "Su texto traducido aquí" if not has_placeholders else f"Su texto traducido aquí, todos los marcadores {TAG0} se preservan exactamente",
+        "german": "Ihr übersetzter Text hier" if not has_placeholders else f"Ihr übersetzter Text hier, alle {TAG0}-Markierungen werden genau beibehalten",
+        "japanese": "翻訳されたテキストはこちら" if not has_placeholders else f"翻訳されたテキストはこちら、すべての{TAG0}マーカーは正確に保持されます",
+        "italian": "Il tuo testo tradotto qui" if not has_placeholders else f"Il tuo testo tradotto qui, tutti i marcatori {TAG0} sono conservati esattamente",
+        "portuguese": "Seu texto traduzido aqui" if not has_placeholders else f"Seu texto traduzido aqui, todos os marcadores {TAG0} são preservados exatamente",
+        "russian": "Ваш переведенный текст здесь" if not has_placeholders else f"Ваш переведенный текст здесь, все маркеры {TAG0} сохранены точно",
+        "korean": "번역된 텍스트는 여기에" if not has_placeholders else f"번역된 텍스트는 여기에, 모든 {TAG0} 마커는 정확히 보존됩니다",
     }
 
     # Try to match target language to get appropriate example
@@ -191,10 +196,10 @@ def generate_translation_prompt(
     )
 
     # Build placeholder preservation section dynamically based on languages
-    if fast_mode:
-        placeholder_section = ""
-    else:
+    if has_placeholders:
         placeholder_section = build_placeholder_section(source_language, target_language)
+    else:
+        placeholder_section = ""
 
     # Build image marker preservation section (for fast mode with images)
     if has_images:
@@ -278,7 +283,7 @@ def generate_refinement_prompt(
     target_language: str = "Chinese",
     translate_tag_in: str = TRANSLATE_TAG_IN,
     translate_tag_out: str = TRANSLATE_TAG_OUT,
-    fast_mode: bool = False,
+    has_placeholders: bool = True,
     has_images: bool = False,
     prompt_options: dict = None
 ) -> PromptPair:
@@ -296,7 +301,7 @@ def generate_refinement_prompt(
         target_language: Target language name
         translate_tag_in: Opening tag for translation output
         translate_tag_out: Closing tag for translation output
-        fast_mode: If True, excludes placeholder preservation instructions
+        has_placeholders: If True, includes placeholder preservation instructions
         has_images: If True, includes image marker preservation instructions
         prompt_options: Optional dict with prompt customization options
 
@@ -332,10 +337,10 @@ def generate_refinement_prompt(
     )
 
     # Build placeholder preservation section if needed
-    if fast_mode:
-        placeholder_section = ""
-    else:
+    if has_placeholders:
         placeholder_section = build_placeholder_section(target_language, target_language)
+    else:
+        placeholder_section = ""
 
     # Build image marker preservation section
     if has_images:
@@ -543,5 +548,118 @@ REMINDER: Output format must be:
 Start with {translate_tag_in} and end with {translate_tag_out}. Nothing before or after.
 
 Provide your translation now:"""
+
+    return PromptPair(system=system_prompt.strip(), user=user_prompt.strip())
+
+
+# ============================================================================
+# PLACEHOLDER CORRECTION PROMPT
+# ============================================================================
+
+def generate_placeholder_correction_prompt(
+    original_text: str,
+    translated_text: str,
+    specific_errors: str,
+    source_language: str,
+    target_language: str,
+    expected_count: int
+) -> PromptPair:
+    """
+    Generate a prompt for correcting placeholder errors in a translation.
+
+    This prompt is used when a translation has placeholder issues (missing,
+    duplicated, mutated, or out of order). It asks the LLM to fix ONLY the
+    placeholder positions without modifying the translated text.
+
+    Args:
+        original_text: Source text with correct placeholders
+        translated_text: Translation with placeholder errors
+        specific_errors: Detailed error description (generated by build_specific_error_details)
+        source_language: Source language name (e.g., "English")
+        target_language: Target language name (e.g., "French")
+        expected_count: Number of placeholders expected (0 to expected_count-1)
+
+    Returns:
+        PromptPair: A named tuple with 'system' and 'user' prompts
+    """
+    # Generate dynamic placeholder examples
+    max_index = expected_count - 1 if expected_count > 0 else 0
+    placeholder_format = f"{PLACEHOLDER_PREFIX}N{PLACEHOLDER_SUFFIX}"
+    example_range = f"{create_placeholder(0)} to {create_placeholder(max_index)}"
+    placeholder_list = ", ".join(create_placeholder(i) for i in range(min(3, expected_count)))
+    if expected_count > 3:
+        placeholder_list += ", etc."
+
+    # SYSTEM PROMPT
+    system_prompt = f"""You are a technical placeholder correction specialist.
+
+## YOUR TASK
+
+A {source_language} to {target_language} translation was performed, but the placeholders were corrupted.
+You must fix the placeholder positions to match the original text structure.
+
+## PLACEHOLDER FORMAT
+
+**CORRECT format:** {create_placeholder(0)}, {create_placeholder(1)}, {create_placeholder(2)}, etc.
+- Brackets: {PLACEHOLDER_PREFIX} and {PLACEHOLDER_SUFFIX}
+- Sequential numbering starting from 0
+- Expected range for this text: {example_range}
+
+## HOW TO POSITION PLACEHOLDERS
+
+Placeholders represent HTML/XML tags. To position them correctly:
+
+1. **Look at the ORIGINAL text** to see what content each placeholder surrounds
+2. **Find the equivalent content** in the translation
+3. **Place the placeholder at the same logical position** around that content
+
+**Example:**
+- Original: "{create_placeholder(0)}Hello{create_placeholder(1)} world"
+- If translation is "Bonjour monde", the placeholders mark "Hello"
+- Correct: "{create_placeholder(0)}Bonjour{create_placeholder(1)} monde"
+
+## VALIDATION RULES
+
+1. **EXACT COUNT**: Must contain exactly {expected_count} placeholders
+2. **SEQUENTIAL ORDER**: Placeholders must appear in order: {placeholder_list}
+3. **NO DUPLICATES**: Each placeholder must appear exactly once
+4. **NO MUTATIONS**: Use ONLY the {placeholder_format} format
+5. **POSITION MATCHING**: Each placeholder must surround the translated equivalent of what it surrounded in the original
+
+## CRITICAL INSTRUCTIONS
+
+- Analyze the ORIGINAL to understand what each placeholder marks
+- Position placeholders around the SAME semantic content in the translation
+- Do NOT add or remove words from the translation
+- Keep the {target_language} text intact, only fix placeholder positions
+
+## OUTPUT FORMAT
+
+Your response MUST start with {CORRECTED_TAG_IN} and end with {CORRECTED_TAG_OUT}.
+Include NOTHING before or after these tags."""
+
+    # USER PROMPT
+    user_prompt = f"""## ORIGINAL TEXT ({source_language}) - Reference for placeholder positions:
+
+<ORIGINAL_TAG_IN>
+{original_text}
+<ORIGINAL_TAG_OUT>
+
+## TRANSLATION WITH ERRORS ({target_language}):
+
+<TRANSLATION_TAG_IN>
+{translated_text}
+<TRANSLATION_TAG_OUT>
+
+## DETECTED ERRORS:
+
+{specific_errors}
+
+## YOUR TASK:
+
+Reposition the placeholders {example_range} in the translation above.
+Keep the translated text unchanged - only fix placeholder positions.
+
+Provide your corrected version now:"""
 
     return PromptPair(system=system_prompt.strip(), user=user_prompt.strip())

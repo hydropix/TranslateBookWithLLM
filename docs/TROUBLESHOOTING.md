@@ -79,21 +79,15 @@ Solutions to common problems with TBL.
 **Cause**: Reader rejects the EPUB format.
 
 **Solutions**:
-1. Try `--fast-mode`
-2. Test with Calibre
-3. Validate EPUB: [validator.idpf.org](http://validator.idpf.org/)
+1. Test with Calibre
+2. Validate EPUB: [validator.idpf.org](http://validator.idpf.org/)
+3. Try a different model (larger models handle formatting better)
 
 ### "Placeholders in text" (⟦TAG0⟧)
 
 **Cause**: Model did not preserve HTML tag placeholders.
 
-**Solution**: Use `--fast-mode`
-
-### "Lost formatting"
-
-**Cause**: Fast Mode simplifies formatting by design.
-
-**Solution**: Use Standard Mode (remove `--fast-mode`)
+**Solution**: Use a larger model with better instruction-following
 
 ---
 
@@ -127,8 +121,8 @@ Solutions to common problems with TBL.
 | Model not found | `ollama pull model-name` |
 | Timeouts | `REQUEST_TIMEOUT=1800` |
 | Out of memory | Try smaller model |
-| EPUB broken | Try `--fast-mode` |
-| Placeholders visible | Use `--fast-mode` |
+| EPUB broken | Try larger model |
+| Placeholders visible | Try larger model |
 | Port in use | Set `PORT=8080` in .env |
 
 ---

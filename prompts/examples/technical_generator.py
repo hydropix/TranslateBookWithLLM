@@ -52,8 +52,7 @@ def get_placeholder_example() -> Dict[str, str]:
 async def ensure_technical_examples_ready(
     source_lang: str,
     target_lang: str,
-    provider: Optional[Any] = None,
-    fast_mode: bool = False
+    provider: Optional[Any] = None
 ) -> bool:
     """
     Check if technical examples are ready.
@@ -64,7 +63,6 @@ async def ensure_technical_examples_ready(
         source_lang: Source language name (ignored)
         target_lang: Target language name (ignored)
         provider: Optional LLMProvider instance (ignored)
-        fast_mode: If True, skips placeholder examples (not needed)
 
     Returns:
         True always (static examples are always available).

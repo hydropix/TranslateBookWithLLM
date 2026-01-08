@@ -49,13 +49,6 @@ python translate.py -i input_file -o output_file
 | `--openai_api_key` | OpenAI API key |
 | `--gemini_api_key` | Gemini API key |
 
-### EPUB Options
-
-| Option | Description | Default |
-|--------|-------------|---------|
-| `--fast-mode` | Use Fast Mode (strips formatting) | Off |
-| `--no-images` | Don't preserve images in Fast Mode | Off |
-
 ### Performance
 
 | Option | Description | Default |
@@ -85,12 +78,6 @@ python translate.py -i movie.srt -o movie_fr.srt -tl French
 
 # EPUB
 python translate.py -i novel.epub -o novel_fr.epub -tl French
-```
-
-### EPUB with Fast Mode
-
-```bash
-python translate.py -i book.epub -o book_fr.epub --fast-mode
 ```
 
 ### With Different Providers

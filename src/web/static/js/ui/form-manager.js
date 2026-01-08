@@ -77,14 +77,6 @@ export const FormManager = {
             });
         }
 
-        // Fast mode checkbox
-        const fastMode = DomHelpers.getElement('fastMode');
-        if (fastMode) {
-            fastMode.addEventListener('change', (e) => {
-                this.handleFastModeToggle(e.target.checked);
-            });
-        }
-
         // TTS enabled checkbox
         const ttsEnabled = DomHelpers.getElement('ttsEnabled');
         if (ttsEnabled) {
@@ -153,27 +145,6 @@ export const FormManager = {
 
         // Update state
         StateManager.setState('ui.isPromptOptionsOpen', !isHidden);
-    },
-
-    /**
-     * Handle fast mode toggle
-     * @param {boolean} isChecked - Whether fast mode is checked
-     */
-    handleFastModeToggle(isChecked) {
-        const fastModeInfo = DomHelpers.getElement('fastModeInfo');
-
-        // Use inline style to override display:none
-        if (fastModeInfo) {
-            if (isChecked) {
-                fastModeInfo.style.display = 'block';
-            } else {
-                fastModeInfo.style.display = 'none';
-            }
-        }
-
-        // Re-check model size when fast mode changes
-        // This will be handled by model-detector.js when it's created
-        window.dispatchEvent(new CustomEvent('fastModeChanged', { detail: { enabled: isChecked } }));
     },
 
     /**
@@ -360,8 +331,6 @@ export const FormManager = {
             gemini_api_key: geminiApiKey,
             openai_api_key: openaiApiKey,
             openrouter_api_key: openrouterApiKey,
-            // Advanced settings are now controlled via .env only
-            fast_mode: DomHelpers.getElement('fastMode')?.checked || false,
             // Prompt options (optional system prompt instructions)
             prompt_options: {
                 preserve_technical_content: DomHelpers.getElement('preserveTechnicalContent')?.checked || false,

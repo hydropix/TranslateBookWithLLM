@@ -64,7 +64,6 @@ function getTranslationConfig(file) {
         // are now controlled via .env only - server will use defaults from config.py
         output_filename: file.outputFilename,
         file_type: file.fileType,
-        fast_mode: DomHelpers.getElement('fastMode')?.checked || false,
         prompt_options: promptOptions
     };
 

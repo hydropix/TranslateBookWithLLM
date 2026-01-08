@@ -254,22 +254,12 @@ docker-compose exec translatebook python translate.py \
 
 ### EPUB Translation via CLI
 
-**Standard mode:**
 ```bash
 docker-compose exec translatebook python translate.py \
   -i /app/translated_files/input.epub \
   -o /app/translated_files/output_fr.epub \
   -sl English -tl French \
   -m mistral-small:24b
-```
-
-**Fast mode (recommended for compatibility):**
-```bash
-docker-compose exec translatebook python translate.py \
-  -i /app/translated_files/input.epub \
-  -o /app/translated_files/output_fr.epub \
-  -sl English -tl French \
-  --fast-mode
 ```
 
 ### SRT Subtitle Translation via CLI
@@ -352,7 +342,7 @@ docker-compose up -d
 docker-compose exec translatebook python translate.py \
   -i /app/books/input.epub \
   -o /app/books/output_fr.epub \
-  --fast-mode
+  -sl English -tl French
 ```
 
 ## Health Monitoring
@@ -518,52 +508,6 @@ For orchestration, consider:
 5. **Regular updates** - Keep base images and dependencies updated
 
 ## Translation Features
-
-### EPUB Fast Mode
-
-TranslateBookWithLLM supports two modes for EPUB translation:
-
-**Standard Mode (default):**
-- Preserves all HTML/XML formatting, styles, and structure
-- Best for books with complex layouts and formatting
-- Requires capable LLMs (>12B parameters) to handle XML/HTML tags
-
-**Fast Mode (recommended for compatibility):**
-- Strips HTML/XML, works with pure text
-- Generates EPUB 2.0 output for maximum reader compatibility
-- No placeholder/tag management issues
-- **Recommended for small models (≤12B parameters)**
-- Best for strict EPUB readers (Aquile Reader, Adobe Digital Editions)
-
-**Using Fast Mode:**
-
-Via Web Interface:
-- Check the "Fast Mode" option when uploading an EPUB file
-- Recommended automatically when using small models
-
-Via CLI:
-```bash
-# Using Fast Mode (recommended)
-docker-compose exec translatebook python translate.py \
-  -i /app/uploads/book.epub \
-  -o /app/translated_files/book_fr.epub \
-  -sl English -tl French \
-  --fast-mode
-
-# Standard mode (preserves formatting)
-docker-compose exec translatebook python translate.py \
-  -i /app/uploads/book.epub \
-  -o /app/translated_files/book_fr.epub \
-  -sl English -tl French
-```
-
-**When to use Fast Mode:**
-- ✅ Maximum EPUB reader compatibility needed
-- ✅ Using small LLMs (≤12B parameters)
-- ✅ Source EPUB has minimal special formatting
-- ✅ Want to avoid placeholder/tag preservation issues
-
-See [SIMPLE_MODE_README.md](../SIMPLE_MODE_README.md) for complete documentation.
 
 ### Translation Signatures
 

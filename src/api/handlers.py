@@ -237,7 +237,6 @@ async def perform_actual_translation(translation_id, config, state_manager, outp
                 gemini_api_key=config.get('gemini_api_key', ''),
                 openai_api_key=config.get('openai_api_key', ''),
                 openrouter_api_key=config.get('openrouter_api_key', ''),
-                fast_mode=config.get('fast_mode', False),
                 context_window=config.get('context_window', 2048),
                 auto_adjust_context=config.get('auto_adjust_context', True),
                 min_chunk_size=config.get('min_chunk_size', 5),
@@ -278,7 +277,6 @@ async def perform_actual_translation(translation_id, config, state_manager, outp
                 context_window=config.get('context_window', 2048),
                 auto_adjust_context=config.get('auto_adjust_context', True),
                 min_chunk_size=config.get('min_chunk_size', 5),
-                fast_mode=True,  # TXT files never have placeholders
                 checkpoint_manager=checkpoint_manager,
                 translation_id=translation_id,
                 resume_from_index=resume_from_index,

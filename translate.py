@@ -25,8 +25,6 @@ if __name__ == "__main__":
     parser.add_argument("--openai_api_key", default=OPENAI_API_KEY, help="OpenAI API key (required for OpenAI cloud, not needed for local servers).")
     parser.add_argument("--openrouter_api_key", default=OPENROUTER_API_KEY, help="OpenRouter API key (required if using openrouter provider).")
     parser.add_argument("--no-color", action="store_true", help="Disable colored output.")
-    parser.add_argument("--fast-mode", action="store_true", help="Use fast mode for EPUB (strips formatting, maximum compatibility).")
-    parser.add_argument("--no-images", action="store_true", help="Disable image preservation in fast mode (images will be stripped).")
 
     # Prompt options (optional system prompt instructions)
     prompt_group = parser.add_argument_group('Prompt Options', 'Optional instructions to include in the translation prompt')
@@ -75,27 +73,6 @@ if __name__ == "__main__":
     if args.provider == "openrouter" and not args.openrouter_api_key:
         parser.error("--openrouter_api_key is required when using openrouter provider")
 
-    # Check for small models (<=12B) and recommend fast mode for EPUB
-    if file_type == "EPUB" and not args.fast_mode:
-        import re
-        size_match = re.search(r'(\d+(?:\.\d+)?)b', args.model.lower())
-        if size_match:
-            size_in_b = float(size_match.group(1))
-            if size_in_b <= 12:
-                print("\n" + "="*70)
-                print("💡 RECOMMENDATION: Small model detected (≤12B parameters)")
-                print("="*70)
-                print(f"Your model '{args.model}' appears to be a small model ({size_in_b}B).")
-                print("For EPUB translation, we strongly recommend using --fast-mode")
-                print("to avoid tag management issues common with smaller models.")
-                print("\nFast mode:")
-                print("  ✅ Strips all HTML/XML formatting")
-                print("  ✅ No placeholder/tag errors")
-                print("  ✅ Maximum reliability with small models")
-                print("  ⚠️  Loses inline formatting (bold, italic, etc.)")
-                print("\nTo use fast mode, add: --fast-mode")
-                print("="*70 + "\n")
-    
     # PHASE 2: Validation of configuration at startup
     if args.provider == "ollama":
         from src.core.context_optimizer import validate_configuration
@@ -135,12 +112,6 @@ if __name__ == "__main__":
     # Create legacy callback for backward compatibility
     log_callback = logger.create_legacy_callback()
 
-    # Handle --no-images flag by modifying the config
-    if args.no_images:
-        import src.config as config_module
-        config_module.FAST_MODE_PRESERVE_IMAGES = False
-        logger.info("Image preservation disabled", LogType.INFO, {'preserve_images': False})
-
     # Build prompt_options from CLI arguments
     prompt_options = {
         'preserve_technical_content': args.preserve_technical,
@@ -165,7 +136,6 @@ if __name__ == "__main__":
             gemini_api_key=args.gemini_api_key,
             openai_api_key=args.openai_api_key,
             openrouter_api_key=args.openrouter_api_key,
-            fast_mode=args.fast_mode,
             prompt_options=prompt_options
         ))
 

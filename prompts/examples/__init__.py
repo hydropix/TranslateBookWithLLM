@@ -13,7 +13,6 @@ from .constants import (
     TAG0,
     TAG1,
     TAG2,
-    IMG_MARKER,
 )
 
 # Re-export example dictionaries
@@ -37,7 +36,6 @@ __all__ = [
     "TAG0",
     "TAG1",
     "TAG2",
-    "IMG_MARKER",
     # Technical example dictionaries (fallback)
     "PLACEHOLDER_EXAMPLES",
     "SUBTITLE_EXAMPLES",

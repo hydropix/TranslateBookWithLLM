@@ -68,7 +68,7 @@ async def translate_text_file_with_callbacks(input_filepath, output_filepath,
                                              llm_provider="ollama", gemini_api_key=None, openai_api_key=None,
                                              openrouter_api_key=None,
                                              context_window=2048, auto_adjust_context=True, min_chunk_size=5,
-                                             fast_mode=False, checkpoint_manager=None, translation_id=None,
+                                             checkpoint_manager=None, translation_id=None,
                                              resume_from_index=0,
                                              use_token_chunking=None, max_tokens_per_chunk=None,
                                              soft_limit_ratio=None, prompt_options=None):
@@ -87,7 +87,6 @@ async def translate_text_file_with_callbacks(input_filepath, output_filepath,
         log_callback (callable): Logging callback
         stats_callback (callable): Statistics callback
         check_interruption_callback (callable): Interruption check callback
-        fast_mode (bool): If True, uses simplified prompts without placeholder instructions
         use_token_chunking (bool): If True, use token-based chunking instead of line-based
         max_tokens_per_chunk (int): Maximum tokens per chunk (token mode)
         soft_limit_ratio (float): Soft limit ratio for token chunking (default 0.8)
@@ -200,7 +199,6 @@ async def translate_text_file_with_callbacks(input_filepath, output_filepath,
         context_window=context_window,
         auto_adjust_context=auto_adjust_context,
         min_chunk_size=min_chunk_size,
-        fast_mode=fast_mode,
         checkpoint_manager=checkpoint_manager,
         translation_id=translation_id,
         resume_from_index=resume_from_index,
@@ -231,7 +229,6 @@ async def translate_text_file_with_callbacks(input_filepath, output_filepath,
             openrouter_api_key=openrouter_api_key,
             context_window=context_window,
             auto_adjust_context=auto_adjust_context,
-            fast_mode=fast_mode,
             prompt_options=prompt_options
         )
     elif enable_refinement and was_interrupted:
@@ -426,7 +423,7 @@ async def translate_file(input_filepath, output_filepath,
                         llm_provider="ollama", gemini_api_key=None, openai_api_key=None,
                         openrouter_api_key=None,
                         context_window=2048, auto_adjust_context=True, min_chunk_size=5,
-                        fast_mode=False, prompt_options=None):
+                        prompt_options=None):
     """
     Translate a file (auto-detect format)
 
@@ -459,7 +456,6 @@ async def translate_file(input_filepath, output_filepath,
                                   gemini_api_key=gemini_api_key,
                                   openai_api_key=openai_api_key,
                                   openrouter_api_key=openrouter_api_key,
-                                  fast_mode=fast_mode,
                                   prompt_options=prompt_options)
     elif ext == '.srt':
         await translate_srt_file_with_callbacks(
@@ -476,7 +472,7 @@ async def translate_file(input_filepath, output_filepath,
             prompt_options=prompt_options
         )
     else:
-        # For .txt files, always use fast mode (no placeholder preservation needed)
+        # Plain text files
         await translate_text_file_with_callbacks(
             input_filepath, output_filepath,
             source_language, target_language,
@@ -491,7 +487,6 @@ async def translate_file(input_filepath, output_filepath,
             context_window=context_window,
             auto_adjust_context=auto_adjust_context,
             min_chunk_size=min_chunk_size,
-            fast_mode=True,
             prompt_options=prompt_options
         )
 
