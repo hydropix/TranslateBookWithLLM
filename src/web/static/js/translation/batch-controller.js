@@ -60,11 +60,8 @@ function getTranslationConfig(file) {
         gemini_api_key: provider === 'gemini' ? ApiKeyUtils.getValue('geminiApiKey') : '',
         openai_api_key: provider === 'openai' ? ApiKeyUtils.getValue('openaiApiKey') : '',
         openrouter_api_key: provider === 'openrouter' ? ApiKeyUtils.getValue('openrouterApiKey') : '',
-        chunk_size: parseInt(DomHelpers.getValue('chunkSize')),
-        timeout: parseInt(DomHelpers.getValue('timeout')),
-        context_window: parseInt(DomHelpers.getValue('contextWindow')),
-        max_attempts: parseInt(DomHelpers.getValue('maxAttempts')),
-        retry_delay: parseInt(DomHelpers.getValue('retryDelay')),
+        // Advanced settings (chunk_size, timeout, context_window, max_attempts, retry_delay)
+        // are now controlled via .env only - server will use defaults from config.py
         output_filename: file.outputFilename,
         file_type: file.fileType,
         fast_mode: DomHelpers.getElement('fastMode')?.checked || false,

@@ -82,7 +82,7 @@ DEFAULT_MODEL = os.getenv('DEFAULT_MODEL', 'qwen3:14b')
 PORT = int(os.getenv('PORT', '5000'))
 MAIN_LINES_PER_CHUNK = int(os.getenv('MAIN_LINES_PER_CHUNK', '25'))
 REQUEST_TIMEOUT = int(os.getenv('REQUEST_TIMEOUT', '900'))
-OLLAMA_NUM_CTX = int(os.getenv('OLLAMA_NUM_CTX', '2048'))
+OLLAMA_NUM_CTX = int(os.getenv('OLLAMA_NUM_CTX', '4096'))
 
 # =============================================================================
 # THINKING MODEL CONFIGURATION

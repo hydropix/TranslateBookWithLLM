@@ -77,14 +77,6 @@ export const FormManager = {
             });
         }
 
-        // Advanced settings toggle
-        const advancedIcon = DomHelpers.getElement('advancedIcon');
-        if (advancedIcon) {
-            advancedIcon.addEventListener('click', () => {
-                this.toggleAdvanced();
-            });
-        }
-
         // Fast mode checkbox
         const fastMode = DomHelpers.getElement('fastMode');
         if (fastMode) {
@@ -146,22 +138,6 @@ export const FormManager = {
         }
     },
 
-
-    /**
-     * Toggle advanced settings panel
-     */
-    toggleAdvanced() {
-        const settings = DomHelpers.getElement('advancedSettings');
-        const icon = DomHelpers.getElement('advancedIcon');
-
-        if (!settings || !icon) return;
-
-        const isHidden = settings.classList.toggle('hidden');
-        DomHelpers.setText(icon, isHidden ? '▼' : '▲');
-
-        // Update state
-        StateManager.setState('ui.isAdvancedOpen', !isHidden);
-    },
 
     /**
      * Toggle prompt options panel
@@ -237,21 +213,6 @@ export const FormManager = {
             // Set other configuration values
             if (config.api_endpoint) {
                 DomHelpers.setValue('apiEndpoint', config.api_endpoint);
-            }
-            if (config.chunk_size) {
-                DomHelpers.setValue('chunkSize', config.chunk_size);
-            }
-            if (config.timeout) {
-                DomHelpers.setValue('timeout', config.timeout);
-            }
-            if (config.context_window) {
-                DomHelpers.setValue('contextWindow', config.context_window);
-            }
-            if (config.max_attempts) {
-                DomHelpers.setValue('maxAttempts', config.max_attempts);
-            }
-            if (config.retry_delay) {
-                DomHelpers.setValue('retryDelay', config.retry_delay);
             }
             // Handle API keys - show indicator if configured in .env, otherwise keep placeholder
             ApiKeyUtils.setupField('geminiApiKey', config.gemini_api_key_configured, config.gemini_api_key);
@@ -399,11 +360,7 @@ export const FormManager = {
             gemini_api_key: geminiApiKey,
             openai_api_key: openaiApiKey,
             openrouter_api_key: openrouterApiKey,
-            chunk_size: parseInt(DomHelpers.getValue('chunkSize')),
-            timeout: parseInt(DomHelpers.getValue('timeout')),
-            context_window: parseInt(DomHelpers.getValue('contextWindow')),
-            max_attempts: parseInt(DomHelpers.getValue('maxAttempts')),
-            retry_delay: parseInt(DomHelpers.getValue('retryDelay')),
+            // Advanced settings are now controlled via .env only
             fast_mode: DomHelpers.getElement('fastMode')?.checked || false,
             // Prompt options (optional system prompt instructions)
             prompt_options: {

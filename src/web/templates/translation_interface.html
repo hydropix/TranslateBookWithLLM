@@ -456,36 +456,6 @@
                     <span id="saveSettingsStatus" style="margin-left: 10px; font-size: 14px;"></span>
                 </div>
 
-                <div class="advanced-toggle" onclick="toggleAdvanced()">
-                    <span>🔧 Advanced Settings</span>
-                    <span id="advancedIcon">▼</span>
-                </div>
-
-                <div id="advancedSettings" class="advanced-settings hidden">
-                    <div class="config-grid">
-                        <div class="form-group">
-                            <label>Chunk Size (lines)</label>
-                            <input type="number" class="form-control" id="chunkSize" value="25" min="5" max="200">
-                        </div>
-                        <div class="form-group">
-                            <label>Request Timeout (sec)</label>
-                            <input type="number" class="form-control" id="timeout" value="180" min="30" max="600">
-                        </div>
-                        <div class="form-group">
-                            <label>Context Window (tokens)</label>
-                            <input type="number" class="form-control" id="contextWindow" value="4096" min="1024" max="32768">
-                        </div>
-                        <div class="form-group">
-                            <label>Max Retries per Chunk</label>
-                            <input type="number" class="form-control" id="maxAttempts" value="2" min="1" max="5">
-                        </div>
-                         <div class="form-group">
-                            <label>Retry Delay (sec)</label>
-                            <input type="number" class="form-control" id="retryDelay" value="2" min="1" max="60">
-                        </div>
-                    </div>
-                </div>
-
                 <div class="file-upload" id="fileUpload" onclick="document.getElementById('fileInput').click()">
                     <h3>📁 Drag & Drop your .txt, .epub or .srt files here</h3>
                     <p>or click to select</p>
