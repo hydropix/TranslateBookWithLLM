@@ -53,18 +53,39 @@ def get_output_format_example(target_lang: str, has_placeholders: bool = True) -
 
 def build_placeholder_section(
     source_lang: str,
-    target_lang: str
+    target_lang: str,
+    placeholder_format: Optional[Tuple[str, str]] = None
 ) -> str:
     """
     Build the placeholder preservation section with language-specific examples.
 
+    Args:
+        source_lang: Source language name
+        target_lang: Target language name
+        placeholder_format: Optional tuple of (prefix, suffix) for placeholders
+                          e.g., ('[', ']') for [0] or ('[[', ']]') for [[0]]
+                          If None, uses default [[0]] format
+
     Returns formatted instructions for preserving placeholders.
     """
+    # Use custom format if provided, otherwise use defaults
+    if placeholder_format:
+        prefix, suffix = placeholder_format
+        tag0 = f"{prefix}0{suffix}"
+        tag1 = f"{prefix}1{suffix}"
+        tag2 = f"{prefix}2{suffix}"
+    else:
+        tag0, tag1, tag2 = TAG0, TAG1, TAG2
+
     example, actual_source, actual_target = get_placeholder_example(source_lang, target_lang)
+
+    # Replace placeholders in examples with the actual format being used
+    example_source = example['source'].replace(TAG0, tag0).replace(TAG1, tag1)
+    example_correct = example['correct'].replace(TAG0, tag0).replace(TAG1, tag1)
 
     return f"""# PLACEHOLDER PRESERVATION (CRITICAL)
 
-You will encounter placeholders like: {TAG0}, {TAG1}, {TAG2}
+You will encounter placeholders like: {tag0}, {tag1}, {tag2}
 These represent HTML/XML tags that have been temporarily replaced.
 
 **MANDATORY RULES:**
@@ -75,8 +96,8 @@ These represent HTML/XML tags that have been temporarily replaced.
 
 **Example ({actual_source.title()} → {actual_target.title()}):**
 
-Source: "{example['source']}"
-✅ Correct: "{example['correct']}"
+Source: "{example_source}"
+✅ Correct: "{example_correct}"
 ❌ WRONG: "{example['wrong']}" (placeholders removed)
 """
 

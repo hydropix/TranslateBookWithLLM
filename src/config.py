@@ -163,15 +163,14 @@ OPENROUTER_API_ENDPOINT = 'https://openrouter.ai/api/v1/chat/completions'
 SRT_LINES_PER_BLOCK = int(os.getenv('SRT_LINES_PER_BLOCK', '5'))
 SRT_MAX_CHARS_PER_BLOCK = int(os.getenv('SRT_MAX_CHARS_PER_BLOCK', '500'))
 
-# Translation signature configuration
-# This adds a discrete attribution to translations to support the project.
-# The signature is non-intrusive: EPUB metadata, text file footer, or SRT comment.
-# Please consider keeping this enabled to help others discover this free, open-source tool!
-# Your support helps maintain and improve the project. Thank you!
-SIGNATURE_ENABLED = os.getenv('SIGNATURE_ENABLED', 'true').lower() == 'true'
-PROJECT_NAME = "TranslateBook with LLM (TBL)"
-PROJECT_GITHUB = "https://github.com/hydropix/TranslateBookWithLLM"
-SIGNATURE_VERSION = "1.0"
+# Translation Attribution
+# This adds a discrete attribution to your translations (metadata for EPUB, footer for TXT, comment for SRT)
+# Please consider keeping this enabled to support the project and help others discover this free tool!
+# The attribution is non-intrusive and placed at the end of files. Thank you for your support!
+ATTRIBUTION_ENABLED = os.getenv('ATTRIBUTION_ENABLED', os.getenv('SIGNATURE_ENABLED', 'true')).lower() == 'true'
+GENERATOR_NAME = "TranslateBook with LLM (TBL)"
+GENERATOR_SOURCE = "https://github.com/hydropix/TranslateBookWithLLM"
+METADATA_VERSION = "1.0"
 
 # Default languages from environment
 DEFAULT_SOURCE_LANGUAGE = os.getenv('DEFAULT_SOURCE_LANGUAGE', 'English')
@@ -227,19 +226,42 @@ INPUT_TAG_OUT = "</SOURCE_TEXT>"
 # These placeholders are used to temporarily replace HTML/XML tags during
 # translation. The LLM must preserve them exactly in its output.
 #
-# Format: [[0]], [[1]], [[2]], etc.
+# Format: Adaptive based on text content
+# - [[0]], [[1]], [[2]] - used when text contains [ or ] characters (safe mode)
+# - [0], [1], [2] - used when text has no brackets (simplified, saves tokens)
 # - Compact format reduces token usage
 # - Adjacent tags are grouped into single placeholders
 # - Strict validation ensures placeholder integrity
 
-PLACEHOLDER_PREFIX = "[["
-"""Prefix for tag placeholders (e.g., [[ in [[0]])"""
+# Default format (double brackets - safe for all text)
+PLACEHOLDER_PREFIX_SAFE = "[["
+"""Prefix for tag placeholders in safe mode (e.g., [[ in [[0]])"""
 
-PLACEHOLDER_SUFFIX = "]]"
-"""Suffix for tag placeholders (e.g., ]] in [[0]])"""
+PLACEHOLDER_SUFFIX_SAFE = "]]"
+"""Suffix for tag placeholders in safe mode (e.g., ]] in [[0]])"""
 
-PLACEHOLDER_PATTERN = r'\[\[\d+\]\]'
-"""Regex pattern for detecting tag placeholders in translated text (e.g., [[0]])"""
+PLACEHOLDER_PATTERN_SAFE = r'\[\[\d+\]\]'
+"""Regex pattern for safe mode placeholders (e.g., [[0]])"""
+
+# Simplified format (single brackets - used when text has no brackets)
+PLACEHOLDER_PREFIX_SIMPLE = "["
+"""Prefix for tag placeholders in simple mode (e.g., [ in [0])"""
+
+PLACEHOLDER_SUFFIX_SIMPLE = "]"
+"""Suffix for tag placeholders in simple mode (e.g., ] in [0])"""
+
+PLACEHOLDER_PATTERN_SIMPLE = r'(?<!\[)\[\d+\](?!\])'
+"""Regex pattern for simple mode placeholders (e.g., [0]) - with negative lookahead/behind to avoid matching [[0]]"""
+
+# Legacy aliases for backward compatibility (use safe mode by default)
+PLACEHOLDER_PREFIX = PLACEHOLDER_PREFIX_SAFE
+"""Prefix for tag placeholders (adaptive, defaults to safe mode)"""
+
+PLACEHOLDER_SUFFIX = PLACEHOLDER_SUFFIX_SAFE
+"""Suffix for tag placeholders (adaptive, defaults to safe mode)"""
+
+PLACEHOLDER_PATTERN = PLACEHOLDER_PATTERN_SAFE
+"""Regex pattern for detecting tag placeholders (adaptive, defaults to safe mode)"""
 
 # Maximum retries for placeholder validation before falling back to source text
 MAX_PLACEHOLDER_RETRIES = 0
@@ -251,7 +273,7 @@ MAX_PLACEHOLDER_CORRECTION_ATTEMPTS = 2
 # Mutation patterns - alternative formats LLMs might produce
 # These patterns detect common LLM transformations of placeholders
 PLACEHOLDER_SINGLE_BRACKET_PATTERN = r'\[\d+\]'
-"""Pattern for single bracket mutation (e.g., [0])"""
+"""Pattern for single bracket mutation (e.g., [0]) - NOTE: Also used as simplified format when text has no brackets"""
 
 PLACEHOLDER_CURLY_BRACE_PATTERN = r'\{\d+\}'
 """Pattern for curly brace mutation (e.g., {0})"""
@@ -283,36 +305,93 @@ LEGACY_PLACEHOLDER_PATTERN = rf'\[{PLACEHOLDER_TAG_KEYWORD}\d+\]'
 """Legacy pattern for old-format placeholders (e.g., [TAG0])"""
 
 
-def create_placeholder(tag_num: int) -> str:
-    """Create a placeholder string for a given tag number."""
-    return f"{PLACEHOLDER_PREFIX}{tag_num}{PLACEHOLDER_SUFFIX}"
+def detect_placeholder_mode(text: str) -> tuple:
+    """
+    Automatically detect which placeholder format to use based on text content.
+
+    Uses simplified format [0] when text contains no brackets [ or ].
+    Uses safe format [[0]] when text contains brackets to avoid conflicts.
+
+    Args:
+        text: Text to analyze for bracket presence
+
+    Returns:
+        Tuple of (prefix, suffix, pattern) for the appropriate mode
+    """
+    # Check if text contains any square brackets
+    has_brackets = '[' in text or ']' in text
+
+    if has_brackets:
+        # Safe mode - use double brackets
+        return (PLACEHOLDER_PREFIX_SAFE, PLACEHOLDER_SUFFIX_SAFE, PLACEHOLDER_PATTERN_SAFE)
+    else:
+        # Simplified mode - use single brackets (saves tokens)
+        return (PLACEHOLDER_PREFIX_SIMPLE, PLACEHOLDER_SUFFIX_SIMPLE, PLACEHOLDER_PATTERN_SIMPLE)
 
 
-def create_example_placeholder() -> str:
-    """Create an example placeholder for documentation/prompts."""
-    return create_placeholder(0)
+def create_placeholder(tag_num: int, prefix: str = None, suffix: str = None) -> str:
+    """
+    Create a placeholder string for a given tag number.
+
+    Args:
+        tag_num: Tag number
+        prefix: Optional custom prefix (defaults to PLACEHOLDER_PREFIX_SAFE)
+        suffix: Optional custom suffix (defaults to PLACEHOLDER_SUFFIX_SAFE)
+
+    Returns:
+        Placeholder string like [[0]] or [0]
+    """
+    if prefix is None:
+        prefix = PLACEHOLDER_PREFIX
+    if suffix is None:
+        suffix = PLACEHOLDER_SUFFIX
+    return f"{prefix}{tag_num}{suffix}"
 
 
-def get_mutation_variants(tag_num) -> list:
+def create_example_placeholder(prefix: str = None, suffix: str = None) -> str:
+    """
+    Create an example placeholder for documentation/prompts.
+
+    Args:
+        prefix: Optional custom prefix
+        suffix: Optional custom suffix
+
+    Returns:
+        Example placeholder like [[0]] or [0]
+    """
+    return create_placeholder(0, prefix, suffix)
+
+
+def get_mutation_variants(tag_num, current_format_is_simple: bool = False) -> list:
     """
     Get all possible mutation variants for a given tag number.
 
     These are alternative formats that LLMs might produce instead of
-    the correct placeholder format [[N]].
+    the correct placeholder format.
 
     Args:
         tag_num: The tag number (e.g., 0 for [[0]]) - can be int or str
+        current_format_is_simple: If True, [N] is the correct format (not a mutation)
 
     Returns:
         List of possible mutation strings
     """
-    return [
-        f"[{tag_num}]",      # Single brackets: [0]
+    variants = [
         f"{{{tag_num}}}",    # Curly braces: {0}
         f"<{tag_num}>",      # Angle brackets: <0>
         f"({tag_num})",      # Parentheses: (0)
         f"{tag_num}",        # Bare number: 0 (check last)
     ]
+
+    # Add the opposite format as a mutation
+    if current_format_is_simple:
+        # Simple format [N] is correct, so [[N]] is a mutation
+        variants.insert(0, f"[[{tag_num}]]")
+    else:
+        # Safe format [[N]] is correct, so [N] is a mutation
+        variants.insert(0, f"[{tag_num}]")
+
+    return variants
 
 
 # Sentence terminators

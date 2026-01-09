@@ -129,6 +129,8 @@ def replace_body_content(body_element: etree._Element, new_html: str) -> None:
         body_element: The <body> element to modify
         new_html: New translated HTML content
     """
+    print(f"[DEBUG] replace_body_content: Input HTML length = {len(new_html)} chars")
+
     # Clear the body
     body_element.text = None
     for child in list(body_element):
@@ -137,16 +139,50 @@ def replace_body_content(body_element: etree._Element, new_html: str) -> None:
     # Parse the new content
     # Wrap in a temp element to handle multiple root elements
     wrapped = f"<temp xmlns='http://www.w3.org/1999/xhtml'>{new_html}</temp>"
-    parser = etree.XMLParser(recover=True, encoding='utf-8')
+
+    # Try XML parser first with huge_tree option to handle large documents
+    # This preserves exact XML structure without HTML normalization
+    parser = etree.XMLParser(
+        recover=True,           # Recover from errors
+        encoding='utf-8',
+        huge_tree=True,         # Allow parsing very large trees
+        remove_blank_text=False # Preserve whitespace exactly as-is
+    )
 
     try:
         temp = etree.fromstring(wrapped.encode('utf-8'), parser)
-    except etree.XMLSyntaxError:
+        print(f"[DEBUG] replace_body_content: XML parse succeeded")
+        if parser.error_log:
+            print(f"[DEBUG] replace_body_content: Parser recovered from {len(parser.error_log)} errors")
+            for error in parser.error_log[:5]:
+                print(f"[DEBUG]   {error}")
+    except etree.XMLSyntaxError as e:
+        print(f"[DEBUG] replace_body_content: XML parse failed: {e}")
         # Fallback: try without namespace
-        wrapped = f"<temp>{new_html}</temp>"
-        temp = etree.fromstring(wrapped.encode('utf-8'), parser)
+        wrapped_no_ns = f"<temp>{new_html}</temp>"
+        try:
+            temp = etree.fromstring(wrapped_no_ns.encode('utf-8'), parser)
+            print(f"[DEBUG] replace_body_content: XML parse (no namespace) succeeded")
+        except Exception as e2:
+            print(f"[DEBUG] replace_body_content: All XML parsing failed: {e2}")
+            # Last resort: HTML parser (but this may alter structure!)
+            temp = etree.HTML(wrapped_no_ns)
+            if temp is not None:
+                temp_elem = temp.find('.//temp')
+                if temp_elem is not None:
+                    temp = temp_elem
+                    print(f"[DEBUG] replace_body_content: HTML parse succeeded")
+                else:
+                    raise ValueError("Could not find <temp> element after HTML parsing")
+            else:
+                raise ValueError("All parsing methods failed")
 
     # Copy content into body
     body_element.text = temp.text
+    child_count = 0
     for child in temp:
         body_element.append(child)
+        child_count += 1
+
+    print(f"[DEBUG] replace_body_content: Copied {child_count} children to body")
+    print(f"[DEBUG] replace_body_content: Body now has {len(list(body_element))} children")

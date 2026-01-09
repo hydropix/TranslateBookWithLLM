@@ -63,14 +63,18 @@ class HtmlChunker:
         self,
         text: str,
         tag_map: Dict[str, str]
-    ) -> List[int]:
+    ) -> List[Tuple[int, int]]:
         """
         Find positions where we can safely split without breaking an HTML block.
 
-        A safe point is after a block closing placeholder (</p>, </div>, etc.)
-        followed by a block opening placeholder (<p>, <div>, etc.)
+        Returns split points with priority levels:
+        - Priority 1: After chapter headings (h1, h2, h3)
+        - Priority 2: After other block elements (p, div, etc.)
+
+        Returns:
+            List of tuples (position, priority) where lower priority = higher preference
         """
-        safe_points = []
+        split_points = []
 
         # Pattern to find placeholders with their positions
         placeholder_positions = [
@@ -88,10 +92,44 @@ class HtmlChunker:
                     next_placeholder = placeholder_positions[i + 1][2]
                     next_tag = tag_map.get(next_placeholder, "")
                     if self._is_block_opening_tag(next_tag):
-                        # Safe split point after this placeholder
-                        safe_points.append(end)
+                        # Determine priority based on tag type
+                        priority = self._get_split_priority(tag)
+                        split_points.append((end, priority))
 
-        return safe_points
+        return split_points
+
+    def _get_split_priority(self, tag: str) -> int:
+        """
+        Get priority for splitting at this tag.
+        Lower number = higher priority (preferred split point).
+
+        Priority levels:
+        1: Chapter headings (h1, h2, h3)
+        2: Major sections (h4, h5, h6, section, article)
+        3: Paragraphs and divs (p, div, blockquote)
+        4: Other blocks (li, tr, td, th)
+        """
+        tag_lower = tag.lower()
+
+        # Priority 1: Chapter headings
+        if any(f'</{ht}>' in tag_lower for ht in ['h1', 'h2', 'h3']):
+            return 1
+
+        # Priority 2: Major sections
+        if any(f'</{ht}>' in tag_lower for ht in ['h4', 'h5', 'h6', 'section', 'article']):
+            return 2
+
+        # Priority 3: Paragraphs and divs
+        if any(f'</{ht}>' in tag_lower for ht in ['p', 'div', 'blockquote']):
+            return 3
+
+        # Priority 4: Other blocks
+        return 4
+
+    def _is_chapter_heading_tag(self, tag: str) -> bool:
+        """Check if tag is a chapter heading (h1, h2, h3)"""
+        tag_lower = tag.lower()
+        return any(f'</{ht}>' in tag_lower for ht in ['h1', 'h2', 'h3'])
 
     def _is_block_closing_tag(self, tag: str) -> bool:
         """Check if the tag is a block closing tag (</p>, </div>, etc.)"""
@@ -113,14 +151,26 @@ class HtmlChunker:
                 return True
         return False
 
-    def _split_at_points(self, text: str, points: List[int]) -> List[str]:
-        """Split the text at the specified points"""
+    def _split_at_points(self, text: str, points: List[Tuple[int, int]]) -> List[str]:
+        """
+        Split the text at the specified points.
+
+        Args:
+            text: Text to split
+            points: List of (position, priority) tuples
+
+        Returns:
+            List of text segments
+        """
         if not points:
             return [text]
 
+        # Extract just the positions (ignore priority for now, it's used in merging)
+        positions = [pos for pos, _ in points]
+
         segments = []
         prev = 0
-        for point in points:
+        for point in positions:
             if point > prev:
                 segments.append(text[prev:point])
             prev = point
@@ -136,7 +186,11 @@ class HtmlChunker:
     ) -> List[Dict]:
         """
         Merge segments into chunks respecting token limit.
-        Renumber placeholders locally for each chunk.
+        If a segment is too large, split it hierarchically:
+        1. Try splitting on sentences
+        2. Try splitting on punctuation (;, :, ,)
+        3. Try splitting on newlines
+        4. Force split at max_tokens
         """
         if not segments:
             return []
@@ -149,7 +203,36 @@ class HtmlChunker:
         for segment in segments:
             segment_tokens = self.token_chunker.count_tokens(segment)
 
-            if current_tokens + segment_tokens > self.max_tokens and current_segments:
+            # If segment alone exceeds max_tokens, split it
+            if segment_tokens > self.max_tokens:
+                # First, finalize current chunk if any
+                if current_segments:
+                    chunk = self._create_chunk(current_segments, global_tag_map, global_offset)
+                    chunks.append(chunk)
+                    global_offset += len(chunk['local_tag_map'])
+                    current_segments = []
+                    current_tokens = 0
+
+                # Split the oversized segment hierarchically
+                sub_segments = self._split_oversized_segment(segment, global_tag_map)
+
+                # Add sub-segments to chunks
+                for sub_seg in sub_segments:
+                    sub_tokens = self.token_chunker.count_tokens(sub_seg)
+
+                    if current_tokens + sub_tokens > self.max_tokens and current_segments:
+                        # Finalize current chunk
+                        chunk = self._create_chunk(current_segments, global_tag_map, global_offset)
+                        chunks.append(chunk)
+                        global_offset += len(chunk['local_tag_map'])
+
+                        current_segments = [sub_seg]
+                        current_tokens = sub_tokens
+                    else:
+                        current_segments.append(sub_seg)
+                        current_tokens += sub_tokens
+
+            elif current_tokens + segment_tokens > self.max_tokens and current_segments:
                 # Finalize current chunk
                 chunk = self._create_chunk(current_segments, global_tag_map, global_offset)
                 chunks.append(chunk)
@@ -167,6 +250,218 @@ class HtmlChunker:
             chunks.append(chunk)
 
         return chunks
+
+    def _split_oversized_segment(
+        self,
+        segment: str,
+        global_tag_map: Dict[str, str]
+    ) -> List[str]:
+        """
+        Split an oversized segment hierarchically:
+        1. Extract placeholders from start/end (they belong to the segment boundaries)
+        2. Split the inner text content on sentences
+        3. If sentences are still too large, split on punctuation
+        4. If still too large, split on newlines
+        5. If still too large, force split at max_tokens
+
+        Args:
+            segment: Oversized segment to split
+            global_tag_map: Global tag map for context
+
+        Returns:
+            List of smaller segments
+        """
+        # Try sentence splitting first
+        sentence_segments = self._split_on_sentences(segment)
+
+        result_segments = []
+        for sent_seg in sentence_segments:
+            sent_tokens = self.token_chunker.count_tokens(sent_seg)
+
+            if sent_tokens <= self.max_tokens:
+                result_segments.append(sent_seg)
+            else:
+                # Sentence is still too large, try punctuation split
+                punct_segments = self._split_on_punctuation(sent_seg)
+
+                for punct_seg in punct_segments:
+                    punct_tokens = self.token_chunker.count_tokens(punct_seg)
+
+                    if punct_tokens <= self.max_tokens:
+                        result_segments.append(punct_seg)
+                    else:
+                        # Still too large, try newline split
+                        newline_segments = self._split_on_newlines(punct_seg)
+
+                        for nl_seg in newline_segments:
+                            nl_tokens = self.token_chunker.count_tokens(nl_seg)
+
+                            if nl_tokens <= self.max_tokens:
+                                result_segments.append(nl_seg)
+                            else:
+                                # Last resort: force split at max_tokens
+                                force_segments = self._force_split_at_tokens(nl_seg)
+                                result_segments.extend(force_segments)
+
+        return result_segments
+
+    def _split_on_sentences(self, text: str) -> List[str]:
+        """
+        Split text on sentence boundaries (. ! ?) while preserving placeholders.
+
+        Returns:
+            List of sentence segments
+        """
+        # Find sentence boundaries (. ! ? followed by space or placeholder or end)
+        # But don't split on abbreviations like "Mr.", "Dr.", etc.
+        sentence_pattern = r'(?<=[.!?])\s+(?=\S)|(?<=[.!?])(?=\[\[)'
+
+        parts = re.split(sentence_pattern, text)
+        segments = []
+        current = ""
+
+        for part in parts:
+            if not part.strip():
+                continue
+
+            # Check if adding this part would exceed max_tokens
+            test_text = current + part
+            if current and self.token_chunker.count_tokens(test_text) > self.max_tokens:
+                # Save current and start new
+                if current.strip():
+                    segments.append(current)
+                current = part
+            else:
+                current = test_text
+
+        if current.strip():
+            segments.append(current)
+
+        return segments if segments else [text]
+
+    def _split_on_punctuation(self, text: str) -> List[str]:
+        """
+        Split text on strong punctuation (; : ,) while preserving placeholders.
+
+        Returns:
+            List of punctuation-split segments
+        """
+        # Split on ; : , but keep the punctuation with the preceding text
+        punct_pattern = r'(?<=[;:,])\s+(?=\S)|(?<=[;:,])(?=\[\[)'
+
+        parts = re.split(punct_pattern, text)
+        segments = []
+        current = ""
+
+        for part in parts:
+            if not part.strip():
+                continue
+
+            test_text = current + part
+            if current and self.token_chunker.count_tokens(test_text) > self.max_tokens:
+                if current.strip():
+                    segments.append(current)
+                current = part
+            else:
+                current = test_text
+
+        if current.strip():
+            segments.append(current)
+
+        return segments if segments else [text]
+
+    def _split_on_newlines(self, text: str) -> List[str]:
+        """
+        Split text on newlines while preserving placeholders.
+
+        Returns:
+            List of newline-split segments
+        """
+        parts = text.split('\n')
+        segments = []
+        current = ""
+
+        for part in parts:
+            if not part.strip():
+                continue
+
+            test_text = current + '\n' + part if current else part
+            if current and self.token_chunker.count_tokens(test_text) > self.max_tokens:
+                if current.strip():
+                    segments.append(current)
+                current = part
+            else:
+                current = test_text
+
+        if current.strip():
+            segments.append(current)
+
+        return segments if segments else [text]
+
+    def _force_split_at_tokens(self, text: str) -> List[str]:
+        """
+        Force split text at max_tokens boundary as last resort.
+        Tries to split at word boundaries when possible.
+
+        Returns:
+            List of force-split segments
+        """
+        segments = []
+        remaining = text
+
+        while remaining:
+            # If remaining text fits, we're done
+            if self.token_chunker.count_tokens(remaining) <= self.max_tokens:
+                segments.append(remaining)
+                break
+
+            # Binary search for the largest prefix that fits
+            left, right = 0, len(remaining)
+            best_pos = left
+
+            while left <= right:
+                mid = (left + right) // 2
+                prefix = remaining[:mid]
+                token_count = self.token_chunker.count_tokens(prefix)
+
+                if token_count <= self.max_tokens:
+                    best_pos = mid
+                    left = mid + 1
+                else:
+                    right = mid - 1
+
+            # Find word boundary near best_pos
+            split_pos = self._find_word_boundary_near(remaining, best_pos)
+
+            # Avoid infinite loop - ensure we make progress
+            if split_pos == 0:
+                split_pos = max(1, best_pos)
+
+            segments.append(remaining[:split_pos])
+            remaining = remaining[split_pos:].lstrip()
+
+        return segments
+
+    def _find_word_boundary_near(self, text: str, pos: int) -> int:
+        """
+        Find a word boundary (space) near the given position.
+        Looks backward first to avoid cutting words.
+        """
+        if pos >= len(text):
+            return len(text)
+
+        # Look backward for a space
+        for i in range(pos, max(0, pos - 50), -1):
+            if text[i] in ' \n\t':
+                return i + 1
+
+        # If no space found backward, look forward
+        for i in range(pos, min(len(text), pos + 50)):
+            if text[i] in ' \n\t':
+                return i + 1
+
+        # No word boundary found, split at pos
+        return pos
 
     def _create_chunk(
         self,
@@ -189,25 +484,57 @@ class HtmlChunker:
         """
         merged_text = "".join(segments)
 
-        # Find all global placeholders in this chunk
-        global_placeholders = re.findall(r'\[\[\d+\]\]', merged_text)
-        global_placeholders = list(dict.fromkeys(global_placeholders))  # Unique, order preserved
+        # Detect placeholder format (simple [N] or safe [[N]])
+        # Check if text contains simple format placeholders
+        has_simple = bool(re.search(r'(?<!\[)\[\d+\](?!\])', merged_text))
+        has_safe = bool(re.search(r'\[\[\d+\]\]', merged_text))
 
-        # Create local mapping
-        local_tag_map = {}
+        # Use appropriate pattern
+        if has_simple and not has_safe:
+            # Simple format: [0], [1], [2]
+            placeholder_pattern = r'(?<!\[)\[(\d+)\](?!\])'
+            prefix = "["
+            suffix = "]"
+        else:
+            # Safe format: [[0]], [[1]], [[2]] (default)
+            placeholder_pattern = r'\[\[(\d+)\]\]'
+            prefix = "[["
+            suffix = "]]"
+
+        # Find all global placeholders in this chunk (may contain duplicates)
+        # Build renumbering map: global_placeholder -> local_placeholder
+        renumbering_map = {}
         global_indices = []
-        renumbered_text = merged_text
+        local_idx = 0
 
-        for local_idx, global_placeholder in enumerate(global_placeholders):
-            local_placeholder = f"[[{local_idx}]]"
-            local_tag_map[local_placeholder] = global_tag_map.get(global_placeholder, "")
+        for match in re.finditer(placeholder_pattern, merged_text):
+            global_placeholder = match.group(0)
+
+            # Skip if already processed (deduplication)
+            if global_placeholder in renumbering_map:
+                continue
+
+            local_placeholder = f"{prefix}{local_idx}{suffix}"
+            renumbering_map[global_placeholder] = local_placeholder
 
             # Extract global index
-            global_idx = int(global_placeholder[2:-2])
+            global_idx = int(global_placeholder[len(prefix):-len(suffix)])
             global_indices.append(global_idx)
 
-            # Renumber in text
-            renumbered_text = renumbered_text.replace(global_placeholder, local_placeholder)
+            local_idx += 1
+
+        # Apply renumbering in REVERSE order (to avoid [[10]] -> [[1]]0 issues)
+        renumbered_text = merged_text
+        for global_ph in sorted(renumbering_map.keys(),
+                               key=lambda p: int(p[len(prefix):-len(suffix)]),
+                               reverse=True):
+            renumbered_text = renumbered_text.replace(global_ph, renumbering_map[global_ph])
+
+        # Build local_tag_map
+        local_tag_map = {
+            local_ph: global_tag_map.get(global_ph, "")
+            for global_ph, local_ph in renumbering_map.items()
+        }
 
         result = {
             'text': renumbered_text,

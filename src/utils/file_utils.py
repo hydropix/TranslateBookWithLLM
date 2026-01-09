@@ -239,14 +239,14 @@ async def translate_text_file_with_callbacks(input_filepath, output_filepath,
         progress_callback(100)
 
     # Add signature footer if enabled
-    from src.config import SIGNATURE_ENABLED, PROJECT_NAME, PROJECT_GITHUB
+    from src.config import ATTRIBUTION_ENABLED, GENERATOR_NAME, GENERATOR_SOURCE
 
     final_translated_text = "\n".join(translated_parts)
 
-    if SIGNATURE_ENABLED:
+    if ATTRIBUTION_ENABLED:
         signature_footer = f"\n\n{'='*60}\n"
-        signature_footer += f"Translated with {PROJECT_NAME}\n"
-        signature_footer += f"{PROJECT_GITHUB}\n"
+        signature_footer += f"Translated with {GENERATOR_NAME}\n"
+        signature_footer += f"{GENERATOR_SOURCE}\n"
         signature_footer += f"{'='*60}\n"
         final_translated_text += signature_footer
 

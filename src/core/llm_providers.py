@@ -17,6 +17,7 @@ from src.config import (
     REPETITION_MIN_PHRASE_LENGTH, REPETITION_MIN_COUNT,
     REPETITION_MIN_COUNT_THINKING, REPETITION_MIN_COUNT_STREAMING
 )
+from src.utils.telemetry import get_telemetry_headers
 from enum import Enum
 from dataclasses import dataclass
 
@@ -349,9 +350,12 @@ class LLMProvider(ABC):
     async def _get_client(self) -> httpx.AsyncClient:
         """Get or create a persistent HTTP client with connection pooling"""
         if self._client is None:
+            # Add client identification headers to all requests
+            telemetry_headers = get_telemetry_headers()
             self._client = httpx.AsyncClient(
                 limits=httpx.Limits(max_keepalive_connections=5, max_connections=10),
-                timeout=httpx.Timeout(REQUEST_TIMEOUT)
+                timeout=httpx.Timeout(REQUEST_TIMEOUT),
+                headers=telemetry_headers
             )
         return self._client
 

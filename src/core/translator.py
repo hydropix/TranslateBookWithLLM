@@ -139,7 +139,8 @@ async def _make_llm_request_with_adaptive_context(
     has_placeholders: bool,
     has_images: bool = False,
     prompt_options: dict = None,
-    context_manager: AdaptiveContextManager = None
+    context_manager: AdaptiveContextManager = None,
+    placeholder_format: Optional[Tuple[str, str]] = None
 ) -> Tuple[Optional[str], str, Optional[LLMResponse]]:
     """
     Make LLM request with adaptive context sizing.
@@ -185,7 +186,8 @@ async def _make_llm_request_with_adaptive_context(
                 target_language,
                 has_placeholders=has_placeholders,
                 has_images=has_images,
-                prompt_options=prompt_options
+                prompt_options=prompt_options,
+                placeholder_format=placeholder_format
             )
 
             # Log the request
@@ -362,13 +364,15 @@ async def _make_llm_request_with_overflow_handling(
     log_callback,
     has_placeholders: bool,
     has_images: bool = False,
-    prompt_options: dict = None
+    prompt_options: dict = None,
+    placeholder_format: Optional[Tuple[str, str]] = None
 ) -> Tuple[Optional[str], str]:
     """Legacy wrapper - calls the new adaptive function without a context manager"""
     result, content, _ = await _make_llm_request_with_adaptive_context(
         main_content, context_before, context_after, previous_translation_context,
         source_language, target_language, model, llm_client, log_callback,
-        has_placeholders, has_images, prompt_options, context_manager=None
+        has_placeholders, has_images, prompt_options, context_manager=None,
+        placeholder_format=placeholder_format
     )
     return result, content
 
@@ -376,7 +380,8 @@ async def _make_llm_request_with_overflow_handling(
 async def generate_translation_request(main_content, context_before, context_after, previous_translation_context,
                                        source_language="English", target_language="Chinese", model=DEFAULT_MODEL,
                                        llm_client=None, log_callback=None, has_placeholders=False, has_images=False,
-                                       prompt_options=None):
+                                       prompt_options=None, context_manager: AdaptiveContextManager = None,
+                                       placeholder_format: Optional[Tuple[str, str]] = None):
     """
     Generate translation request to LLM API with automatic context overflow handling.
 
@@ -393,6 +398,9 @@ async def generate_translation_request(main_content, context_before, context_aft
         has_placeholders (bool): If True, includes placeholder preservation instructions
         has_images (bool): If True, includes image placeholder preservation instructions
         prompt_options (dict): Optional dict with prompt customization options
+        context_manager (AdaptiveContextManager): Optional context manager for adaptive retry on overflow
+        placeholder_format (Tuple[str, str]): Optional tuple of (prefix, suffix) for placeholders.
+            e.g., ('[', ']') for [0] format or ('[[', ']]') for [[0]] format
 
     Returns:
         str: Translated text or None if failed
@@ -403,8 +411,8 @@ async def generate_translation_request(main_content, context_before, context_aft
             log_callback("skip_translation", f"Skipping LLM for single/empty character: '{main_content}'")
         return main_content
 
-    # Use the overflow-handling wrapper
-    translated_text, _ = await _make_llm_request_with_overflow_handling(
+    # Use the adaptive context handler
+    translated_text, _, _ = await _make_llm_request_with_adaptive_context(
         main_content=main_content,
         context_before=context_before,
         context_after=context_after,
@@ -416,7 +424,9 @@ async def generate_translation_request(main_content, context_before, context_aft
         log_callback=log_callback,
         has_placeholders=has_placeholders,
         has_images=has_images,
-        prompt_options=prompt_options
+        prompt_options=prompt_options,
+        context_manager=context_manager,
+        placeholder_format=placeholder_format
     )
 
     if translated_text:

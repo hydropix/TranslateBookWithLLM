@@ -18,10 +18,11 @@ from tqdm.auto import tqdm
 
 from src.config import (
     NAMESPACES, DEFAULT_MODEL, MAIN_LINES_PER_CHUNK, API_ENDPOINT,
-    MAX_TOKENS_PER_CHUNK
+    MAX_TOKENS_PER_CHUNK, THINKING_MODELS, ADAPTIVE_CONTEXT_INITIAL_THINKING
 )
 from .simplified_translator import translate_xhtml_simplified
 from ..post_processor import clean_residual_tag_placeholders
+from ..context_optimizer import AdaptiveContextManager, INITIAL_CONTEXT_SIZE, CONTEXT_STEP, MAX_CONTEXT_SIZE
 
 
 async def translate_epub_file(
@@ -93,9 +94,22 @@ async def translate_epub_file(
 
     # Create LLM client
     from ..llm_client import create_llm_client
+
+    # Determine initial context size based on model type
+    is_known_thinking_model = any(tm in model_name.lower() for tm in THINKING_MODELS)
+    if auto_adjust_context:
+        if is_known_thinking_model:
+            initial_context = ADAPTIVE_CONTEXT_INITIAL_THINKING
+        else:
+            initial_context = INITIAL_CONTEXT_SIZE
+    else:
+        initial_context = context_window
+
     llm_client = create_llm_client(
         llm_provider, gemini_api_key, cli_api_endpoint, model_name,
-        openai_api_key, openrouter_api_key, log_callback=log_callback
+        openai_api_key, openrouter_api_key,
+        context_window=initial_context,
+        log_callback=log_callback
     )
 
     if llm_client is None:
@@ -105,6 +119,21 @@ async def translate_epub_file(
         else:
             print(err_msg)
         return
+
+    # Create adaptive context manager for Ollama provider
+    context_manager = None
+    if llm_provider == "ollama" and auto_adjust_context:
+        context_manager = AdaptiveContextManager(
+            initial_context=initial_context,
+            context_step=CONTEXT_STEP,
+            max_context=MAX_CONTEXT_SIZE,
+            log_callback=log_callback
+        )
+        model_type = "thinking" if is_known_thinking_model else "standard"
+        if log_callback:
+            log_callback("context_adaptive",
+                f"🎯 Adaptive context enabled for EPUB ({model_type} model): starting at {initial_context} tokens, "
+                f"max={MAX_CONTEXT_SIZE}, step={CONTEXT_STEP}")
 
     with tempfile.TemporaryDirectory() as temp_dir:
         try:
@@ -211,7 +240,8 @@ async def translate_epub_file(
                         llm_client=llm_client,
                         max_tokens_per_chunk=max_tokens_per_chunk,
                         log_callback=log_callback,
-                        progress_callback=file_progress_callback
+                        progress_callback=file_progress_callback,
+                        context_manager=context_manager
                     )
 
                     if success:
@@ -236,9 +266,14 @@ async def translate_epub_file(
                     # Save checkpoint after each file
                     if checkpoint_manager and translation_id:
                         checkpoint_manager.save_checkpoint(
-                            translation_id,
-                            file_idx + 1,
-                            {'last_file': content_href}
+                            translation_id=translation_id,
+                            chunk_index=file_idx + 1,
+                            original_text=content_href,
+                            translated_text=content_href,
+                            chunk_data={'last_file': content_href},
+                            total_chunks=len(content_files),
+                            completed_chunks=completed_files,
+                            failed_chunks=failed_files
                         )
 
                 except etree.XMLSyntaxError as e_xml:
@@ -358,7 +393,7 @@ def _update_epub_metadata(
         opf_path: Path to OPF file
         target_language: Target language
     """
-    from src.config import SIGNATURE_ENABLED, PROJECT_NAME, PROJECT_GITHUB
+    from src.config import ATTRIBUTION_ENABLED, GENERATOR_NAME, GENERATOR_SOURCE
 
     opf_root = opf_tree.getroot()
     metadata = opf_root.find('.//opf:metadata', namespaces=NAMESPACES)
@@ -369,18 +404,18 @@ def _update_epub_metadata(
             lang_el.text = target_language.lower()[:2]
 
         # Add translation signature if enabled
-        if SIGNATURE_ENABLED:
+        if ATTRIBUTION_ENABLED:
             # Add contributor (translator) - Dublin Core standard
             contributor_el = etree.SubElement(
                 metadata,
                 '{http://purl.org/dc/elements/1.1/}contributor'
             )
-            contributor_el.text = PROJECT_NAME
+            contributor_el.text = GENERATOR_NAME
             contributor_el.set('{http://www.idpf.org/2007/opf}role', 'trl')
 
             # Add or update description with signature
             desc_el = metadata.find('.//dc:description', namespaces=NAMESPACES)
-            signature_text = f"\n\nTranslated using {PROJECT_NAME}\n{PROJECT_GITHUB}"
+            signature_text = f"\n\nTranslated using {GENERATOR_NAME}\n{GENERATOR_SOURCE}"
 
             if desc_el is None:
                 desc_el = etree.SubElement(

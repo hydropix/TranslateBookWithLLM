@@ -1,4 +1,4 @@
-from typing import List, NamedTuple, Tuple
+from typing import List, NamedTuple, Tuple, Optional
 
 from prompts.examples import (build_image_placeholder_section,
                               build_placeholder_section,
@@ -142,7 +142,8 @@ def generate_translation_prompt(
     translate_tag_out: str = TRANSLATE_TAG_OUT,
     has_placeholders: bool = True,
     has_images: bool = False,
-    prompt_options: dict = None
+    prompt_options: dict = None,
+    placeholder_format: Optional[Tuple[str, str]] = None
 ) -> PromptPair:
     """
     Generate the translation prompt with all contextual elements.
@@ -161,6 +162,9 @@ def generate_translation_prompt(
         prompt_options: Optional dict with prompt customization options:
             - preserve_technical_content: If True, includes instructions to NOT translate
               code, paths, URLs, etc. (for technical documents)
+        placeholder_format: Optional tuple of (prefix, suffix) for placeholders.
+            e.g., ('[', ']') for [0] format or ('[[', ']]') for [[0]] format.
+            If None, uses default [[0]] format
 
     Returns:
         PromptPair: A named tuple with 'system' and 'user' prompts
@@ -197,7 +201,7 @@ def generate_translation_prompt(
 
     # Build placeholder preservation section dynamically based on languages
     if has_placeholders:
-        placeholder_section = build_placeholder_section(source_language, target_language)
+        placeholder_section = build_placeholder_section(source_language, target_language, placeholder_format)
     else:
         placeholder_section = ""
 
@@ -285,7 +289,8 @@ def generate_refinement_prompt(
     translate_tag_out: str = TRANSLATE_TAG_OUT,
     has_placeholders: bool = True,
     has_images: bool = False,
-    prompt_options: dict = None
+    prompt_options: dict = None,
+    placeholder_format: Optional[Tuple[str, str]] = None
 ) -> PromptPair:
     """
     Generate a refinement prompt to polish a draft translation.
@@ -304,6 +309,9 @@ def generate_refinement_prompt(
         has_placeholders: If True, includes placeholder preservation instructions
         has_images: If True, includes image marker preservation instructions
         prompt_options: Optional dict with prompt customization options
+        placeholder_format: Optional tuple of (prefix, suffix) for placeholders.
+            e.g., ('[', ']') for [0] format or ('[[', ']]') for [[0]] format.
+            If None, uses default [[0]] format
 
     Returns:
         PromptPair: A named tuple with 'system' and 'user' prompts
@@ -338,7 +346,7 @@ def generate_refinement_prompt(
 
     # Build placeholder preservation section if needed
     if has_placeholders:
-        placeholder_section = build_placeholder_section(target_language, target_language)
+        placeholder_section = build_placeholder_section(target_language, target_language, placeholder_format)
     else:
         placeholder_section = ""
 
@@ -562,7 +570,8 @@ def generate_placeholder_correction_prompt(
     specific_errors: str,
     source_language: str,
     target_language: str,
-    expected_count: int
+    expected_count: int,
+    placeholder_format: Optional[Tuple[str, str]] = None
 ) -> PromptPair:
     """
     Generate a prompt for correcting placeholder errors in a translation.
@@ -578,15 +587,27 @@ def generate_placeholder_correction_prompt(
         source_language: Source language name (e.g., "English")
         target_language: Target language name (e.g., "French")
         expected_count: Number of placeholders expected (0 to expected_count-1)
+        placeholder_format: Optional tuple of (prefix, suffix) for placeholders.
+            e.g., ('[', ']') for [0] format or ('[[', ']]') for [[0]] format.
+            If None, uses default [[0]] format
 
     Returns:
         PromptPair: A named tuple with 'system' and 'user' prompts
     """
-    # Generate dynamic placeholder examples
+    # Use custom format if provided, otherwise use defaults
+    if placeholder_format:
+        prefix, suffix = placeholder_format
+    else:
+        prefix, suffix = PLACEHOLDER_PREFIX, PLACEHOLDER_SUFFIX
+
+    # Generate dynamic placeholder examples using the correct format
+    def make_placeholder(idx: int) -> str:
+        return f"{prefix}{idx}{suffix}"
+
     max_index = expected_count - 1 if expected_count > 0 else 0
-    placeholder_format = f"{PLACEHOLDER_PREFIX}N{PLACEHOLDER_SUFFIX}"
-    example_range = f"{create_placeholder(0)} to {create_placeholder(max_index)}"
-    placeholder_list = ", ".join(create_placeholder(i) for i in range(min(3, expected_count)))
+    placeholder_format_str = f"{prefix}N{suffix}"
+    example_range = f"{make_placeholder(0)} to {make_placeholder(max_index)}"
+    placeholder_list = ", ".join(make_placeholder(i) for i in range(min(3, expected_count)))
     if expected_count > 3:
         placeholder_list += ", etc."
 
@@ -600,8 +621,8 @@ You must fix the placeholder positions to match the original text structure.
 
 ## PLACEHOLDER FORMAT
 
-**CORRECT format:** {create_placeholder(0)}, {create_placeholder(1)}, {create_placeholder(2)}, etc.
-- Brackets: {PLACEHOLDER_PREFIX} and {PLACEHOLDER_SUFFIX}
+**CORRECT format:** {make_placeholder(0)}, {make_placeholder(1)}, {make_placeholder(2)}, etc.
+- Brackets: {prefix} and {suffix}
 - Sequential numbering starting from 0
 - Expected range for this text: {example_range}
 
@@ -614,16 +635,16 @@ Placeholders represent HTML/XML tags. To position them correctly:
 3. **Place the placeholder at the same logical position** around that content
 
 **Example:**
-- Original: "{create_placeholder(0)}Hello{create_placeholder(1)} world"
+- Original: "{make_placeholder(0)}Hello{make_placeholder(1)} world"
 - If translation is "Bonjour monde", the placeholders mark "Hello"
-- Correct: "{create_placeholder(0)}Bonjour{create_placeholder(1)} monde"
+- Correct: "{make_placeholder(0)}Bonjour{make_placeholder(1)} monde"
 
 ## VALIDATION RULES
 
 1. **EXACT COUNT**: Must contain exactly {expected_count} placeholders
 2. **SEQUENTIAL ORDER**: Placeholders must appear in order: {placeholder_list}
 3. **NO DUPLICATES**: Each placeholder must appear exactly once
-4. **NO MUTATIONS**: Use ONLY the {placeholder_format} format
+4. **NO MUTATIONS**: Use ONLY the {placeholder_format_str} format
 5. **POSITION MATCHING**: Each placeholder must surround the translated equivalent of what it surrounded in the original
 
 ## CRITICAL INSTRUCTIONS
