@@ -469,17 +469,59 @@ async def translate_chunk_with_fallback(
                 "All correction attempts failed, falling back to proportional insertion")
 
     # ==========================================================================
-    # PHASE 3: Proportional fallback
+    # PHASE 3: Proportional fallback with boundary restoration
     # ==========================================================================
     stats.fallback_used += 1
 
-    # SAFE FALLBACK: Return original text with global placeholders
-    # This preserves HTML structure perfectly - no translation is better than broken HTML
-    if log_callback:
-        log_callback("fallback_safe",
-            "Using safe fallback - returning original text with global placeholders to preserve HTML structure")
+    # Proportional reinsertion if we have a translation and placeholders
+    if translated is not None and has_placeholders:
+        if log_callback:
+            log_callback("fallback_proportional",
+                "Using proportional fallback - reinserting placeholders into translated text")
 
-    return placeholder_mgr.restore_to_global(chunk_text, global_indices)
+        # Extract placeholder positions from original chunk
+        translated_pure, global_positions = extract_text_and_positions(chunk_text)
+
+        # Reinsert placeholders proportionally into the translation
+        result_with_placeholders = reinsert_placeholders(
+            translated,
+            global_positions,
+            placeholder_format=placeholder_format
+        )
+
+        # Restore global indices
+        result_with_globals = placeholder_mgr.restore_to_global(
+            result_with_placeholders,
+            global_indices
+        )
+
+        # Restore boundary tags
+        boundary_prefix = local_tag_map.get("__boundary_prefix__", "")
+        boundary_suffix = local_tag_map.get("__boundary_suffix__", "")
+
+        if boundary_prefix or boundary_suffix:
+            result_with_globals = boundary_prefix + result_with_globals + boundary_suffix
+
+        return result_with_globals
+
+    # SAFE FALLBACK: Return original text with global placeholders and boundaries
+    # Used when: translated=None OR has_placeholders=False
+    # This preserves HTML structure perfectly
+    if log_callback:
+        log_callback("fallback_original",
+            "Using safe fallback - returning original untranslated text with proper HTML structure")
+
+    # Restore global indices for internal placeholders
+    result_with_globals = placeholder_mgr.restore_to_global(chunk_text, global_indices)
+
+    # Restore boundary tags if present
+    boundary_prefix = local_tag_map.get("__boundary_prefix__", "")
+    boundary_suffix = local_tag_map.get("__boundary_suffix__", "")
+
+    if boundary_prefix or boundary_suffix:
+        result_with_globals = boundary_prefix + result_with_globals + boundary_suffix
+
+    return result_with_globals
 
 
 async def translate_xhtml_simplified(
