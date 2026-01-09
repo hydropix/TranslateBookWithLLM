@@ -8,7 +8,6 @@ __pycache__/
 CLAUDE.md
 .env
 /venv
-OPENROUTER_INTEGRATION_PLAN.md
 build_installer.bat
 build/
 /dist
