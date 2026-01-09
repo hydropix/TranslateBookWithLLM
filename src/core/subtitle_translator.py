@@ -11,6 +11,7 @@ from .llm_client import create_llm_client
 from .post_processor import clean_translated_text
 from .translator import generate_translation_request
 from .epub import TagPreserver
+from src.utils.llm_logger import log_llm_interaction
 
 
 async def translate_subtitles(subtitles: List[Dict[str, str]], source_language: str,
@@ -279,23 +280,26 @@ async def translate_subtitles_in_blocks(subtitle_blocks: List[List[Dict[str, str
                             'model': model_name
                         })
 
-                    print("\n-------SENT to LLM (SYSTEM)-------")
-                    print(prompt_pair.system)
-                    print("-------SENT to LLM (USER)-------")
-                    print(prompt_pair.user)
-                    print("-------END SENT to LLM-------\n")
-
                     # Use provided client or default - pass system and user prompts separately
                     client = llm_client or default_client
                     start_time = time.time()
-                    full_raw_response = await client.make_request(
+                    llm_response = await client.make_request(
                         prompt_pair.user, model_name, system_prompt=prompt_pair.system
                     )
                     execution_time = time.time() - start_time
 
-                    print("\n-------LLM RESPONSE-------")
-                    print(full_raw_response or "None")
-                    print("-------LLM RESPONSE-------\n")
+                    # Extract raw response content
+                    full_raw_response = llm_response.content if llm_response else None
+
+                    # Log full interaction if DEBUG_MODE is enabled
+                    if full_raw_response:
+                        log_llm_interaction(
+                            system_prompt=prompt_pair.system,
+                            user_prompt=prompt_pair.user,
+                            raw_response=full_raw_response,
+                            interaction_type="subtitle_translation",
+                            prefix=f"Block {block_idx+1}, Retry {retry_count}" if retry_count > 0 else f"Block {block_idx+1}"
+                        )
 
                     # Log the LLM response with structured data for web interface preview
                     if full_raw_response and log_callback:

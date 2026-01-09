@@ -58,6 +58,7 @@ from src.config import (
     ADAPTIVE_CONTEXT_INITIAL_THINKING,
 )
 from prompts.prompts import generate_placeholder_correction_prompt, CORRECTED_TAG_IN, CORRECTED_TAG_OUT
+from src.utils.llm_logger import log_llm_interaction
 
 
 class PlaceholderManager:
@@ -283,7 +284,8 @@ async def attempt_placeholder_correction(
     target_language: str,
     llm_client: Any,
     log_callback: Optional[Callable],
-    placeholder_format: Optional[Tuple[str, str]] = None
+    placeholder_format: Optional[Tuple[str, str]] = None,
+    context_manager: Optional[AdaptiveContextManager] = None
 ) -> Tuple[str, bool]:
     """
     Attempt to correct placeholder errors via LLM.
@@ -296,6 +298,8 @@ async def attempt_placeholder_correction(
         target_language: Target language name
         llm_client: LLM client instance
         log_callback: Optional logging callback
+        placeholder_format: Optional tuple of (prefix, suffix) for placeholders
+        context_manager: Optional AdaptiveContextManager for handling context overflow
 
     Returns:
         Tuple (corrected_text, success)
@@ -317,37 +321,91 @@ async def attempt_placeholder_correction(
         placeholder_format=placeholder_format
     )
 
-    # Call LLM for correction
-    try:
-        # Log the correction request
-        if log_callback:
-            log_callback("correction_request", "Sending correction request to LLM")
+    # Call LLM for correction with adaptive context retry
+    max_retries = 3
+    for retry in range(max_retries):
+        try:
+            # Log the correction request
+            if log_callback and retry == 0:
+                log_callback("correction_request", "Sending correction request to LLM")
 
-        llm_response = await llm_client.make_request(
-            prompt_pair.user,
-            system_prompt=prompt_pair.system
-        )
+            # Set context from manager if available
+            if context_manager and hasattr(llm_client, 'context_window'):
+                new_ctx = context_manager.get_context_size()
+                if llm_client.context_window != new_ctx:
+                    if log_callback:
+                        log_callback("context_update",
+                            f"📐 Correction: Updating context window: {llm_client.context_window} → {new_ctx}")
+                llm_client.context_window = new_ctx
 
-        if llm_response is None:
+            llm_response = await llm_client.make_request(
+                prompt_pair.user,
+                system_prompt=prompt_pair.system
+            )
+
+            # Log full interaction if DEBUG_MODE is enabled
+            if llm_response is not None:
+                log_llm_interaction(
+                    system_prompt=prompt_pair.system,
+                    user_prompt=prompt_pair.user,
+                    raw_response=llm_response.content,
+                    interaction_type="placeholder_correction",
+                    prefix=f"Attempt {retry + 1}/{max_retries}"
+                )
+
+            if llm_response is None:
+                return translated_text, False
+
+            # Check if we should retry with larger context (adaptive strategy)
+            if context_manager and llm_response.was_truncated:
+                if context_manager.should_retry_with_larger_context(
+                    llm_response.was_truncated, llm_response.context_used
+                ):
+                    context_manager.increase_context()
+                    if log_callback:
+                        log_callback("correction_context_retry",
+                            f"Retrying correction with larger context ({context_manager.get_context_size()} tokens)")
+                    continue  # Retry with larger context
+
+            # Record success if context manager is available
+            if context_manager and llm_response.prompt_tokens > 0:
+                context_manager.record_success(
+                    llm_response.prompt_tokens,
+                    llm_response.completion_tokens,
+                    llm_response.context_limit
+                )
+
+            # Extract corrected text from response content
+            corrected = extract_corrected_text(llm_response.content)
+            if corrected is None:
+                if log_callback:
+                    log_callback("correction_extract_failed", "Failed to extract corrected text from response")
+                return translated_text, False
+
+            # Validate corrected text
+            if validate_placeholders(corrected, local_tag_map):
+                return corrected, True
+
             return translated_text, False
 
-        # Extract corrected text from response content
-        corrected = extract_corrected_text(llm_response.content)
-        if corrected is None:
+        except Exception as e:
+            # Try to increase context if we have a manager and hit overflow/repetition errors
+            from ..llm_providers import ContextOverflowError, RepetitionLoopError
+
+            if context_manager and isinstance(e, (ContextOverflowError, RepetitionLoopError)):
+                if context_manager.should_retry_with_larger_context(True, 0):
+                    context_manager.increase_context()
+                    if log_callback:
+                        log_callback("correction_context_overflow",
+                            f"Context overflow in correction - retrying with {context_manager.get_context_size()} tokens")
+                    continue  # Retry with larger context
+
             if log_callback:
-                log_callback("correction_extract_failed", "Failed to extract corrected text from response")
+                log_callback("correction_error", f"Correction attempt failed: {str(e)}")
             return translated_text, False
 
-        # Validate corrected text
-        if validate_placeholders(corrected, local_tag_map):
-            return corrected, True
-
-        return translated_text, False
-
-    except Exception as e:
-        if log_callback:
-            log_callback("correction_error", f"Correction attempt failed: {str(e)}")
-        return translated_text, False
+    # Max retries exceeded
+    return translated_text, False
 
 
 async def translate_chunk_with_fallback(
@@ -451,7 +509,8 @@ async def translate_chunk_with_fallback(
                 target_language=target_language,
                 llm_client=llm_client,
                 log_callback=log_callback,
-                placeholder_format=placeholder_format
+                placeholder_format=placeholder_format,
+                context_manager=context_manager
             )
 
             if success:

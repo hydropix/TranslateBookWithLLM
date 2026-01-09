@@ -16,3 +16,4 @@ build/
 .wiki_repo/
 /prompt_optimization_results
 .watermark/
+tests/.placeholder_tests/
