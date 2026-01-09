@@ -41,7 +41,6 @@ from lxml import etree
 from .body_serializer import extract_body_html, replace_body_content
 from .html_chunker import (
     HtmlChunker,
-    restore_global_indices,
     extract_text_and_positions,
     reinsert_placeholders,
     TranslationStats
@@ -53,6 +52,7 @@ from src.config import (
     PLACEHOLDER_PATTERN,
     MAX_PLACEHOLDER_CORRECTION_ATTEMPTS,
     create_placeholder,
+    detect_placeholder_format_in_text,
     get_mutation_variants,
     THINKING_MODELS,
     ADAPTIVE_CONTEXT_INITIAL_THINKING,
@@ -100,50 +100,16 @@ class PlaceholderManager:
         result = translated_text
 
         # Detect placeholder format from the text
-        has_simple = bool(re.search(r'(?<!\[)\[\d+\](?!\])', result))
-        has_safe = bool(re.search(r'\[\[\d+\]\]', result))
-
-        # Determine which format to use
-        if has_simple and not has_safe:
-            # Simple format: [0], [1], [2]
-            prefix = "["
-            suffix = "]"
-        else:
-            # Safe format: [[0]], [[1]], [[2]] (default)
-            prefix = "[["
-            suffix = "]]"
-
-        # DEBUG: Show for first 3 calls only
-        if not hasattr(PlaceholderManager, '_debug_count'):
-            PlaceholderManager._debug_count = 0
-
-        PlaceholderManager._debug_count += 1
-        show_debug = PlaceholderManager._debug_count <= 3
-
-        if show_debug:
-            print(f"\n[DEBUG restore_to_global #{PlaceholderManager._debug_count}]")
-            print(f"  Input ({len(translated_text)} chars): {translated_text[:150]}...")
-            print(f"  Format: {prefix}N{suffix}")
-            print(f"  Global indices: {global_indices}")
+        prefix, suffix = detect_placeholder_format_in_text(result)
 
         # Renumber from local to global using temp markers to avoid conflicts
-        found_count = 0
         for local_idx in range(len(global_indices)):
             local_ph = f"{prefix}{local_idx}{suffix}"
             if local_ph in result:
                 result = result.replace(local_ph, f"__RESTORE_{local_idx}__")
-                found_count += 1
-            elif show_debug:
-                print(f"  NOT FOUND: {local_ph}")
-
-        if show_debug:
-            print(f"  Found {found_count}/{len(global_indices)} placeholders")
 
         for local_idx, global_idx in enumerate(global_indices):
             result = result.replace(f"__RESTORE_{local_idx}__", f"{prefix}{global_idx}{suffix}")
-
-        if show_debug:
-            print(f"  Output: {result[:150]}...")
 
         return result
 
@@ -166,14 +132,9 @@ def validate_placeholders(translated_text: str, local_tag_map: Dict[str, str]) -
     if expected_count == 0:
         return True
 
-    # Detect format from tag_map keys
-    # Check if any key uses simple format [N] or safe format [[N]]
-    use_simple_format = False
-    for key in local_tag_map.keys():
-        if not key.startswith("__"):
-            # Check the format of the first placeholder
-            use_simple_format = key.startswith("[") and not key.startswith("[[")
-            break
+    # Detect format from tag_map keys (get first non-boundary placeholder)
+    sample_placeholder = next((k for k in local_tag_map.keys() if not k.startswith("__")), "[[0]]")
+    use_simple_format = sample_placeholder.startswith("[") and not sample_placeholder.startswith("[[")
 
     # Use appropriate pattern based on detected format
     if use_simple_format:
@@ -216,13 +177,11 @@ def build_specific_error_details(translated_text: str, expected_count: int, loca
     """
     errors = []
 
-    # Detect format from tag_map or default to safe format
+    # Detect format from tag_map keys
     use_simple_format = False
     if local_tag_map:
-        for key in local_tag_map.keys():
-            if not key.startswith("__"):
-                use_simple_format = key.startswith("[") and not key.startswith("[[")
-                break
+        sample_placeholder = next((k for k in local_tag_map.keys() if not k.startswith("__")), "[[0]]")
+        use_simple_format = sample_placeholder.startswith("[") and not sample_placeholder.startswith("[[")
 
     # Set appropriate pattern and placeholder functions
     if use_simple_format:
@@ -391,9 +350,6 @@ async def attempt_placeholder_correction(
         return translated_text, False
 
 
-# Old functions removed - replaced by PlaceholderManager class above
-
-
 async def translate_chunk_with_fallback(
     chunk_text: str,
     local_tag_map: Dict[str, str],
@@ -468,13 +424,10 @@ async def translate_chunk_with_fallback(
         # Success on first try - restore to global indices
         stats.successful_first_try += 1
         result = placeholder_mgr.restore_to_global(translated, global_indices)
-        if log_callback:
-            log_callback("debug_phase1_success", f"Phase 1 success. Result preview: {result[:150]}...")
         return result
     else:
         if log_callback:
             log_callback("placeholder_mismatch", "Phase 1: Placeholder validation failed")
-            log_callback("debug_phase1_translated", f"Phase 1 translated text: {translated[:200]}...")
 
     # ==========================================================================
     # PHASE 2: LLM Correction (up to MAX_PLACEHOLDER_CORRECTION_ATTEMPTS)
@@ -520,55 +473,13 @@ async def translate_chunk_with_fallback(
     # ==========================================================================
     stats.fallback_used += 1
 
+    # SAFE FALLBACK: Return original text with global placeholders
+    # This preserves HTML structure perfectly - no translation is better than broken HTML
     if log_callback:
-        log_callback("fallback_proportional_start",
-            "Starting proportional reinsertion fallback")
+        log_callback("fallback_safe",
+            "Using safe fallback - returning original text with global placeholders to preserve HTML structure")
 
-    # Extract pure text and placeholder positions from chunk_text (with local indices)
-    pure_text, positions = extract_text_and_positions(chunk_text)
-
-    if not pure_text.strip():
-        # No actual text content - return original chunk with global placeholders
-        # This preserves structure even for chunks that are only placeholders
-        if log_callback:
-            log_callback("fallback_no_content", "No text content to translate, returning original with global indices")
-        return placeholder_mgr.restore_to_global(chunk_text, global_indices)
-
-    # Translate pure text (no placeholders)
-    translated_pure = await generate_translation_request(
-        pure_text,
-        context_before="",
-        context_after="",
-        previous_translation_context="",
-        source_language=source_language,
-        target_language=target_language,
-        model=model_name,
-        llm_client=llm_client,
-        log_callback=log_callback,
-        context_manager=context_manager
-    )
-
-    if translated_pure is None:
-        # Ultimate fallback: return original text with global placeholders
-        # This preserves HTML structure even when translation fails
-        if log_callback:
-            log_callback("fallback_failed", "Fallback translation failed, returning original text with global indices")
-        return placeholder_mgr.restore_to_global(chunk_text, global_indices)
-
-    # Reinsert placeholders at proportional positions
-    # positions dict has LOCAL indices (0, 1, 2...) - need to convert to GLOBAL for final result
-    global_positions = {}
-    for local_idx, relative_pos in positions.items():
-        if local_idx < len(global_indices):
-            global_idx = global_indices[local_idx]
-            global_positions[global_idx] = relative_pos
-
-    result_with_placeholders = reinsert_placeholders(translated_pure, global_positions)
-
-    if log_callback:
-        log_callback("fallback_result", "Proportional fallback completed")
-
-    return result_with_placeholders
+    return placeholder_mgr.restore_to_global(chunk_text, global_indices)
 
 
 async def translate_xhtml_simplified(
@@ -664,30 +575,10 @@ async def translate_xhtml_simplified(
     stats.log_summary(log_callback)
 
     # 5. Reconstruct full HTML
-    if log_callback:
-        log_callback("debug_joining", f"Joining {len(translated_chunks)} translated chunks")
-        for idx, chunk in enumerate(translated_chunks[:3]):
-            log_callback("debug_chunk_preview", f"Chunk {idx}: {chunk[:150]}...")
-
     full_translated = "".join(translated_chunks)
-
-    if log_callback:
-        log_callback("debug_joined", f"Joined text length: {len(full_translated)} chars, preview: {full_translated[:200]}...")
 
     # Restore tags
     final_html = tag_preserver.restore_tags(full_translated, global_tag_map)
-
-    if log_callback:
-        log_callback("debug_restored", f"Restored HTML length: {len(final_html)} chars, preview: {final_html[:200]}...")
-
-    # Save for inspection
-    import tempfile
-    import os
-    debug_file = os.path.join(tempfile.gettempdir(), "debug_final_html.html")
-    with open(debug_file, 'w', encoding='utf-8') as f:
-        f.write(final_html)
-    if log_callback:
-        log_callback("debug_saved", f"Saved final HTML to: {debug_file}")
 
     # 6. Replace body content
     replace_body_content(body_element, final_html)

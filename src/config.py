@@ -547,3 +547,39 @@ class TranslationConfig:
             'max_tokens_per_chunk': self.max_tokens_per_chunk,
             'soft_limit_ratio': self.soft_limit_ratio
         }
+
+
+def detect_placeholder_format_in_text(text: str) -> tuple:
+    """
+    Detect which placeholder format is used in the text.
+
+    Checks for presence of simple format [N] vs safe format [[N]].
+    Defaults to safe format if ambiguous or no placeholders found.
+
+    Args:
+        text: Text containing placeholders
+
+    Returns:
+        (prefix, suffix) tuple:
+            ("[", "]") for simple format
+            ("[[", "]]") for safe format (default)
+
+    Example:
+        >>> detect_placeholder_format_in_text("Hello [0] world [1]")
+        ("[", "]")
+        >>> detect_placeholder_format_in_text("Hello [[0]] world [[1]]")
+        ("[[", "]]")
+        >>> detect_placeholder_format_in_text("No placeholders here")
+        ("[[", "]]")  # Default to safe
+    """
+    import re
+
+    # Negative lookahead/behind to avoid matching [[0]] as [0]
+    has_simple = bool(re.search(r'(?<!\[)\[\d+\](?!\])', text))
+    has_safe = bool(re.search(r'\[\[\d+\]\]', text))
+
+    if has_simple and not has_safe:
+        return PLACEHOLDER_PREFIX_SIMPLE, PLACEHOLDER_SUFFIX_SIMPLE
+    else:
+        # Default to safe format
+        return PLACEHOLDER_PREFIX_SAFE, PLACEHOLDER_SUFFIX_SAFE

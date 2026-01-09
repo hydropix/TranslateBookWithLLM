@@ -6,7 +6,7 @@ ensuring chunks are split at safe boundaries (between complete HTML blocks)
 and includes a proportional reinsertion fallback for placeholder recovery.
 """
 import re
-from typing import List, Dict, Tuple
+from typing import List, Dict, Tuple, Optional
 
 from src.core.chunking.token_chunker import TokenChunker
 
@@ -484,22 +484,15 @@ class HtmlChunker:
         """
         merged_text = "".join(segments)
 
-        # Detect placeholder format (simple [N] or safe [[N]])
-        # Check if text contains simple format placeholders
-        has_simple = bool(re.search(r'(?<!\[)\[\d+\](?!\])', merged_text))
-        has_safe = bool(re.search(r'\[\[\d+\]\]', merged_text))
+        # Detect placeholder format
+        from src.config import detect_placeholder_format_in_text
+        prefix, suffix = detect_placeholder_format_in_text(merged_text)
 
-        # Use appropriate pattern
-        if has_simple and not has_safe:
-            # Simple format: [0], [1], [2]
+        # Set appropriate regex pattern
+        if prefix == "[" and suffix == "]":
             placeholder_pattern = r'(?<!\[)\[(\d+)\](?!\])'
-            prefix = "["
-            suffix = "]"
         else:
-            # Safe format: [[0]], [[1]], [[2]] (default)
             placeholder_pattern = r'\[\[(\d+)\]\]'
-            prefix = "[["
-            suffix = "]]"
 
         # Find all global placeholders in this chunk (may contain duplicates)
         # Build renumbering map: global_placeholder -> local_placeholder
@@ -552,30 +545,6 @@ class HtmlChunker:
         return result
 
 
-def restore_global_indices(translated_text: str, global_indices: List[int]) -> str:
-    """
-    Restore global indices after translation.
-
-    Args:
-        translated_text: "[[0]]Bonjour[[1]]monde[[2]]"
-        global_indices: [5, 6, 7]
-
-    Returns:
-        "[[5]]Bonjour[[6]]monde[[7]]"
-    """
-    if not global_indices:
-        return translated_text
-
-    result = translated_text
-
-    # Replace in reverse order to avoid conflicts
-    for local_idx in range(len(global_indices) - 1, -1, -1):
-        global_idx = global_indices[local_idx]
-        result = result.replace(f"[[{local_idx}]]", f"[[{global_idx}]]")
-
-    return result
-
-
 def extract_text_and_positions(text_with_placeholders: str) -> Tuple[str, Dict[int, float]]:
     """
     Extract pure text and calculate relative positions of placeholders.
@@ -611,19 +580,33 @@ def extract_text_and_positions(text_with_placeholders: str) -> Tuple[str, Dict[i
     return pure_text, positions
 
 
-def reinsert_placeholders(translated_text: str, positions: Dict[int, float]) -> str:
+def reinsert_placeholders(
+    translated_text: str,
+    positions: Dict[int, float],
+    placeholder_format: Optional[Tuple[str, str]] = None
+) -> str:
     """
     Reinsert placeholders at proportional positions.
 
     Args:
         translated_text: "Bonjour monde"
         positions: {0: 0.0, 1: 0.5, 2: 1.0}
+        placeholder_format: Optional (prefix, suffix) tuple.
+                          If None, uses safe format [[N]]
+                          Examples: ("[[", "]]") or ("[", "]")
 
     Returns:
-        "[[0]]Bonjour [[1]]monde[[2]]"
+        "[[0]]Bonjour [[1]]monde[[2]]" (or with [N] format if specified)
     """
     if not positions:
         return translated_text
+
+    # Use provided format or default to safe
+    if placeholder_format is None:
+        from src.config import PLACEHOLDER_PREFIX_SAFE, PLACEHOLDER_SUFFIX_SAFE
+        prefix, suffix = PLACEHOLDER_PREFIX_SAFE, PLACEHOLDER_SUFFIX_SAFE
+    else:
+        prefix, suffix = placeholder_format
 
     text_length = len(translated_text)
 
@@ -635,12 +618,14 @@ def reinsert_placeholders(translated_text: str, positions: Dict[int, float]) -> 
         abs_pos = find_nearest_word_boundary(translated_text, abs_pos)
         insertions.append((abs_pos, idx))
 
-    # Sort by position (reverse order to insert without shifting)
-    insertions.sort(key=lambda x: x[0], reverse=True)
+    # Sort by position first, then by index to maintain order when positions are equal
+    # Use reverse=True to insert from end to start (avoids position shifting)
+    insertions.sort(key=lambda x: (x[0], x[1]), reverse=True)
 
     result = translated_text
     for abs_pos, idx in insertions:
-        result = result[:abs_pos] + f"[[{idx}]]" + result[abs_pos:]
+        placeholder = f"{prefix}{idx}{suffix}"
+        result = result[:abs_pos] + placeholder + result[abs_pos:]
 
     return result
 
