@@ -444,10 +444,7 @@ async def _translate_single_file(
             log_callback=log_callback,
             progress_callback=file_progress_callback,
             context_manager=context_manager,
-            max_retries=max_attempts,
-            translation_id=translation_id,
-            file_path=content_href,
-            enable_structure_debug=True
+            max_retries=max_attempts
         )
 
         if success:

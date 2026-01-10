@@ -65,7 +65,6 @@ from src.config import (
     ADAPTIVE_CONTEXT_INITIAL_THINKING,
 )
 from prompts.prompts import generate_placeholder_correction_prompt, CORRECTED_TAG_IN, CORRECTED_TAG_OUT
-from src.utils.structure_debug_logger import StructureDebugLogger
 
 
 class PlaceholderManager:
@@ -383,9 +382,7 @@ async def translate_chunk_with_fallback(
     log_callback: Optional[Callable] = None,
     max_retries: int = 1,
     context_manager: Optional[AdaptiveContextManager] = None,
-    placeholder_format: Optional[Tuple[str, str]] = None,
-    debug_logger: Optional[StructureDebugLogger] = None,
-    chunk_index: int = 0
+    placeholder_format: Optional[Tuple[str, str]] = None
 ) -> str:
     """
     Translate a chunk with retry mechanism.
@@ -418,10 +415,6 @@ async def translate_chunk_with_fallback(
 
     # Calculate if this chunk has placeholders
     has_placeholders = len(local_tag_map) > 0
-
-    # DEBUG: Log translation request
-    if debug_logger:
-        debug_logger.log_translation_request(chunk_index, chunk_text, has_placeholders)
 
     # ==========================================================================
     # PHASE 1: Normal translation with retries
@@ -457,16 +450,6 @@ async def translate_chunk_with_fallback(
         # Validate placeholders
         validation_result = validate_placeholders(translated, local_tag_map)
 
-        # DEBUG: Log translation response (only failures)
-        if debug_logger:
-            debug_logger.log_translation_response(
-                chunk_index,
-                translated,
-                len(local_tag_map),
-                validation_result,
-                retry_attempt=attempt
-            )
-
         if validation_result:
             # Success - restore to global indices
             if attempt == 0:
@@ -477,17 +460,6 @@ async def translate_chunk_with_fallback(
                     log_callback("retry_success", f"Translation succeeded after {attempt + 1} attempt(s)")
 
             result = placeholder_mgr.restore_to_global(translated, global_indices)
-
-            # DEBUG: Log global restoration (only if problems occur, checked inside function)
-            if debug_logger:
-                debug_logger.log_global_restoration(
-                    chunk_index,
-                    translated,
-                    result,
-                    global_indices,
-                    is_fallback=False
-                )
-
             return result
         else:
             if log_callback:
@@ -506,27 +478,6 @@ async def translate_chunk_with_fallback(
 
     # Return the original chunk_text with global indices restored
     result_final = placeholder_mgr.restore_to_global(chunk_text, global_indices)
-
-    # DEBUG: Log fallback usage
-    if debug_logger:
-        debug_logger.log_fallback_usage(
-            chunk_index,
-            "untranslated",
-            f"All {max_retries} translation attempts failed validation - returning untranslated text",
-            original_text=chunk_text,
-            translated_text=translated if translated is not None else "None (translation failed)",
-            positions_before={},
-            positions_after={},
-            result_with_placeholders=chunk_text
-        )
-        debug_logger.log_global_restoration(
-            chunk_index,
-            chunk_text,
-            result_final,
-            global_indices,
-            is_fallback=True
-        )
-
     return result_final
 
 
@@ -534,38 +485,21 @@ async def translate_chunk_with_fallback(
 
 def _setup_translation(
     doc_root: etree._Element,
-    enable_structure_debug: bool = True,
-    translation_id: str = None,
-    file_path: str = None,
     log_callback: Optional[Callable] = None,
     container: Optional[TranslationContainer] = None
-) -> Tuple[str, etree._Element, TagPreserver, Optional[StructureDebugLogger]]:
+) -> Tuple[str, etree._Element, TagPreserver]:
     """Extract body HTML and initialize tag preserver.
 
     Args:
         doc_root: XHTML document root
-        enable_structure_debug: Enable detailed structure debugging
-        translation_id: Optional translation ID for debug logs
-        file_path: Optional file path for debug logs
         log_callback: Optional logging callback
         container: Optional dependency injection container (uses default if None)
 
     Returns:
-        Tuple of (body_html, body_element, tag_preserver, debug_logger)
+        Tuple of (body_html, body_element, tag_preserver)
     """
-    # Initialize debug logger if enabled
-    debug_logger = None
-    if enable_structure_debug:
-        debug_logger = StructureDebugLogger(translation_id=translation_id)
-        if log_callback:
-            log_callback("debug_logger", f"Structure debug logging enabled: {debug_logger.log_file}")
-
     # Extract body
     body_html, body_element = extract_body_html(doc_root)
-
-    # DEBUG: Log original HTML
-    if debug_logger:
-        debug_logger.log_original_html(body_html, file_path)
 
     # Initialize tag preserver (use container if provided, otherwise create directly)
     if container is not None:
@@ -573,13 +507,12 @@ def _setup_translation(
     else:
         tag_preserver = TagPreserver()
 
-    return body_html, body_element, tag_preserver, debug_logger
+    return body_html, body_element, tag_preserver
 
 
 def _preserve_tags(
     body_html: str,
     tag_preserver: TagPreserver,
-    debug_logger: Optional[StructureDebugLogger],
     log_callback: Optional[Callable] = None
 ) -> Tuple[str, Dict[str, str], Tuple[str, str]]:
     """Replace HTML tags with placeholders.
@@ -587,7 +520,6 @@ def _preserve_tags(
     Args:
         body_html: HTML content to process
         tag_preserver: TagPreserver instance
-        debug_logger: Optional debug logger
         log_callback: Optional logging callback
 
     Returns:
@@ -602,10 +534,6 @@ def _preserve_tags(
         format_info = f" using format {placeholder_format[0]}N{placeholder_format[1]}"
         log_callback("tags_preserved", f"Preserved {len(global_tag_map)} tag groups{format_info}")
 
-    # DEBUG: Log tag preservation
-    if debug_logger:
-        debug_logger.log_tag_preservation(text_with_placeholders, global_tag_map, placeholder_format)
-
     return text_with_placeholders, global_tag_map, placeholder_format
 
 
@@ -613,7 +541,6 @@ def _create_chunks(
     text: str,
     tag_map: Dict[str, str],
     max_tokens: int,
-    debug_logger: Optional[StructureDebugLogger],
     log_callback: Optional[Callable] = None,
     container: Optional[TranslationContainer] = None
 ) -> List[Dict]:
@@ -623,7 +550,6 @@ def _create_chunks(
         text: Text with placeholders
         tag_map: Global tag map
         max_tokens: Maximum tokens per chunk
-        debug_logger: Optional debug logger
         log_callback: Optional logging callback
         container: Optional dependency injection container (uses default if None)
 
@@ -641,10 +567,6 @@ def _create_chunks(
     if log_callback:
         log_callback("chunks_created", f"Created {len(chunks)} chunks")
 
-    # DEBUG: Log chunk creation
-    if debug_logger:
-        debug_logger.log_chunk_creation(chunks, tag_map)
-
     return chunks
 
 
@@ -657,7 +579,6 @@ async def _translate_all_chunks(
     max_retries: int,
     context_manager: Optional[AdaptiveContextManager],
     placeholder_format: Tuple[str, str],
-    debug_logger: Optional[StructureDebugLogger],
     log_callback: Optional[Callable] = None,
     progress_callback: Optional[Callable] = None
 ) -> Tuple[List[str], TranslationStats]:
@@ -672,7 +593,6 @@ async def _translate_all_chunks(
         max_retries: Maximum retry attempts per chunk
         context_manager: Optional context window manager
         placeholder_format: Tuple of (prefix, suffix) for placeholders
-        debug_logger: Optional debug logger
         log_callback: Optional callback for progress
         progress_callback: Optional callback for progress percentage
 
@@ -698,9 +618,7 @@ async def _translate_all_chunks(
             log_callback=log_callback,
             max_retries=max_retries,
             context_manager=context_manager,
-            placeholder_format=placeholder_format,
-            debug_logger=debug_logger,
-            chunk_index=i
+            placeholder_format=placeholder_format
         )
         translated_chunks.append(translated)
 
@@ -710,8 +628,7 @@ async def _translate_all_chunks(
 def _reconstruct_html(
     translated_chunks: List[str],
     global_tag_map: Dict[str, str],
-    tag_preserver: TagPreserver,
-    debug_logger: Optional[StructureDebugLogger]
+    tag_preserver: TagPreserver
 ) -> str:
     """Reconstruct full HTML from translated chunks.
 
@@ -719,25 +636,18 @@ def _reconstruct_html(
         translated_chunks: List of translated chunk texts
         global_tag_map: Global tag map
         tag_preserver: TagPreserver instance
-        debug_logger: Optional debug logger
 
     Returns:
         Reconstructed HTML string
     """
     full_translated_text = ''.join(translated_chunks)
     final_html = tag_preserver.restore_tags(full_translated_text, global_tag_map)
-
-    # DEBUG: Log tag restoration
-    if debug_logger:
-        debug_logger.log_tag_restoration(full_translated_text, final_html, global_tag_map)
-
     return final_html
 
 
 def _replace_body(
     body_element: etree._Element,
     new_html: str,
-    debug_logger: Optional[StructureDebugLogger],
     log_callback: Optional[Callable] = None
 ) -> bool:
     """Replace body content with translated HTML.
@@ -745,7 +655,6 @@ def _replace_body(
     Args:
         body_element: Body element to update
         new_html: New HTML content
-        debug_logger: Optional debug logger
         log_callback: Optional logging callback
 
     Returns:
@@ -772,14 +681,12 @@ def _replace_body(
                      f"⚠️ WARNING: {len(remaining_placeholders)} unreplaced placeholders found in reconstructed HTML: {remaining_placeholders[:10]}")
 
     # Capture XML parsing errors if they occur
-    xml_errors = []
     try:
         replace_body_content(body_element, new_html)
         xml_success = True
     except (XmlParsingError, BodyExtractionError) as e:
         # Expected XML/parsing errors - handle gracefully
         xml_success = False
-        xml_errors.append(str(e))
         if log_callback:
             log_callback("replace_body_error", f"Failed to replace body content: {str(e)}")
             # Show preview of problematic HTML
@@ -789,7 +696,6 @@ def _replace_body(
         # Unexpected error - log full traceback for debugging
         import traceback
         xml_success = False
-        xml_errors.append(str(e))
 
         if log_callback:
             log_callback("replace_body_unexpected_error",
@@ -806,24 +712,11 @@ def _replace_body(
         if DEBUG_MODE:
             raise
 
-    # DEBUG: Log XML validation
-    if debug_logger:
-        # Try to parse the HTML to check for errors
-        from lxml import etree as ET
-        parser = ET.XMLParser(recover=True)
-        try:
-            ET.fromstring(f"<root>{new_html}</root>", parser)
-            parse_errors = [str(err) for err in parser.error_log]
-            debug_logger.log_xml_validation(new_html, xml_success, parse_errors if parse_errors else xml_errors)
-        except Exception as e:
-            debug_logger.log_xml_validation(new_html, False, [str(e)])
-
     return xml_success
 
 
 def _report_statistics(
     stats: TranslationStats,
-    debug_logger: Optional[StructureDebugLogger],
     log_callback: Optional[Callable] = None,
     progress_callback: Optional[Callable] = None
 ) -> None:
@@ -831,15 +724,10 @@ def _report_statistics(
 
     Args:
         stats: TranslationStats instance
-        debug_logger: Optional debug logger
         log_callback: Optional callback for logging
         progress_callback: Optional callback for progress percentage
     """
     stats.log_summary(log_callback)
-
-    # DEBUG: Log summary
-    if debug_logger:
-        debug_logger.log_summary(stats)
 
     if log_callback:
         log_callback("translation_complete", "Body translation complete")
@@ -859,9 +747,6 @@ async def translate_xhtml_simplified(
     progress_callback: Optional[Callable] = None,
     context_manager: Optional[AdaptiveContextManager] = None,
     max_retries: int = 1,
-    translation_id: str = None,
-    file_path: str = None,
-    enable_structure_debug: bool = True,
     container: Optional[TranslationContainer] = None
 ) -> bool:
     """
@@ -887,20 +772,14 @@ async def translate_xhtml_simplified(
         progress_callback: Optional progress callback (0-100)
         context_manager: Optional AdaptiveContextManager for handling context overflow
         max_retries: Maximum translation retry attempts per chunk
-        translation_id: Optional translation ID for debug logs
-        file_path: Optional file path for debug logs
-        enable_structure_debug: Enable detailed structure debugging (default: True)
         container: Optional dependency injection container for components
 
     Returns:
         True if successful, False otherwise
     """
     # 1. Setup
-    body_html, body_element, tag_preserver, debug_logger = _setup_translation(
+    body_html, body_element, tag_preserver = _setup_translation(
         doc_root,
-        enable_structure_debug,
-        translation_id,
-        file_path,
         log_callback,
         container
     )
@@ -914,7 +793,6 @@ async def translate_xhtml_simplified(
     text_with_placeholders, global_tag_map, placeholder_format = _preserve_tags(
         body_html,
         tag_preserver,
-        debug_logger,
         log_callback
     )
 
@@ -923,7 +801,6 @@ async def translate_xhtml_simplified(
         text_with_placeholders,
         global_tag_map,
         max_tokens_per_chunk,
-        debug_logger,
         log_callback,
         container
     )
@@ -938,7 +815,6 @@ async def translate_xhtml_simplified(
         max_retries=max_retries,
         context_manager=context_manager,
         placeholder_format=placeholder_format,
-        debug_logger=debug_logger,
         log_callback=log_callback,
         progress_callback=progress_callback
     )
@@ -947,14 +823,13 @@ async def translate_xhtml_simplified(
     final_html = _reconstruct_html(
         translated_chunks,
         global_tag_map,
-        tag_preserver,
-        debug_logger
+        tag_preserver
     )
 
     # 6. Replace body
-    xml_success = _replace_body(body_element, final_html, debug_logger, log_callback)
+    xml_success = _replace_body(body_element, final_html, log_callback)
 
     # 7. Report stats
-    _report_statistics(stats, debug_logger, log_callback, progress_callback)
+    _report_statistics(stats, log_callback, progress_callback)
 
     return xml_success
