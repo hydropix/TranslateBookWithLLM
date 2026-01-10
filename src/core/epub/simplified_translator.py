@@ -48,7 +48,8 @@ from .tag_preservation import TagPreserver
 from .exceptions import (
     PlaceholderValidationError,
     TagRestorationError,
-    XmlParsingError
+    XmlParsingError,
+    BodyExtractionError
 )
 from .placeholder_validator import PlaceholderValidator
 from .container import TranslationContainer
@@ -736,7 +737,8 @@ def _reconstruct_html(
 def _replace_body(
     body_element: etree._Element,
     new_html: str,
-    debug_logger: Optional[StructureDebugLogger]
+    debug_logger: Optional[StructureDebugLogger],
+    log_callback: Optional[Callable] = None
 ) -> bool:
     """Replace body content with translated HTML.
 
@@ -744,18 +746,65 @@ def _replace_body(
         body_element: Body element to update
         new_html: New HTML content
         debug_logger: Optional debug logger
+        log_callback: Optional logging callback
 
     Returns:
         True if successful, False otherwise
     """
+    # Check for unreplaced placeholders in the HTML before attempting to replace body
+    import re
+    placeholder_patterns = [
+        r'\[id\d+\]',
+        r'\[\[\d+\]\]',
+        r'/\d+(?!/)',
+        r'\$\d+\$',
+        r'\[\d+\]'
+    ]
+
+    remaining_placeholders = []
+    for pattern in placeholder_patterns:
+        matches = re.findall(pattern, new_html)
+        if matches:
+            remaining_placeholders.extend(matches)
+
+    if remaining_placeholders and log_callback:
+        log_callback("unreplaced_placeholders_warning",
+                     f"⚠️ WARNING: {len(remaining_placeholders)} unreplaced placeholders found in reconstructed HTML: {remaining_placeholders[:10]}")
+
     # Capture XML parsing errors if they occur
     xml_errors = []
     try:
         replace_body_content(body_element, new_html)
         xml_success = True
-    except Exception as e:
+    except (XmlParsingError, BodyExtractionError) as e:
+        # Expected XML/parsing errors - handle gracefully
         xml_success = False
         xml_errors.append(str(e))
+        if log_callback:
+            log_callback("replace_body_error", f"Failed to replace body content: {str(e)}")
+            # Show preview of problematic HTML
+            preview = new_html[:500] if len(new_html) > 500 else new_html
+            log_callback("replace_body_html_preview", f"HTML preview: {preview}")
+    except Exception as e:
+        # Unexpected error - log full traceback for debugging
+        import traceback
+        xml_success = False
+        xml_errors.append(str(e))
+
+        if log_callback:
+            log_callback("replace_body_unexpected_error",
+                        f"⚠️ UNEXPECTED ERROR in replace_body_content: {type(e).__name__}: {str(e)}")
+            # Log full traceback
+            full_traceback = traceback.format_exc()
+            log_callback("replace_body_traceback", f"Full traceback:\n{full_traceback}")
+            # Show preview of problematic HTML
+            preview = new_html[:500] if len(new_html) > 500 else new_html
+            log_callback("replace_body_html_preview", f"HTML preview: {preview}")
+
+        # In debug mode, re-raise unexpected errors to fail fast
+        from src.config import DEBUG_MODE
+        if DEBUG_MODE:
+            raise
 
     # DEBUG: Log XML validation
     if debug_logger:
@@ -903,7 +952,7 @@ async def translate_xhtml_simplified(
     )
 
     # 6. Replace body
-    xml_success = _replace_body(body_element, final_html, debug_logger)
+    xml_success = _replace_body(body_element, final_html, debug_logger, log_callback)
 
     # 7. Report stats
     _report_statistics(stats, debug_logger, log_callback, progress_callback)

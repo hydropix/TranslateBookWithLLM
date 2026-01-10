@@ -68,25 +68,23 @@ def build_placeholder_section(
 
     Returns formatted instructions for preserving placeholders.
     """
-    # Use custom format if provided, otherwise use defaults
-    if placeholder_format:
-        prefix, suffix = placeholder_format
-        tag0 = f"{prefix}0{suffix}"
-        tag1 = f"{prefix}1{suffix}"
-        tag2 = f"{prefix}2{suffix}"
-    else:
-        tag0, tag1, tag2 = TAG0, TAG1, TAG2
+    # Use TAG0, TAG1, TAG2 constants (always [idN] format)
+    tag0, tag1, tag2 = TAG0, TAG1, TAG2
 
     example, actual_source, actual_target = get_placeholder_example(source_lang, target_lang)
 
-    # Replace placeholders in examples with the actual format being used
-    example_source = example['source'].replace(TAG0, tag0).replace(TAG1, tag1)
-    example_correct = example['correct'].replace(TAG0, tag0).replace(TAG1, tag1)
+    # Use examples as-is (already using [idN] format)
+    example_source = example['source']
+    example_correct = example['correct']
 
     return f"""# PLACEHOLDER PRESERVATION (CRITICAL)
 
 You will encounter placeholders like: {tag0}, {tag1}, {tag2}
 These represent HTML/XML tags that have been temporarily replaced.
+
+**UNIFIED FORMAT:**
+All placeholders use the [idN] format: [id0], [id1], [id2]...
+This semantic format provides the highest accuracy for preservation.
 
 **MANDATORY RULES:**
 1. Keep ALL placeholders EXACTLY as they appear
@@ -100,6 +98,10 @@ Source: "{example_source}"
 ✅ Correct: "{example_correct}"
 ❌ WRONG: "{example['wrong']}" (placeholders removed)
 """
+
+
+# Removed _extract_format_from_tag and _get_format_description
+# These functions are no longer needed with unified [idN] format
 
 
 def build_image_placeholder_section(

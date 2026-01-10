@@ -148,6 +148,25 @@ USE_TOKEN_CHUNKING = os.getenv('USE_TOKEN_CHUNKING', 'true').lower() == 'true'
 MAX_TOKENS_PER_CHUNK = int(os.getenv('MAX_TOKENS_PER_CHUNK', '450'))
 SOFT_LIMIT_RATIO = float(os.getenv('SOFT_LIMIT_RATIO', '0.8'))
 
+# === Translation Buffer Configuration ===
+TRANSLATION_OUTPUT_MULTIPLIER = 2
+"""Multiplicateur pour la longueur de sortie estimée (certaines langues cibles
+peuvent être 2x plus longues que la source)"""
+
+TRANSLATION_TAG_OVERHEAD = 50
+"""Tokens réservés pour les balises XML de traduction (<Translated>...</Translated>)"""
+
+# === Placeholder Validation ===
+MAX_PLACEHOLDER_RETRIES = 3
+"""Nombre maximum de tentatives de validation des placeholders"""
+
+MAX_PLACEHOLDER_CORRECTION_ATTEMPTS = 2
+"""Nombre maximum de tentatives de correction LLM pour les placeholders malformés"""
+
+# === Chunking Limits ===
+MIN_CHUNK_SIZE_TOKENS = 50
+"""Taille minimale d'un chunk pour éviter la sur-fragmentation"""
+
 # LLM Provider configuration
 LLM_PROVIDER = os.getenv('LLM_PROVIDER', 'ollama')  # 'ollama', 'gemini', 'openai', or 'openrouter'
 GEMINI_API_KEY = os.getenv('GEMINI_API_KEY', '')
@@ -226,107 +245,41 @@ INPUT_TAG_OUT = "</SOURCE_TEXT>"
 # These placeholders are used to temporarily replace HTML/XML tags during
 # translation. The LLM must preserve them exactly in its output.
 #
-# Format: Adaptive based on text content
-# - [[0]], [[1]], [[2]] - used when text contains [ or ] characters (safe mode)
-# - [0], [1], [2] - used when text has no brackets (simplified, saves tokens)
+# Unified format: [id0], [id1], [id2], ...
+# - Semantic naming helps LLM understand these are identifiers
 # - Compact format reduces token usage
 # - Adjacent tags are grouped into single placeholders
 # - Strict validation ensures placeholder integrity
 
-# Default format (double brackets - safe for all text)
-PLACEHOLDER_PREFIX_SAFE = "[["
-"""Prefix for tag placeholders in safe mode (e.g., [[ in [[0]])"""
+# Single unified format
+PLACEHOLDER_PREFIX = "[id"
+"""Prefix for tag placeholders (e.g., [id in [id0])"""
 
-PLACEHOLDER_SUFFIX_SAFE = "]]"
-"""Suffix for tag placeholders in safe mode (e.g., ]] in [[0]])"""
+PLACEHOLDER_SUFFIX = "]"
+"""Suffix for tag placeholders (e.g., ] in [id0])"""
 
-PLACEHOLDER_PATTERN_SAFE = r'\[\[\d+\]\]'
-"""Regex pattern for safe mode placeholders (e.g., [[0]])"""
-
-# Simplified format (single brackets - used when text has no brackets)
-PLACEHOLDER_PREFIX_SIMPLE = "["
-"""Prefix for tag placeholders in simple mode (e.g., [ in [0])"""
-
-PLACEHOLDER_SUFFIX_SIMPLE = "]"
-"""Suffix for tag placeholders in simple mode (e.g., ] in [0])"""
-
-PLACEHOLDER_PATTERN_SIMPLE = r'(?<!\[)\[\d+\](?!\])'
-"""Regex pattern for simple mode placeholders (e.g., [0]) - with negative lookahead/behind to avoid matching [[0]]"""
-
-# Legacy aliases for backward compatibility (use safe mode by default)
-PLACEHOLDER_PREFIX = PLACEHOLDER_PREFIX_SAFE
-"""Prefix for tag placeholders (adaptive, defaults to safe mode)"""
-
-PLACEHOLDER_SUFFIX = PLACEHOLDER_SUFFIX_SAFE
-"""Suffix for tag placeholders (adaptive, defaults to safe mode)"""
-
-PLACEHOLDER_PATTERN = PLACEHOLDER_PATTERN_SAFE
-"""Regex pattern for detecting tag placeholders (adaptive, defaults to safe mode)"""
+PLACEHOLDER_PATTERN = r'\[id(\d+)\]'
+"""Regex pattern for placeholders (e.g., [id0])"""
 
 # Maximum retries for placeholder validation before falling back to source text
 MAX_PLACEHOLDER_RETRIES = 0
 """Number of retry attempts when placeholder validation fails"""
 
-MAX_PLACEHOLDER_CORRECTION_ATTEMPTS = 2
-"""Number of LLM correction attempts before falling back to proportional insertion"""
-
-# Mutation patterns - alternative formats LLMs might produce
-# These patterns detect common LLM transformations of placeholders
-PLACEHOLDER_SINGLE_BRACKET_PATTERN = r'\[\d+\]'
-"""Pattern for single bracket mutation (e.g., [0]) - NOTE: Also used as simplified format when text has no brackets"""
-
-PLACEHOLDER_CURLY_BRACE_PATTERN = r'\{\d+\}'
-"""Pattern for curly brace mutation (e.g., {0})"""
-
-PLACEHOLDER_ANGLE_BRACKET_PATTERN = r'<\d+>'
-"""Pattern for angle bracket mutation (e.g., <0>)"""
-
-PLACEHOLDER_PAREN_PATTERN = r'\(\d+\)'
-"""Pattern for parenthesis mutation (e.g., (0))"""
-
-PLACEHOLDER_BARE_PATTERN = r'(?<!\[)(?<!\d)\d+(?!\d)(?!\])'
-"""Pattern for bare number without brackets (e.g., 0) - with negative lookahead/behind"""
-
-# Orphaned bracket patterns for cleanup
-ORPHANED_DOUBLE_BRACKETS_PATTERN = r'\[\[|\]\]'
-"""Pattern for orphaned double brackets"""
-
-ORPHANED_UNICODE_BRACKETS_PATTERN = r'⟦|⟧'
-"""Pattern for orphaned Unicode brackets (legacy format)"""
-
-ORPHANED_SINGLE_BRACKETS_PATTERN = r'(?<!\[)\[(?!\[)|(?<!\])\](?!\])'
-"""Pattern for orphaned single brackets"""
-
-# Legacy compatibility - kept for potential migration from old format
-PLACEHOLDER_TAG_KEYWORD = "TAG"
-"""Legacy keyword (kept for backward compatibility with existing translations)"""
-
-LEGACY_PLACEHOLDER_PATTERN = rf'\[{PLACEHOLDER_TAG_KEYWORD}\d+\]'
-"""Legacy pattern for old-format placeholders (e.g., [TAG0])"""
+MAX_PLACEHOLDER_CORRECTION_ATTEMPTS = 0
+"""Number of LLM correction attempts before falling back to proportional insertion (0 = skip correction phase entirely)"""
 
 
 def detect_placeholder_mode(text: str) -> tuple:
     """
-    Automatically detect which placeholder format to use based on text content.
-
-    Uses simplified format [0] when text contains no brackets [ or ].
-    Uses safe format [[0]] when text contains brackets to avoid conflicts.
+    Returns the unified placeholder format [idN].
 
     Args:
-        text: Text to analyze for bracket presence
+        text: Text (parameter kept for backward compatibility but unused)
 
     Returns:
-        Tuple of (prefix, suffix, pattern) for the appropriate mode
+        Tuple of (prefix, suffix, pattern) for the [idN] format
     """
-    # Check if text contains any square brackets
-    has_brackets = '[' in text or ']' in text
-
-    if has_brackets:
-        # Safe mode - use double brackets
-        return (PLACEHOLDER_PREFIX_SAFE, PLACEHOLDER_SUFFIX_SAFE, PLACEHOLDER_PATTERN_SAFE)
-    else:
-        # Simplified mode - use single brackets (saves tokens)
-        return (PLACEHOLDER_PREFIX_SIMPLE, PLACEHOLDER_SUFFIX_SIMPLE, PLACEHOLDER_PATTERN_SIMPLE)
+    return (PLACEHOLDER_PREFIX, PLACEHOLDER_SUFFIX, PLACEHOLDER_PATTERN)
 
 
 def create_placeholder(tag_num: int, prefix: str = None, suffix: str = None) -> str:
@@ -335,11 +288,11 @@ def create_placeholder(tag_num: int, prefix: str = None, suffix: str = None) -> 
 
     Args:
         tag_num: Tag number
-        prefix: Optional custom prefix (defaults to PLACEHOLDER_PREFIX_SAFE)
-        suffix: Optional custom suffix (defaults to PLACEHOLDER_SUFFIX_SAFE)
+        prefix: Optional custom prefix (defaults to PLACEHOLDER_PREFIX)
+        suffix: Optional custom suffix (defaults to PLACEHOLDER_SUFFIX)
 
     Returns:
-        Placeholder string like [[0]] or [0]
+        Placeholder string like [id0]
     """
     if prefix is None:
         prefix = PLACEHOLDER_PREFIX
@@ -357,41 +310,22 @@ def create_example_placeholder(prefix: str = None, suffix: str = None) -> str:
         suffix: Optional custom suffix
 
     Returns:
-        Example placeholder like [[0]] or [0]
+        Example placeholder like [id0]
     """
     return create_placeholder(0, prefix, suffix)
 
 
-def get_mutation_variants(tag_num, current_format_is_simple: bool = False) -> list:
+def detect_format_from_placeholder(sample_placeholder: str) -> str:
     """
-    Get all possible mutation variants for a given tag number.
-
-    These are alternative formats that LLMs might produce instead of
-    the correct placeholder format.
+    Returns the unified format name.
 
     Args:
-        tag_num: The tag number (e.g., 0 for [[0]]) - can be int or str
-        current_format_is_simple: If True, [N] is the correct format (not a mutation)
+        sample_placeholder: A sample placeholder (parameter kept for backward compatibility)
 
     Returns:
-        List of possible mutation strings
+        Format name (always "id" for [idN] format)
     """
-    variants = [
-        f"{{{tag_num}}}",    # Curly braces: {0}
-        f"<{tag_num}>",      # Angle brackets: <0>
-        f"({tag_num})",      # Parentheses: (0)
-        f"{tag_num}",        # Bare number: 0 (check last)
-    ]
-
-    # Add the opposite format as a mutation
-    if current_format_is_simple:
-        # Simple format [N] is correct, so [[N]] is a mutation
-        variants.insert(0, f"[[{tag_num}]]")
-    else:
-        # Safe format [[N]] is correct, so [N] is a mutation
-        variants.insert(0, f"[{tag_num}]")
-
-    return variants
+    return "id"
 
 
 # Sentence terminators
@@ -551,35 +485,33 @@ class TranslationConfig:
 
 def detect_placeholder_format_in_text(text: str) -> tuple:
     """
-    Detect which placeholder format is used in the text.
-
-    Checks for presence of simple format [N] vs safe format [[N]].
-    Defaults to safe format if ambiguous or no placeholders found.
+    Returns the unified placeholder format [idN].
 
     Args:
-        text: Text containing placeholders
+        text: Text (parameter kept for backward compatibility but unused)
 
     Returns:
-        (prefix, suffix) tuple:
-            ("[", "]") for simple format
-            ("[[", "]]") for safe format (default)
+        (prefix, suffix) tuple for [idN] format
 
     Example:
-        >>> detect_placeholder_format_in_text("Hello [0] world [1]")
-        ("[", "]")
-        >>> detect_placeholder_format_in_text("Hello [[0]] world [[1]]")
-        ("[[", "]]")
-        >>> detect_placeholder_format_in_text("No placeholders here")
-        ("[[", "]]")  # Default to safe
+        >>> detect_placeholder_format_in_text("Hello [id0] world [id1]")
+        ("[id", "]")
     """
-    import re
+    return PLACEHOLDER_PREFIX, PLACEHOLDER_SUFFIX
 
-    # Negative lookahead/behind to avoid matching [[0]] as [0]
-    has_simple = bool(re.search(r'(?<!\[)\[\d+\](?!\])', text))
-    has_safe = bool(re.search(r'\[\[\d+\]\]', text))
 
-    if has_simple and not has_safe:
-        return PLACEHOLDER_PREFIX_SIMPLE, PLACEHOLDER_SUFFIX_SIMPLE
-    else:
-        # Default to safe format
-        return PLACEHOLDER_PREFIX_SAFE, PLACEHOLDER_SUFFIX_SAFE
+def detect_existing_placeholder_format(text: str) -> tuple:
+    """
+    Returns the unified placeholder format [idN].
+
+    Args:
+        text: Text (parameter kept for backward compatibility but unused)
+
+    Returns:
+        Tuple of (prefix, suffix, pattern) for the [idN] format
+
+    Example:
+        >>> detect_existing_placeholder_format("Hello [id0] world [id1]")
+        ("[id", "]", r'\\[id(\\d+)\\]')
+    """
+    return (PLACEHOLDER_PREFIX, PLACEHOLDER_SUFFIX, PLACEHOLDER_PATTERN)

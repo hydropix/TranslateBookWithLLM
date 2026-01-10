@@ -76,10 +76,14 @@ class HtmlChunker:
         """
         split_points = []
 
+        # Detect placeholder format dynamically from the text
+        from src.config import detect_existing_placeholder_format
+        prefix, suffix, pattern = detect_existing_placeholder_format(text)
+
         # Pattern to find placeholders with their positions
         placeholder_positions = [
             (m.start(), m.end(), m.group())
-            for m in re.finditer(r'\[\[\d+\]\]', text)
+            for m in re.finditer(pattern, text)
         ]
 
         for i, (start, end, placeholder) in enumerate(placeholder_positions):
@@ -728,3 +732,182 @@ class TranslationStats:
         if self.total_chunks == 0:
             return 0
         return round(value / self.total_chunks * 100, 1)
+
+
+# === Enhanced Metrics (Phase 3) ===
+
+import time
+from dataclasses import dataclass, field
+
+
+@dataclass
+class TranslationMetrics:
+    """Comprehensive translation metrics.
+
+    Tracks counts, timing, token usage, and retry distribution.
+    This is an enhanced version of TranslationStats for Phase 3 refactoring.
+    """
+    # === Counts ===
+    total_chunks: int = 0
+    successful_first_try: int = 0
+    successful_after_retry: int = 0
+    fallback_used: int = 0
+    failed_chunks: int = 0
+
+    # === Timing ===
+    total_time_seconds: float = 0.0
+    start_time: float = field(default_factory=time.time)
+    end_time: float = 0.0
+
+    # === Token Usage ===
+    total_tokens_processed: int = 0
+    total_tokens_generated: int = 0
+
+    # === Retry Distribution ===
+    retry_distribution: Dict[int, int] = field(default_factory=dict)
+    """Map of retry_count -> number_of_chunks. Example: {0: 85, 1: 10, 2: 5}"""
+
+    # === Chunk Size Stats ===
+    min_chunk_size: int = field(default_factory=lambda: float('inf'))
+    max_chunk_size: int = 0
+    total_chunk_size: int = 0
+
+    def record_success(self, attempt: int, chunk_size: int) -> None:
+        """Record successful translation.
+
+        Args:
+            attempt: Attempt number (0 = first try)
+            chunk_size: Size of chunk in tokens
+        """
+        self.total_chunks += 1
+
+        if attempt == 0:
+            self.successful_first_try += 1
+        else:
+            self.successful_after_retry += 1
+
+        # Update retry distribution
+        self.retry_distribution[attempt] = self.retry_distribution.get(attempt, 0) + 1
+
+        # Update chunk size stats
+        self._update_chunk_stats(chunk_size)
+
+    def record_fallback(self, chunk_size: int) -> None:
+        """Record fallback usage.
+
+        Args:
+            chunk_size: Size of chunk in tokens
+        """
+        self.total_chunks += 1
+        self.fallback_used += 1
+        self._update_chunk_stats(chunk_size)
+
+    def record_failure(self, chunk_size: int) -> None:
+        """Record failed translation.
+
+        Args:
+            chunk_size: Size of chunk in tokens
+        """
+        self.total_chunks += 1
+        self.failed_chunks += 1
+        self._update_chunk_stats(chunk_size)
+
+    def _update_chunk_stats(self, chunk_size: int) -> None:
+        """Update chunk size statistics."""
+        self.min_chunk_size = min(self.min_chunk_size, chunk_size)
+        self.max_chunk_size = max(self.max_chunk_size, chunk_size)
+        self.total_chunk_size += chunk_size
+
+    def finalize(self) -> None:
+        """Finalize metrics (call when translation completes)."""
+        self.end_time = time.time()
+        self.total_time_seconds = self.end_time - self.start_time
+
+    @property
+    def avg_time_per_chunk(self) -> float:
+        """Average time per chunk in seconds."""
+        if self.total_chunks == 0:
+            return 0.0
+        return self.total_time_seconds / self.total_chunks
+
+    @property
+    def avg_chunk_size(self) -> float:
+        """Average chunk size in tokens."""
+        if self.total_chunks == 0:
+            return 0.0
+        return self.total_chunk_size / self.total_chunks
+
+    @property
+    def success_rate(self) -> float:
+        """Success rate (excludes fallbacks)."""
+        if self.total_chunks == 0:
+            return 0.0
+        successful = self.successful_first_try + self.successful_after_retry
+        return successful / self.total_chunks
+
+    @property
+    def first_try_rate(self) -> float:
+        """First-try success rate."""
+        if self.total_chunks == 0:
+            return 0.0
+        return self.successful_first_try / self.total_chunks
+
+    def to_dict(self) -> Dict:
+        """Convert metrics to dictionary for serialization."""
+        return {
+            "total_chunks": self.total_chunks,
+            "successful_first_try": self.successful_first_try,
+            "successful_after_retry": self.successful_after_retry,
+            "fallback_used": self.fallback_used,
+            "failed_chunks": self.failed_chunks,
+            "total_time_seconds": self.total_time_seconds,
+            "avg_time_per_chunk": self.avg_time_per_chunk,
+            "total_tokens_processed": self.total_tokens_processed,
+            "total_tokens_generated": self.total_tokens_generated,
+            "avg_chunk_size": self.avg_chunk_size,
+            "min_chunk_size": self.min_chunk_size if self.min_chunk_size != float('inf') else 0,
+            "max_chunk_size": self.max_chunk_size,
+            "success_rate": self.success_rate,
+            "first_try_rate": self.first_try_rate,
+            "retry_distribution": self.retry_distribution
+        }
+
+    def log_summary(self, log_callback=None) -> None:
+        """Log comprehensive summary.
+
+        Args:
+            log_callback: Optional callback for logging
+        """
+        summary = f"""
+=== Translation Metrics Summary ===
+Total Chunks: {self.total_chunks}
+Success (first try): {self.successful_first_try} ({self.first_try_rate:.1%})
+Success (after retry): {self.successful_after_retry}
+Fallback Used: {self.fallback_used}
+Failed: {self.failed_chunks}
+
+Overall Success Rate: {self.success_rate:.1%}
+
+Timing:
+  Total Time: {self.total_time_seconds:.2f}s
+  Avg per Chunk: {self.avg_time_per_chunk:.2f}s
+
+Tokens:
+  Processed: {self.total_tokens_processed:,}
+  Generated: {self.total_tokens_generated:,}
+
+Chunk Sizes:
+  Min: {self.min_chunk_size if self.min_chunk_size != float('inf') else 0} tokens
+  Max: {self.max_chunk_size} tokens
+  Avg: {self.avg_chunk_size:.1f} tokens
+
+Retry Distribution:
+"""
+        for attempt, count in sorted(self.retry_distribution.items()):
+            percentage = (count / self.total_chunks * 100) if self.total_chunks > 0 else 0
+            summary += f"  {attempt} retries: {count} chunks ({percentage:.1f}%)\n"
+
+        if log_callback:
+            log_callback("translation_metrics", summary)
+        else:
+            print(summary)

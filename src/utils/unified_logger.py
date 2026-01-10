@@ -394,9 +394,9 @@ class UnifiedLogger:
             if data and isinstance(data, dict):
                 log_type = data.get('type')
                 if log_type == 'llm_request':
-                    self.log(LogLevel.INFO, "LLM Request", LogType.LLM_REQUEST, data)
+                    self.log(LogLevel.DEBUG, "LLM Request", LogType.LLM_REQUEST, data)
                 elif log_type == 'llm_response':
-                    self.log(LogLevel.INFO, "LLM Response", LogType.LLM_RESPONSE, data)
+                    self.log(LogLevel.DEBUG, "LLM Response", LogType.LLM_RESPONSE, data)
                 elif log_type == 'progress':
                     self.log(LogLevel.INFO, "Progress Update", LogType.PROGRESS, data)
                 else:
@@ -470,19 +470,63 @@ def get_logger(name: str = "TranslateBookWithLLM", **kwargs) -> UnifiedLogger:
 
 def setup_cli_logger(enable_colors: bool = True) -> UnifiedLogger:
     """Setup logger for CLI usage"""
+    # Import here to avoid circular dependencies
+    from src.config import DEBUG_MODE
+
     return get_logger(
         console_output=True,
         enable_colors=enable_colors,
-        min_level=LogLevel.INFO
+        min_level=LogLevel.DEBUG if DEBUG_MODE else LogLevel.INFO
     )
 
 
 def setup_web_logger(web_callback: Callable, storage_callback: Callable) -> UnifiedLogger:
     """Setup logger for web interface usage"""
+    # Import here to avoid circular dependencies
+    from src.config import DEBUG_MODE
+
     return get_logger(
         console_output=True,  # Also output to console for debugging
         enable_colors=True,   # Colors work in console even for web
-        min_level=LogLevel.INFO,
+        min_level=LogLevel.DEBUG if DEBUG_MODE else LogLevel.INFO,
         web_callback=web_callback,
         storage_callback=storage_callback
     )
+
+
+# === Module-level convenience functions ===
+
+def log(level: LogLevel, message: str,
+        log_type: LogType = LogType.GENERAL,
+        data: Optional[Dict[str, Any]] = None):
+    """
+    Module-level logging function using the global logger.
+
+    Args:
+        level: Log level
+        message: Log message
+        log_type: Type of log for special formatting
+        data: Additional data for the log entry
+    """
+    logger = get_logger()
+    logger.log(level, message, log_type, data)
+
+
+def debug(message: str, log_type: LogType = LogType.GENERAL, data: Optional[Dict[str, Any]] = None):
+    """Log debug message using global logger."""
+    log(LogLevel.DEBUG, message, log_type, data)
+
+
+def info(message: str, log_type: LogType = LogType.GENERAL, data: Optional[Dict[str, Any]] = None):
+    """Log info message using global logger."""
+    log(LogLevel.INFO, message, log_type, data)
+
+
+def warning(message: str, log_type: LogType = LogType.GENERAL, data: Optional[Dict[str, Any]] = None):
+    """Log warning message using global logger."""
+    log(LogLevel.WARNING, message, log_type, data)
+
+
+def error(message: str, log_type: LogType = LogType.GENERAL, data: Optional[Dict[str, Any]] = None):
+    """Log error message using global logger."""
+    log(LogLevel.ERROR, message, log_type, data)

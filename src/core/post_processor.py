@@ -7,14 +7,7 @@ from typing import List, Callable, Dict, Any
 from dataclasses import dataclass
 from abc import ABC, abstractmethod
 
-from src.config import (
-    PLACEHOLDER_PATTERN,
-    PLACEHOLDER_SINGLE_BRACKET_PATTERN,
-    PLACEHOLDER_BARE_PATTERN,
-    ORPHANED_DOUBLE_BRACKETS_PATTERN,
-    ORPHANED_UNICODE_BRACKETS_PATTERN,
-    LEGACY_PLACEHOLDER_PATTERN,
-)
+from src.config import PLACEHOLDER_PATTERN
 
 
 class PostProcessingRule(ABC):
@@ -35,20 +28,8 @@ class RemoveResidualTagPlaceholdersRule(PostProcessingRule):
     """Remove residual tag placeholders that might remain after tag restoration"""
 
     def apply(self, text: str) -> str:
-        # Remove [[0]], [[1]], etc. (current format)
+        # Remove [id0], [id1], etc. (unified format)
         text = re.sub(PLACEHOLDER_PATTERN, '', text)
-
-        # Remove [0], [1], etc. (single bracket mutation)
-        text = re.sub(PLACEHOLDER_SINGLE_BRACKET_PATTERN, '', text)
-
-        # Remove legacy [TAG0], [TAG1], etc. format
-        text = re.sub(LEGACY_PLACEHOLDER_PATTERN, '', text)
-
-        # Remove orphaned square brackets [[ or ]]
-        text = re.sub(ORPHANED_DOUBLE_BRACKETS_PATTERN, '', text)
-
-        # Remove orphaned special brackets ⟦ or ⟧ (legacy format)
-        text = re.sub(ORPHANED_UNICODE_BRACKETS_PATTERN, '', text)
 
         return text
 

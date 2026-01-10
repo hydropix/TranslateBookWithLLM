@@ -626,6 +626,15 @@ You must fix the placeholder positions to match the original text structure.
 - Sequential numbering starting from 0
 - Expected range for this text: {example_range}
 
+**FORMAT VARIATIONS:**
+The system uses different placeholder formats based on text content:
+- [id0], [id1], [id2]... (default - semantic markers, highest accuracy)
+- /0, /1, /2... (when text contains brackets)
+- $0$, $1$, $2$... (when text contains brackets and slashes)
+- [[0]], [[1]], [[2]]... (legacy format)
+
+All formats follow the same rules: preserve exact format, maintain sequential order, keep position.
+
 ## HOW TO POSITION PLACEHOLDERS
 
 Placeholders represent HTML/XML tags. To position them correctly:

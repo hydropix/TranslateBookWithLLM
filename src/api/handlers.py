@@ -103,15 +103,15 @@ async def perform_actual_translation(translation_id, config, state_manager, outp
         if data and isinstance(data, dict):
             log_type = data.get('type')
             if log_type == 'llm_request':
-                logger.info("LLM Request", LogType.LLM_REQUEST, data)
+                logger.debug("LLM Request", LogType.LLM_REQUEST, data)
             elif log_type == 'llm_response':
-                logger.info("LLM Response", LogType.LLM_RESPONSE, data)
+                logger.debug("LLM Response", LogType.LLM_RESPONSE, data)
             elif log_type == 'refinement_request':
                 # Refinement uses same log type as LLM request for UI display
-                logger.info("Refinement Request", LogType.LLM_REQUEST, data)
+                logger.debug("Refinement Request", LogType.LLM_REQUEST, data)
             elif log_type == 'refinement_response':
                 # Refinement uses same log type as LLM response for UI display
-                logger.info("Refinement Response", LogType.LLM_RESPONSE, data)
+                logger.debug("Refinement Response", LogType.LLM_RESPONSE, data)
             elif log_type == 'progress':
                 logger.info("Progress Update", LogType.PROGRESS, data)
             else:

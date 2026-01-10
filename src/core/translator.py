@@ -21,7 +21,6 @@ from .context_optimizer import (
     INITIAL_CONTEXT_SIZE,
     CONTEXT_STEP
 )
-from src.utils.llm_logger import log_llm_interaction
 from typing import List, Dict, Tuple, Optional
 
 
@@ -224,14 +223,6 @@ async def _make_llm_request_with_adaptive_context(
 
             last_response = llm_response
             full_raw_response = llm_response.content
-
-            # Log full interaction if DEBUG_MODE is enabled
-            log_llm_interaction(
-                system_prompt=prompt_pair.system,
-                user_prompt=prompt_pair.user,
-                raw_response=full_raw_response,
-                interaction_type="translation"
-            )
 
             # Check if we should retry with larger context (adaptive strategy)
             if context_manager and llm_response.was_truncated:

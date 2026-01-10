@@ -11,7 +11,6 @@ from .llm_client import create_llm_client
 from .post_processor import clean_translated_text
 from .translator import generate_translation_request
 from .epub import TagPreserver
-from src.utils.llm_logger import log_llm_interaction
 
 
 async def translate_subtitles(subtitles: List[Dict[str, str]], source_language: str,
@@ -290,16 +289,6 @@ async def translate_subtitles_in_blocks(subtitle_blocks: List[List[Dict[str, str
 
                     # Extract raw response content
                     full_raw_response = llm_response.content if llm_response else None
-
-                    # Log full interaction if DEBUG_MODE is enabled
-                    if full_raw_response:
-                        log_llm_interaction(
-                            system_prompt=prompt_pair.system,
-                            user_prompt=prompt_pair.user,
-                            raw_response=full_raw_response,
-                            interaction_type="subtitle_translation",
-                            prefix=f"Block {block_idx+1}, Retry {retry_count}" if retry_count > 0 else f"Block {block_idx+1}"
-                        )
 
                     # Log the LLM response with structured data for web interface preview
                     if full_raw_response and log_callback:

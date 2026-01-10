@@ -8,10 +8,11 @@ Key features:
 - Groups adjacent tags AND non-translatable content into single placeholders
 - Strict validation ensures placeholder integrity post-translation
 - Automatic mutation detection and correction
-- Boundary tag optimization (first/last tags not sent to LLM)
 """
 import re
 from typing import Dict, List, Tuple
+
+from .placeholder_validator import PlaceholderValidator
 
 
 def is_non_translatable(text: str) -> bool:
@@ -50,15 +51,10 @@ def is_non_translatable(text: str) -> bool:
     return bool(re.match(non_translatable_pattern, stripped, re.IGNORECASE))
 
 from src.config import (
-    PLACEHOLDER_PREFIX_SAFE,
-    PLACEHOLDER_SUFFIX_SAFE,
-    PLACEHOLDER_PATTERN_SAFE,
-    PLACEHOLDER_PREFIX_SIMPLE,
-    PLACEHOLDER_SUFFIX_SIMPLE,
-    PLACEHOLDER_PATTERN_SIMPLE,
+    PLACEHOLDER_PREFIX,
+    PLACEHOLDER_SUFFIX,
+    PLACEHOLDER_PATTERN,
     create_placeholder,
-    get_mutation_variants,
-    detect_placeholder_mode,
 )
 
 
@@ -70,40 +66,22 @@ class TagPreserver:
     before translation, then restores them afterward. Adjacent tags are grouped
     into single placeholders to reduce token usage and LLM confusion.
 
-    Adaptive placeholder format (automatic detection):
-        - Uses [0], [1], [2] when text has no brackets (simplified, saves ~50% tokens)
-        - Uses [[0]], [[1]], [[2]] when text contains [ or ] (safe mode)
-        - Automatically detects the best format for each text by analyzing content
-
-    Boundary tag optimization:
-        The first and last placeholders (boundary tags) are always present in HTML
-        content and are stored separately. They are NOT sent to the LLM, reducing
-        token usage and potential confusion. They are automatically restored after
-        translation.
+    Unified placeholder format: [id0], [id1], [id2], ...
 
     Example:
         Input:  <p class="body"><span>Hello world</span></p>
-        With boundary optimization (text has no brackets):
-            Text sent to LLM: "Hello world" (no placeholders!)
-            Boundary tags stored: prefix='<p class="body"><span>', suffix='</span></p>'
-            Format used: [N] (simplified)
-        Without boundary optimization:
-            Text sent to LLM: "[0]Hello world[1]" (simplified format saves tokens)
+        Output: "[id0]Hello world[id1]"
+        Tag map: {"[id0]": "<p class=\"body\"><span>", "[id1]": "</span></p>"}
     """
 
     def __init__(self):
         self.tag_map: Dict[str, str] = {}
         self.counter: int = 0
-        # These will be set by detect_placeholder_mode() during preserve_tags()
-        self.placeholder_prefix: str = PLACEHOLDER_PREFIX_SAFE
-        self.placeholder_suffix: str = PLACEHOLDER_SUFFIX_SAFE
-        self.placeholder_pattern: str = PLACEHOLDER_PATTERN_SAFE
-        self.use_simple_format: bool = False  # Track which format is being used
-        # Boundary tags (first and last) - stored separately, not sent to LLM
-        self.boundary_prefix: str = ""
-        self.boundary_suffix: str = ""
+        self.placeholder_prefix: str = PLACEHOLDER_PREFIX
+        self.placeholder_suffix: str = PLACEHOLDER_SUFFIX
+        self.placeholder_pattern: str = PLACEHOLDER_PATTERN
 
-    def preserve_tags(self, text: str, strip_boundaries: bool = True) -> Tuple[str, Dict[str, str]]:
+    def preserve_tags(self, text: str) -> Tuple[str, Dict[str, str]]:
         """
         Replace HTML/XML tags with grouped placeholders.
 
@@ -111,55 +89,28 @@ class TagPreserver:
         single placeholders to reduce the number of placeholders the LLM needs
         to preserve.
 
-        Boundary optimization (strip_boundaries=True):
-            The first and last tag groups are stored separately and NOT included
-            in the returned text. This reduces tokens sent to the LLM since these
-            boundary tags are always present in HTML content.
-
         Args:
             text: Text containing HTML/XML tags
-            strip_boundaries: If True, remove first and last placeholders from text
-                            and store them as boundary_prefix/boundary_suffix
 
         Returns:
             Tuple of (processed_text, tag_map)
-            Note: tag_map includes ALL tags (including boundaries) for restoration
 
-        Example with strip_boundaries=True:
+        Example:
             >>> preserver = TagPreserver()
             >>> text, tag_map = preserver.preserve_tags("<p><span>Hello</span></p>")
             >>> text
-            'Hello'
-            >>> preserver.boundary_prefix
-            '<p><span>'
-            >>> preserver.boundary_suffix
-            '</span></p>'
-
-        Example with strip_boundaries=False:
-            >>> preserver = TagPreserver()
-            >>> text, tag_map = preserver.preserve_tags("<p><span>Hello</span></p>", strip_boundaries=False)
-            >>> text
-            '[[0]]Hello[[1]]'
+            '[id0]Hello[id1]'
 
         Example with non-translatable content grouping:
             >>> preserver = TagPreserver()
-            >>> text, tag_map = preserver.preserve_tags("<p> </p><p>1.</p><p>Hello</p>", strip_boundaries=False)
+            >>> text, tag_map = preserver.preserve_tags("<p> </p><p>1.</p><p>Hello</p>")
             >>> text
-            '[[0]]Hello[[1]]'
-            # [[0]] contains "<p> </p><p>1.</p><p>" (empty paragraphs + chapter number grouped)
+            '[id0]Hello[id1]'
+            # [id0] contains "<p> </p><p>1.</p><p>" (empty paragraphs + chapter number grouped)
         """
         # Reset for new text
         self.tag_map = {}
         self.counter = 0
-        self.boundary_prefix = ""
-        self.boundary_suffix = ""
-
-        # Auto-detect placeholder format based on text content
-        # This removes HTML tags first to check only the actual text content
-        text_without_tags = re.sub(r'<[^>]+>', '', text)
-        self.placeholder_prefix, self.placeholder_suffix, self.placeholder_pattern = \
-            detect_placeholder_mode(text_without_tags)
-        self.use_simple_format = (self.placeholder_prefix == PLACEHOLDER_PREFIX_SIMPLE)
 
         # Split text into segments: tags vs non-tags
         # This preserves the order and allows us to analyze each segment
@@ -201,106 +152,39 @@ class TagPreserver:
 
         processed_text = ''.join(merged_segments)
 
-        # If strip_boundaries is enabled and we have at least 2 placeholders,
-        # extract the first and last as boundary tags
-        if strip_boundaries and self.counter >= 2:
-            first_placeholder = f"{self.placeholder_prefix}0{self.placeholder_suffix}"
-            last_placeholder = f"{self.placeholder_prefix}{self.counter - 1}{self.placeholder_suffix}"
-
-            # Check if text starts with first placeholder and ends with last
-            if processed_text.startswith(first_placeholder) and processed_text.endswith(last_placeholder):
-                # Store boundary tags
-                self.boundary_prefix = self.tag_map[first_placeholder]
-                self.boundary_suffix = self.tag_map[last_placeholder]
-
-                # Remove boundary placeholders from text
-                processed_text = processed_text[len(first_placeholder):]
-                processed_text = processed_text[:-len(last_placeholder)]
-
-                # Renumber remaining placeholders (shift by -1)
-                if self.counter > 2:
-                    # We need to renumber [[1]] -> [[0]], [[2]] -> [[1]], etc.
-                    new_tag_map = {}
-                    for i in range(1, self.counter - 1):
-                        old_placeholder = f"{self.placeholder_prefix}{i}{self.placeholder_suffix}"
-                        new_placeholder = f"{self.placeholder_prefix}{i - 1}{self.placeholder_suffix}"
-                        new_tag_map[new_placeholder] = self.tag_map[old_placeholder]
-                        processed_text = processed_text.replace(old_placeholder, new_placeholder)
-
-                    # Keep boundary tags in tag_map for reference but with special keys
-                    new_tag_map["__boundary_prefix__"] = self.boundary_prefix
-                    new_tag_map["__boundary_suffix__"] = self.boundary_suffix
-                    self.tag_map = new_tag_map
-                else:
-                    # Only 2 placeholders (boundaries only, no internal tags)
-                    self.tag_map = {
-                        "__boundary_prefix__": self.boundary_prefix,
-                        "__boundary_suffix__": self.boundary_suffix
-                    }
-
         return processed_text, self.tag_map.copy()
 
-    def restore_tags(self, text: str, tag_map: Dict[str, str], include_boundaries: bool = True) -> str:
+    def restore_tags(self, text: str, tag_map: Dict[str, str]) -> str:
         """
         Restore HTML/XML tags from placeholders
 
         Args:
             text: Text with placeholders
             tag_map: Dictionary mapping placeholders to original tags
-            include_boundaries: If True, also restore boundary_prefix and boundary_suffix
-                              stored in the TagPreserver instance
 
         Returns:
             Text with restored tags
 
-        Example without boundaries:
+        Example:
             >>> preserver = TagPreserver()
-            >>> tag_map = {'[[0]]': '<p><span>', '[[1]]': '</span></p>'}
-            >>> preserver.restore_tags('[[0]]Hello[[1]]', tag_map)
-            '<p><span>Hello</span></p>'
-
-        Example with boundaries:
-            >>> preserver = TagPreserver()
-            >>> preserver.boundary_prefix = '<p><span>'
-            >>> preserver.boundary_suffix = '</span></p>'
-            >>> preserver.restore_tags('Hello', {})
+            >>> tag_map = {'[id0]': '<p><span>', '[id1]': '</span></p>'}
+            >>> preserver.restore_tags('[id0]Hello[id1]', tag_map)
             '<p><span>Hello</span></p>'
         """
         restored_text = text
 
-        # Detect placeholder format from tag_map keys (not from instance variables!)
-        # This ensures we use the correct format even if the instance was reused
-        detected_prefix = self.placeholder_prefix
-        detected_suffix = self.placeholder_suffix
-
-        # Find first non-boundary placeholder in tag_map to detect format
-        for key in tag_map.keys():
-            if not key.startswith("__"):
-                # Detect format from this key
-                if key.startswith("[[") and key.endswith("]]"):
-                    detected_prefix = "[["
-                    detected_suffix = "]]"
-                elif key.startswith("[") and key.endswith("]"):
-                    detected_prefix = "["
-                    detected_suffix = "]"
-                break
-
         # Sort placeholders by number in reverse order to avoid partial replacements
-        # e.g., replace [[10]] before [[1]]
+        # e.g., replace [id10] before [id1]
         def get_placeholder_num(placeholder: str) -> int:
-            # Skip special boundary keys
-            if placeholder.startswith("__"):
-                return -1
             try:
-                return int(placeholder[len(detected_prefix):-len(detected_suffix)])
+                # Extract number from [idN] format
+                num_str = placeholder[len(self.placeholder_prefix):-len(self.placeholder_suffix)]
+                return int(num_str)
             except (ValueError, IndexError):
                 return 0
 
-        # Filter out special boundary keys from tag_map
-        regular_placeholders = [k for k in tag_map.keys() if not k.startswith("__")]
-
         placeholders = sorted(
-            regular_placeholders,
+            tag_map.keys(),
             key=get_placeholder_num,
             reverse=True
         )
@@ -309,23 +193,15 @@ class TagPreserver:
             if placeholder in restored_text:
                 restored_text = restored_text.replace(placeholder, tag_map[placeholder])
 
-        # Restore boundary tags if enabled
-        if include_boundaries:
-            # Try to get boundaries from tag_map first (for chunks that received tag_map with boundaries)
-            prefix = tag_map.get("__boundary_prefix__", "") or self.boundary_prefix
-            suffix = tag_map.get("__boundary_suffix__", "") or self.boundary_suffix
-
-            if prefix or suffix:
-                restored_text = prefix + restored_text + suffix
-
         return restored_text
 
     def validate_placeholders(self, text: str, tag_map: Dict[str, str]) -> Tuple[bool, List[str], List[Tuple[str, str]]]:
         """
         Validate that all expected placeholders are present in the text
 
-        This function checks if the LLM preserved all placeholders during translation
-        and detects common mutations (like [0] instead of [[0]]).
+        This function checks if the LLM preserved all placeholders during translation.
+
+        Deprecated: Use PlaceholderValidator.validate_basic() instead.
 
         Args:
             text: Text to validate
@@ -333,46 +209,15 @@ class TagPreserver:
 
         Returns:
             Tuple of (is_valid, missing_placeholders, mutated_placeholders)
-            - is_valid: True if all placeholders present and unmutated
+            - is_valid: True if all placeholders present
             - missing_placeholders: List of missing placeholder strings
-            - mutated_placeholders: List of (original, mutated) tuples
+            - mutated_placeholders: Empty list (legacy compatibility, no longer used)
         """
-        missing_placeholders = []
-        mutated_placeholders = []
+        # Use centralized PlaceholderValidator
+        is_valid = PlaceholderValidator.validate_basic(text, tag_map)
+        missing_placeholders = PlaceholderValidator.get_missing_placeholders(text, tag_map)
+        mutated_placeholders = []  # Legacy compatibility
 
-        for placeholder in tag_map.keys():
-            # Skip special boundary keys - they are not in the text
-            if placeholder.startswith("__"):
-                continue
-
-            # For simple format [N], use regex to avoid false positives with [[N]]
-            # For safe format [[N]], simple substring matching works fine
-            if self.use_simple_format:
-                # Build pattern for this specific placeholder: (?<!\[)\[0\](?!\])
-                num = placeholder[len(self.placeholder_prefix):-len(self.placeholder_suffix)]
-                specific_pattern = rf'(?<!\[)\[{re.escape(num)}\](?!\])'
-                placeholder_found = bool(re.search(specific_pattern, text))
-            else:
-                # Safe format - simple substring match works
-                placeholder_found = placeholder in text
-
-            if not placeholder_found:
-                missing_placeholders.append(placeholder)
-
-                # Check for common mutations
-                # Extract tag number from placeholder like [[0]] or [0]
-                tag_num_str = placeholder[len(self.placeholder_prefix):-len(self.placeholder_suffix)]
-
-                # Check various mutation patterns using centralized function
-                # Pass simple format flag to avoid treating the opposite format as a mutation
-                mutations = get_mutation_variants(tag_num_str, self.use_simple_format)
-
-                for mutation in mutations:
-                    if mutation in text:
-                        mutated_placeholders.append((placeholder, mutation))
-                        break
-
-        is_valid = len(missing_placeholders) == 0 and len(mutated_placeholders) == 0
         return is_valid, missing_placeholders, mutated_placeholders
 
     def validate_placeholders_strict(
@@ -387,6 +232,8 @@ class TagPreserver:
         1. Correct number of placeholders
         2. Placeholders appear in sequential order (0, 1, 2, ...)
 
+        Deprecated: Use PlaceholderValidator.validate_strict() instead.
+
         Args:
             translated_text: Text with placeholders after translation
             tag_map: Dictionary mapping placeholders to original tags
@@ -396,31 +243,8 @@ class TagPreserver:
             - is_valid: True if validation passes
             - error_message: Description of the validation failure (empty if valid)
         """
-        # Count only regular placeholders (not boundary keys)
-        expected_count = len([k for k in tag_map.keys() if not k.startswith("__")])
-
-        if expected_count == 0:
-            return True, ""
-
-        # Extract placeholder numbers in order of appearance
-        # Pattern adapts based on format: [[0]], [[1]] (safe) or [0], [1] (simple)
-        if self.use_simple_format:
-            # Use negative lookahead/behind to avoid matching [[0]] when looking for [0]
-            pattern = r'(?<!\[)\[(\d+)\](?!\])'
-        else:
-            pattern = r'\[\[(\d+)\]\]'
-        found_numbers = re.findall(pattern, translated_text)
-
-        # Verification 1: Correct count
-        if len(found_numbers) != expected_count:
-            return False, f"Expected {expected_count} placeholders, found {len(found_numbers)}"
-
-        # Verification 2: Sequential order (0, 1, 2, ...)
-        expected_order = [str(i) for i in range(expected_count)]
-        if found_numbers != expected_order:
-            return False, f"Wrong order. Expected {expected_order}, found {found_numbers}"
-
-        return True, ""
+        # Use centralized PlaceholderValidator
+        return PlaceholderValidator.validate_strict(translated_text, tag_map)
 
     def fix_mutated_placeholders(self, text: str, mutated_placeholders: List[Tuple[str, str]]) -> str:
         """
@@ -438,37 +262,3 @@ class TagPreserver:
             fixed_text = fixed_text.replace(mutated, original)
         return fixed_text
 
-    def try_fix_all_mutations(self, text: str, tag_map: Dict[str, str]) -> str:
-        """
-        Try to fix all possible mutations in the text.
-
-        Scans the text for any mutation variants and replaces them
-        with the correct placeholder format.
-
-        Args:
-            text: Text potentially containing mutated placeholders
-            tag_map: Dictionary mapping placeholders to original tags
-
-        Returns:
-            Text with mutations fixed where possible
-        """
-        fixed_text = text
-
-        for placeholder in tag_map.keys():
-            # Skip special boundary keys
-            if placeholder.startswith("__"):
-                continue
-
-            if placeholder in fixed_text:
-                continue  # Already correct
-
-            # Extract tag number
-            tag_num_str = placeholder[len(self.placeholder_prefix):-len(self.placeholder_suffix)]
-
-            # Try each mutation variant (with format awareness)
-            for mutation in get_mutation_variants(tag_num_str, self.use_simple_format):
-                if mutation in fixed_text:
-                    fixed_text = fixed_text.replace(mutation, placeholder)
-                    break
-
-        return fixed_text

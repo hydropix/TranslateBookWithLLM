@@ -8,6 +8,9 @@ from lxml import etree
 from typing import Tuple, Optional
 import re
 
+from src.utils.unified_logger import info, LogType
+from .exceptions import XmlParsingError, BodyExtractionError
+
 
 def normalize_whitespace(html: str) -> str:
     """
@@ -129,14 +132,10 @@ def replace_body_content(body_element: etree._Element, new_html: str) -> None:
         body_element: The <body> element to modify
         new_html: New translated HTML content
     """
-    print(f"[DEBUG] replace_body_content: Input HTML length = {len(new_html)} chars")
+    info(f"replace_body_content: Input HTML length = {len(new_html)} chars")
 
-    # Clear the body
-    body_element.text = None
-    for child in list(body_element):
-        body_element.remove(child)
-
-    # Parse the new content
+    # Parse the new content FIRST before clearing the body
+    # This prevents data loss if parsing fails
     # Wrap in a temp element to handle multiple root elements
     wrapped = f"<temp xmlns='http://www.w3.org/1999/xhtml'>{new_html}</temp>"
 
@@ -151,31 +150,44 @@ def replace_body_content(body_element: etree._Element, new_html: str) -> None:
 
     try:
         temp = etree.fromstring(wrapped.encode('utf-8'), parser)
-        print(f"[DEBUG] replace_body_content: XML parse succeeded")
+        info("replace_body_content: XML parse succeeded")
         if parser.error_log:
-            print(f"[DEBUG] replace_body_content: Parser recovered from {len(parser.error_log)} errors")
-            for error in parser.error_log[:5]:
-                print(f"[DEBUG]   {error}")
+            info(f"replace_body_content: Parser recovered from {len(parser.error_log)} errors")
+            for error in list(parser.error_log)[:5]:
+                info(f"replace_body_content:   {str(error)}")
     except etree.XMLSyntaxError as e:
-        print(f"[DEBUG] replace_body_content: XML parse failed: {e}")
+        info(f"replace_body_content: XML parse failed: {e}")
         # Fallback: try without namespace
         wrapped_no_ns = f"<temp>{new_html}</temp>"
         try:
             temp = etree.fromstring(wrapped_no_ns.encode('utf-8'), parser)
-            print(f"[DEBUG] replace_body_content: XML parse (no namespace) succeeded")
+            info("replace_body_content: XML parse (no namespace) succeeded")
         except Exception as e2:
-            print(f"[DEBUG] replace_body_content: All XML parsing failed: {e2}")
+            info(f"replace_body_content: All XML parsing failed: {e2}")
             # Last resort: HTML parser (but this may alter structure!)
             temp = etree.HTML(wrapped_no_ns)
             if temp is not None:
                 temp_elem = temp.find('.//temp')
                 if temp_elem is not None:
                     temp = temp_elem
-                    print(f"[DEBUG] replace_body_content: HTML parse succeeded")
+                    info("replace_body_content: HTML parse succeeded")
                 else:
-                    raise ValueError("Could not find <temp> element after HTML parsing")
+                    raise XmlParsingError(
+                        "Could not find <temp> element after HTML parsing",
+                        original_error=e2,
+                        content_preview=new_html[:200]
+                    )
             else:
-                raise ValueError("All parsing methods failed")
+                raise XmlParsingError(
+                    "All parsing methods failed",
+                    original_error=e2,
+                    content_preview=new_html[:200]
+                )
+
+    # NOW clear the body (only after successful parsing)
+    body_element.text = None
+    for child in list(body_element):
+        body_element.remove(child)
 
     # Copy content into body
     body_element.text = temp.text
@@ -184,5 +196,5 @@ def replace_body_content(body_element: etree._Element, new_html: str) -> None:
         body_element.append(child)
         child_count += 1
 
-    print(f"[DEBUG] replace_body_content: Copied {child_count} children to body")
-    print(f"[DEBUG] replace_body_content: Body now has {len(list(body_element))} children")
+    info(f"replace_body_content: Copied {child_count} children to body")
+    info(f"replace_body_content: Body now has {len(list(body_element))} children")
