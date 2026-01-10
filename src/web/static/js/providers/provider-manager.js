@@ -12,6 +12,7 @@ import { DomHelpers } from '../ui/dom-helpers.js';
 import { ModelDetector } from './model-detector.js';
 import { SettingsManager } from '../core/settings-manager.js';
 import { ApiKeyUtils } from '../utils/api-key-utils.js';
+import { StatusManager } from '../utils/status-manager.js';
 
 /**
  * Common OpenAI models list
@@ -262,6 +263,7 @@ export const ProviderManager = {
         StateManager.setState('models.currentLoadRequest', thisRequest);
 
         modelSelect.innerHTML = '<option value="">Loading models...</option>';
+        StatusManager.setChecking();
 
         try {
             const apiEndpoint = DomHelpers.getValue('apiEndpoint');
@@ -300,6 +302,9 @@ export const ProviderManager = {
 
                 // Update available models in state
                 StateManager.setState('models.availableModels', data.models);
+
+                // Update status to connected
+                StatusManager.setConnected('ollama', data.count);
             } else {
                 // No models available - start auto-retry
                 const errorMessage = data.error || 'No LLM models available. Ensure Ollama is running and accessible.';
@@ -311,6 +316,7 @@ export const ProviderManager = {
                 }
 
                 modelSelect.innerHTML = '<option value="">Waiting for Ollama...</option>';
+                StatusManager.setWaiting('Waiting for Ollama...');
                 this.startOllamaAutoRetry();
             }
 
@@ -323,6 +329,7 @@ export const ProviderManager = {
                 }
 
                 modelSelect.innerHTML = '<option value="">Waiting for Ollama...</option>';
+                StatusManager.setDisconnected('Not accessible');
                 this.startOllamaAutoRetry();
             }
         } finally {
@@ -375,6 +382,7 @@ export const ProviderManager = {
         if (!modelSelect) return;
 
         modelSelect.innerHTML = '<option value="">Loading Gemini models...</option>';
+        StatusManager.setChecking();
 
         try {
             // Use ApiKeyUtils to get API key (returns '__USE_ENV__' if configured in .env)
@@ -398,17 +406,22 @@ export const ProviderManager = {
 
                 // Update available models in state
                 StateManager.setState('models.availableModels', data.models);
+
+                // Update status to connected
+                StatusManager.setConnected('gemini', data.count);
             } else {
                 const errorMessage = data.error || 'No Gemini models available.';
                 MessageLogger.showMessage(`⚠️ ${errorMessage}`, 'error');
                 modelSelect.innerHTML = '<option value="">No models available</option>';
                 MessageLogger.addLog(`⚠️ No Gemini models available`);
+                StatusManager.setError('No models');
             }
 
         } catch (error) {
             MessageLogger.showMessage(`❌ Error fetching Gemini models: ${error.message}`, 'error');
             MessageLogger.addLog(`❌ Failed to retrieve Gemini model list: ${error.message}`);
             modelSelect.innerHTML = '<option value="">Error loading models</option>';
+            StatusManager.setError(error.message);
         }
     },
 
@@ -424,6 +437,8 @@ export const ProviderManager = {
         // Get API endpoint to determine if it's a local server or OpenAI cloud
         const apiEndpoint = DomHelpers.getValue('openaiEndpoint') || 'https://api.openai.com/v1/chat/completions';
         const isLocal = apiEndpoint.includes('localhost') || apiEndpoint.includes('127.0.0.1');
+
+        StatusManager.setChecking();
 
         if (isLocal) {
             // Local server (llama.cpp, LM Studio, vLLM, etc.): try to fetch models dynamically
@@ -453,6 +468,7 @@ export const ProviderManager = {
                     ModelDetector.checkAndShowRecommendation();
 
                     StateManager.setState('models.availableModels', formattedModels.map(m => m.value));
+                    StatusManager.setConnected('openai', data.count);
                     return;
                 } else {
                     // Local server not running or no models
@@ -474,6 +490,7 @@ export const ProviderManager = {
         ModelDetector.checkAndShowRecommendation();
 
         StateManager.setState('models.availableModels', OPENAI_MODELS.map(m => m.value));
+        StatusManager.setConnected('openai', OPENAI_MODELS.length);
     },
 
     /**
@@ -484,6 +501,7 @@ export const ProviderManager = {
         if (!modelSelect) return;
 
         modelSelect.innerHTML = '<option value="">Loading OpenRouter models...</option>';
+        StatusManager.setChecking();
 
         try {
             // Use ApiKeyUtils to get API key (returns '__USE_ENV__' if configured in .env)
@@ -507,6 +525,9 @@ export const ProviderManager = {
 
                 // Update available models in state
                 StateManager.setState('models.availableModels', data.models.map(m => m.id));
+
+                // Update status to connected
+                StatusManager.setConnected('openrouter', data.count);
             } else {
                 // Use fallback list
                 const errorMessage = data.error || 'Could not load models from OpenRouter API';
@@ -516,6 +537,9 @@ export const ProviderManager = {
 
                 // Update available models in state
                 StateManager.setState('models.availableModels', OPENROUTER_FALLBACK_MODELS.map(m => m.value));
+
+                // Still mark as connected since we have fallback models
+                StatusManager.setConnected('openrouter', OPENROUTER_FALLBACK_MODELS.length);
             }
 
         } catch (error) {
@@ -526,6 +550,9 @@ export const ProviderManager = {
 
             // Update available models in state
             StateManager.setState('models.availableModels', OPENROUTER_FALLBACK_MODELS.map(m => m.value));
+
+            // Still mark as connected since we have fallback models
+            StatusManager.setConnected('openrouter', OPENROUTER_FALLBACK_MODELS.length);
         }
     },
 

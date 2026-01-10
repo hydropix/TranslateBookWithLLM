@@ -1,250 +1,312 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="light">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Translating Books With LLMs</title>
+    <title>AI Document Translator - TranslateBookWithLLM</title>
     <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+
+    <!-- Google Material Icons -->
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
+
+    <!-- Custom Styles -->
     <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
     <div class="container">
-        <div class="header">
-            <img src="/static/TBL-Logo.png" alt="TBL Logo">
-        </div>
+        <!-- Header with Neumorphic Style -->
+        <header class="header">
+            <div class="logo-section">
+                <div class="logo-icon">
+                    <img src="/static/TBL-Logo-alpha.png" alt="TBL Logo" style="width: 100%; height: 100%; object-fit: contain;">
+                </div>
+                <div class="logo-text">
+                    <h2>TBL</h2>
+                    <p>Translate Books with LLMs</p>
+                </div>
+            </div>
 
+            <div class="status-section">
+                <div class="status-indicator">
+                    <div class="status-dot"></div>
+                    <span id="providerStatusText">LLM: Checking...</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Translation Configuration Card -->
         <div class="main-card">
             <div class="card-header">
-                <h2>⚙️ Translation Configuration</h2>
+                <span class="material-symbols-outlined">settings</span>
+                <h2>Translation Configuration</h2>
             </div>
 
             <div class="card-body">
-                <!-- Row 1: Provider + API Key/Endpoint + Model + Refresh -->
+                <!-- Provider + API Settings Row -->
                 <div id="providerRow" style="display: grid; grid-template-columns: 1fr 2fr 1fr auto; gap: 15px; margin-bottom: 15px; align-items: end;">
                     <div class="form-group" style="margin-bottom: 0;">
-                        <label>Provider</label>
-                        <select class="form-control" id="llmProvider">
-                            <option value="ollama">Ollama</option>
-                            <option value="gemini">Gemini</option>
-                            <option value="openai">OpenAI-Compatible (llama.cpp, LM Studio, vLLM...)</option>
-                            <option value="openrouter">OpenRouter</option>
-                        </select>
+                        <label>AI Provider</label>
+                        <div class="neu-inset-light">
+                            <select class="form-control" id="llmProvider">
+                                <option value="ollama">Ollama (Local)</option>
+                                <option value="gemini">Gemini (Cloud)</option>
+                                <option value="openai">OpenAI-Compatible</option>
+                                <option value="openrouter">OpenRouter (200+ models)</option>
+                            </select>
+                        </div>
                     </div>
 
+                    <!-- Ollama Endpoint -->
                     <div class="form-group" id="ollamaSettings" style="margin-bottom: 0;">
                         <label>API Endpoint</label>
-                        <input type="text" class="form-control" id="apiEndpoint" value="http://localhost:11434/api/generate">
+                        <div class="neu-inset-light">
+                            <input type="text" class="form-control" id="apiEndpoint" value="http://localhost:11434/api/generate">
+                        </div>
                     </div>
 
+                    <!-- Gemini API Key -->
                     <div class="form-group" id="geminiSettings" style="display: none; margin-bottom: 0;">
                         <label>API Key <span id="geminiKeyStatus" class="key-status"></span></label>
-                        <input type="password" class="form-control" id="geminiApiKey" placeholder="Enter Gemini API key" autocomplete="new-password" data-lpignore="true" data-form-type="other">
+                        <div class="neu-inset-light">
+                            <input type="password" class="form-control" id="geminiApiKey" placeholder="Enter Gemini API key" autocomplete="new-password">
+                        </div>
                     </div>
 
+                    <!-- OpenAI API Key -->
                     <div class="form-group" id="openaiApiKeyGroup" style="display: none; margin-bottom: 0;">
                         <label>API Key <span id="openaiKeyStatus" class="key-status"></span></label>
-                        <input type="password" class="form-control" id="openaiApiKey" placeholder="Enter OpenAI API key" autocomplete="new-password" data-lpignore="true" data-form-type="other">
+                        <div class="neu-inset-light">
+                            <input type="password" class="form-control" id="openaiApiKey" placeholder="Enter OpenAI API key" autocomplete="new-password">
+                        </div>
                     </div>
 
+                    <!-- OpenRouter API Key -->
                     <div class="form-group" id="openrouterSettings" style="display: none; margin-bottom: 0;">
                         <label>API Key <span id="openrouterKeyStatus" class="key-status"></span></label>
-                        <input type="password" class="form-control" id="openrouterApiKey" placeholder="sk-or-v1-..." autocomplete="new-password" data-lpignore="true" data-form-type="other">
+                        <div class="neu-inset-light">
+                            <input type="password" class="form-control" id="openrouterApiKey" placeholder="sk-or-v1-..." autocomplete="new-password">
+                        </div>
                     </div>
 
+                    <!-- Model Selection -->
                     <div class="form-group" style="margin-bottom: 0;">
-                        <label>Model</label>
-                        <select class="form-control" id="model">
-                            <option value="">Loading...</option>
-                        </select>
-                        <!-- Thinking model warning - shown when uncontrollable thinking model selected -->
-                        <div id="thinkingModelWarning" style="display: none; margin-top: 8px; padding: 8px 10px; background: #fef2f2; border-left: 3px solid #ef4444; border-radius: 4px;">
+                        <label>Model Selection</label>
+                        <div class="neu-inset-light">
+                            <select class="form-control" id="model">
+                                <option value="">Loading...</option>
+                            </select>
+                        </div>
+                        <!-- Thinking model warning -->
+                        <div id="thinkingModelWarning" style="display: none; margin-top: 8px; padding: 8px 10px; background: #fee2e2; border-left: 3px solid #ef4444; border-radius: 8px;">
                             <p id="thinkingModelWarningText" style="margin: 0; font-size: 13px; color: #991b1b; white-space: pre-line;"></p>
                         </div>
                     </div>
 
+                    <!-- Refresh Button -->
                     <div class="form-group" style="margin-bottom: 0;">
                         <label>&nbsp;</label>
-                        <button class="btn btn-secondary" onclick="refreshModels()" title="Refresh model list" style="width: 100%; height: 38px;">🔄</button>
+                        <button class="btn btn-secondary" onclick="refreshModels()" title="Refresh model list" style="width: 100%; height: 56px; padding: 0;">
+                            <span class="material-symbols-outlined">refresh</span>
+                        </button>
                     </div>
                 </div>
 
-                <!-- Row 1b: OpenAI Endpoint (shown only for OpenAI provider) -->
+                <!-- OpenAI Endpoint Row (shown only for OpenAI provider) -->
                 <div id="openaiEndpointRow" style="display: none; margin-bottom: 15px;">
                     <div class="form-group" style="margin-bottom: 0;">
                         <label>API Endpoint</label>
-                        <input type="text" class="form-control" id="openaiEndpoint" value="https://api.openai.com/v1/chat/completions" placeholder="https://api.openai.com/v1/chat/completions">
-                        <small style="color: #6b7280;">Local servers: llama.cpp (8080), LM Studio (1234), vLLM, etc. Example: http://localhost:8080/v1/chat/completions</small>
+                        <div class="neu-inset-light">
+                            <input type="text" class="form-control" id="openaiEndpoint" value="https://api.openai.com/v1/chat/completions" placeholder="https://api.openai.com/v1/chat/completions">
+                        </div>
+                        <small style="color: var(--text-muted-light); font-size: 0.75rem; margin-top: 0.5rem; display: block;">Local servers: llama.cpp (8080), LM Studio (1234), vLLM, etc.</small>
                     </div>
                 </div>
 
-                <!-- Row 2: Source Language + Target Language -->
+                <!-- Languages Row -->
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
                     <div class="form-group" style="margin-bottom: 0;">
                         <label>Source Language</label>
-                        <select class="form-control" id="sourceLang">
-                            <optgroup label="Most Common">
-                                <option value="English">English</option>
-                                <option value="Chinese">Chinese</option>
-                                <option value="Spanish">Spanish</option>
-                                <option value="French">French</option>
-                                <option value="German">German</option>
-                                <option value="Japanese">Japanese</option>
-                                <option value="Korean">Korean</option>
-                                <option value="Portuguese">Portuguese</option>
-                                <option value="Russian">Russian</option>
-                                <option value="Arabic">Arabic</option>
-                            </optgroup>
-                            <optgroup label="European">
-                                <option value="Italian">Italian</option>
-                                <option value="Dutch">Dutch</option>
-                                <option value="Polish">Polish</option>
-                                <option value="Swedish">Swedish</option>
-                                <option value="Norwegian">Norwegian</option>
-                                <option value="Danish">Danish</option>
-                                <option value="Finnish">Finnish</option>
-                                <option value="Greek">Greek</option>
-                                <option value="Hungarian">Hungarian</option>
-                                <option value="Czech">Czech</option>
-                                <option value="Slovak">Slovak</option>
-                                <option value="Romanian">Romanian</option>
-                                <option value="Bulgarian">Bulgarian</option>
-                                <option value="Croatian">Croatian</option>
-                                <option value="Serbian">Serbian</option>
-                                <option value="Ukrainian">Ukrainian</option>
-                                <option value="Catalan">Catalan</option>
-                            </optgroup>
-                            <optgroup label="Asian">
-                                <option value="Hindi">Hindi</option>
-                                <option value="Bengali">Bengali</option>
-                                <option value="Urdu">Urdu</option>
-                                <option value="Punjabi">Punjabi</option>
-                                <option value="Tamil">Tamil</option>
-                                <option value="Telugu">Telugu</option>
-                                <option value="Marathi">Marathi</option>
-                                <option value="Gujarati">Gujarati</option>
-                                <option value="Vietnamese">Vietnamese</option>
-                                <option value="Thai">Thai</option>
-                                <option value="Indonesian">Indonesian</option>
-                                <option value="Malay">Malay</option>
-                                <option value="Tagalog">Tagalog</option>
-                                <option value="Burmese">Burmese</option>
-                            </optgroup>
-                            <optgroup label="Middle East & Africa">
-                                <option value="Persian">Persian</option>
-                                <option value="Turkish">Turkish</option>
-                                <option value="Hebrew">Hebrew</option>
-                                <option value="Swahili">Swahili</option>
-                                <option value="Amharic">Amharic</option>
-                            </optgroup>
-                            <optgroup label="Custom">
-                                <option value="Other">Other (Specify)</option>
-                            </optgroup>
-                        </select>
-                        <input type="text" class="form-control" id="customSourceLang" placeholder="Enter custom source language" style="margin-top: 10px; display: none;">
+                        <div class="neu-inset-light">
+                            <select class="form-control" id="sourceLang">
+                                <optgroup label="Most Common">
+                                    <option value="English">English</option>
+                                    <option value="Chinese">Chinese</option>
+                                    <option value="Spanish">Spanish</option>
+                                    <option value="French">French</option>
+                                    <option value="German">German</option>
+                                    <option value="Japanese">Japanese</option>
+                                    <option value="Korean">Korean</option>
+                                    <option value="Portuguese">Portuguese</option>
+                                    <option value="Russian">Russian</option>
+                                    <option value="Arabic">Arabic</option>
+                                </optgroup>
+                                <optgroup label="European">
+                                    <option value="Italian">Italian</option>
+                                    <option value="Dutch">Dutch</option>
+                                    <option value="Polish">Polish</option>
+                                    <option value="Swedish">Swedish</option>
+                                    <option value="Norwegian">Norwegian</option>
+                                    <option value="Danish">Danish</option>
+                                    <option value="Finnish">Finnish</option>
+                                    <option value="Greek">Greek</option>
+                                    <option value="Hungarian">Hungarian</option>
+                                    <option value="Czech">Czech</option>
+                                    <option value="Slovak">Slovak</option>
+                                    <option value="Romanian">Romanian</option>
+                                    <option value="Bulgarian">Bulgarian</option>
+                                    <option value="Croatian">Croatian</option>
+                                    <option value="Serbian">Serbian</option>
+                                    <option value="Ukrainian">Ukrainian</option>
+                                    <option value="Catalan">Catalan</option>
+                                </optgroup>
+                                <optgroup label="Asian">
+                                    <option value="Hindi">Hindi</option>
+                                    <option value="Bengali">Bengali</option>
+                                    <option value="Urdu">Urdu</option>
+                                    <option value="Punjabi">Punjabi</option>
+                                    <option value="Tamil">Tamil</option>
+                                    <option value="Telugu">Telugu</option>
+                                    <option value="Marathi">Marathi</option>
+                                    <option value="Gujarati">Gujarati</option>
+                                    <option value="Vietnamese">Vietnamese</option>
+                                    <option value="Thai">Thai</option>
+                                    <option value="Indonesian">Indonesian</option>
+                                    <option value="Malay">Malay</option>
+                                    <option value="Tagalog">Tagalog</option>
+                                    <option value="Burmese">Burmese</option>
+                                </optgroup>
+                                <optgroup label="Middle East & Africa">
+                                    <option value="Persian">Persian</option>
+                                    <option value="Turkish">Turkish</option>
+                                    <option value="Hebrew">Hebrew</option>
+                                    <option value="Swahili">Swahili</option>
+                                    <option value="Amharic">Amharic</option>
+                                </optgroup>
+                                <optgroup label="Custom">
+                                    <option value="Other">Other (Specify)</option>
+                                </optgroup>
+                            </select>
+                        </div>
+                        <div class="neu-inset-light" style="margin-top: 10px; display: none;" id="customSourceLangContainer">
+                            <input type="text" class="form-control" id="customSourceLang" placeholder="Enter custom source language">
+                        </div>
                     </div>
 
                     <div class="form-group" style="margin-bottom: 0;">
                         <label>Target Language</label>
-                        <select class="form-control" id="targetLang">
-                            <optgroup label="Most Common">
-                                <option value="Chinese">Chinese</option>
-                                <option value="English">English</option>
-                                <option value="Spanish">Spanish</option>
-                                <option value="French">French</option>
-                                <option value="German">German</option>
-                                <option value="Japanese">Japanese</option>
-                                <option value="Korean">Korean</option>
-                                <option value="Portuguese">Portuguese</option>
-                                <option value="Russian">Russian</option>
-                                <option value="Arabic">Arabic</option>
-                            </optgroup>
-                            <optgroup label="European">
-                                <option value="Italian">Italian</option>
-                                <option value="Dutch">Dutch</option>
-                                <option value="Polish">Polish</option>
-                                <option value="Swedish">Swedish</option>
-                                <option value="Norwegian">Norwegian</option>
-                                <option value="Danish">Danish</option>
-                                <option value="Finnish">Finnish</option>
-                                <option value="Greek">Greek</option>
-                                <option value="Hungarian">Hungarian</option>
-                                <option value="Czech">Czech</option>
-                                <option value="Slovak">Slovak</option>
-                                <option value="Romanian">Romanian</option>
-                                <option value="Bulgarian">Bulgarian</option>
-                                <option value="Croatian">Croatian</option>
-                                <option value="Serbian">Serbian</option>
-                                <option value="Ukrainian">Ukrainian</option>
-                                <option value="Catalan">Catalan</option>
-                            </optgroup>
-                            <optgroup label="Asian">
-                                <option value="Hindi">Hindi</option>
-                                <option value="Bengali">Bengali</option>
-                                <option value="Urdu">Urdu</option>
-                                <option value="Punjabi">Punjabi</option>
-                                <option value="Tamil">Tamil</option>
-                                <option value="Telugu">Telugu</option>
-                                <option value="Marathi">Marathi</option>
-                                <option value="Gujarati">Gujarati</option>
-                                <option value="Vietnamese">Vietnamese</option>
-                                <option value="Thai">Thai</option>
-                                <option value="Indonesian">Indonesian</option>
-                                <option value="Malay">Malay</option>
-                                <option value="Tagalog">Tagalog</option>
-                                <option value="Burmese">Burmese</option>
-                            </optgroup>
-                            <optgroup label="Middle East & Africa">
-                                <option value="Persian">Persian</option>
-                                <option value="Turkish">Turkish</option>
-                                <option value="Hebrew">Hebrew</option>
-                                <option value="Swahili">Swahili</option>
-                                <option value="Amharic">Amharic</option>
-                            </optgroup>
-                            <optgroup label="Custom">
-                                <option value="Other">Other (Specify)</option>
-                            </optgroup>
-                        </select>
-                        <input type="text" class="form-control" id="customTargetLang" placeholder="Enter custom target language" style="margin-top: 10px; display: none;">
+                        <div class="neu-inset-light">
+                            <select class="form-control" id="targetLang">
+                                <optgroup label="Most Common">
+                                    <option value="Chinese">Chinese</option>
+                                    <option value="English">English</option>
+                                    <option value="Spanish">Spanish</option>
+                                    <option value="French">French</option>
+                                    <option value="German">German</option>
+                                    <option value="Japanese">Japanese</option>
+                                    <option value="Korean">Korean</option>
+                                    <option value="Portuguese">Portuguese</option>
+                                    <option value="Russian">Russian</option>
+                                    <option value="Arabic">Arabic</option>
+                                </optgroup>
+                                <optgroup label="European">
+                                    <option value="Italian">Italian</option>
+                                    <option value="Dutch">Dutch</option>
+                                    <option value="Polish">Polish</option>
+                                    <option value="Swedish">Swedish</option>
+                                    <option value="Norwegian">Norwegian</option>
+                                    <option value="Danish">Danish</option>
+                                    <option value="Finnish">Finnish</option>
+                                    <option value="Greek">Greek</option>
+                                    <option value="Hungarian">Hungarian</option>
+                                    <option value="Czech">Czech</option>
+                                    <option value="Slovak">Slovak</option>
+                                    <option value="Romanian">Romanian</option>
+                                    <option value="Bulgarian">Bulgarian</option>
+                                    <option value="Croatian">Croatian</option>
+                                    <option value="Serbian">Serbian</option>
+                                    <option value="Ukrainian">Ukrainian</option>
+                                    <option value="Catalan">Catalan</option>
+                                </optgroup>
+                                <optgroup label="Asian">
+                                    <option value="Hindi">Hindi</option>
+                                    <option value="Bengali">Bengali</option>
+                                    <option value="Urdu">Urdu</option>
+                                    <option value="Punjabi">Punjabi</option>
+                                    <option value="Tamil">Tamil</option>
+                                    <option value="Telugu">Telugu</option>
+                                    <option value="Marathi">Marathi</option>
+                                    <option value="Gujarati">Gujarati</option>
+                                    <option value="Vietnamese">Vietnamese</option>
+                                    <option value="Thai">Thai</option>
+                                    <option value="Indonesian">Indonesian</option>
+                                    <option value="Malay">Malay</option>
+                                    <option value="Tagalog">Tagalog</option>
+                                    <option value="Burmese">Burmese</option>
+                                </optgroup>
+                                <optgroup label="Middle East & Africa">
+                                    <option value="Persian">Persian</option>
+                                    <option value="Turkish">Turkish</option>
+                                    <option value="Hebrew">Hebrew</option>
+                                    <option value="Swahili">Swahili</option>
+                                    <option value="Amharic">Amharic</option>
+                                </optgroup>
+                                <optgroup label="Custom">
+                                    <option value="Other">Other (Specify)</option>
+                                </optgroup>
+                            </select>
+                        </div>
+                        <div class="neu-inset-light" style="margin-top: 10px; display: none;" id="customTargetLangContainer">
+                            <input type="text" class="form-control" id="customTargetLang" placeholder="Enter custom target language">
+                        </div>
                     </div>
                 </div>
 
-                <!-- Row 3: Output Filename Pattern -->
-                <div class="form-group">
-                    <label>Output Filename Pattern</label>
-                    <input type="text" class="form-control" id="outputFilenamePattern" value="translated_{originalName}.{ext}" title="Use {originalName} as placeholder for original filename without extension and {ext} for the file extension.">
-                    <small>Example: `translated_{originalName}_to_FR.{ext}`</small>
+                <!-- Output Filename Pattern -->
+                <div class="form-group" style="margin-bottom: 15px;">
+                    <label>Naming Convention</label>
+                    <div class="neu-inset-light">
+                        <input type="text" class="form-control" id="outputFilenamePattern" value="translated_{originalName}.{ext}" title="Use {originalName} as placeholder for original filename">
+                    </div>
+                    <small style="color: var(--text-muted-light); font-size: 0.75rem; margin-top: 0.5rem; display: block;">Example: translated_{originalName}_to_FR.{ext}</small>
                 </div>
 
-                <!-- Prompt Options (Foldable) -->
-                <div class="prompt-options-toggle" onclick="togglePromptOptions()" style="cursor: pointer; padding: 15px; background: linear-gradient(90deg, #1A1A1A, #2C2C2C); border-radius: 8px; margin-bottom: 15px; display: flex; align-items: center; justify-content: space-between; border: 1px solid #333333; color: #A3ADB3; transition: background 0.3s;">
-                    <span style="font-weight: 500;">📝 Prompt Options</span>
-                    <span id="promptOptionsIcon" style="transition: transform 0.2s; color: #79CDDE;">▼</span>
+                <!-- Prompt Options (Collapsible) -->
+                <div class="prompt-options-toggle" onclick="togglePromptOptions()">
+                    <span style="display: flex; align-items: center; gap: 0.75rem;">
+                        <span class="material-symbols-outlined">edit_note</span>
+                        <span>Prompt Options</span>
+                    </span>
+                    <span id="promptOptionsIcon" class="material-symbols-outlined">expand_more</span>
                 </div>
-                <div id="promptOptionsSection" class="hidden" style="padding: 20px; background: #1A1A1A; border: 1px solid #333333; border-radius: 8px; margin-bottom: 15px;">
-                    <p style="margin: 0 0 15px 0; font-size: 13px; color: #A3ADB3;">
+
+                <div id="promptOptionsSection" class="hidden">
+                    <p style="margin: 0 0 15px 0; font-size: 0.875rem; color: var(--text-muted-light);">
                         Optional instructions to include in the translation prompt. Enable these for specific document types.
                     </p>
 
                     <!-- Technical Content Preservation -->
-                    <div class="form-group" style="margin-bottom: 10px;">
+                    <div class="form-group" style="margin-bottom: 15px;">
                         <label style="display: flex; align-items: flex-start; gap: 10px; cursor: pointer;">
-                            <input type="checkbox" id="preserveTechnicalContent" style="width: auto; margin-top: 3px; accent-color: #79CDDE;">
+                            <input type="checkbox" id="preserveTechnicalContent">
                             <div>
-                                <span style="font-weight: 500; color: #E0E6E9;">Preserve Technical Content</span>
-                                <p style="margin: 5px 0 0 0; font-size: 13px; color: #A3ADB3;">
+                                <span style="font-weight: 600; color: var(--text-dark);">Preserve Technical Content</span>
+                                <p style="margin: 5px 0 0 0; font-size: 0.8125rem; color: var(--text-muted-light);">
                                     For technical documents. Instructs the LLM to NOT translate: code snippets, command lines, file paths, URLs, and programming terms.
                                 </p>
                             </div>
                         </label>
                     </div>
 
-                    <!-- Text Cleanup (OCR/Typographic Correction) -->
-                    <div class="form-group" style="margin-bottom: 10px;">
+                    <!-- Text Cleanup (OCR Correction) -->
+                    <div class="form-group" style="margin-bottom: 15px;">
                         <label style="display: flex; align-items: flex-start; gap: 10px; cursor: pointer;">
-                            <input type="checkbox" id="textCleanup" style="width: auto; margin-top: 3px; accent-color: #79CDDE;">
+                            <input type="checkbox" id="textCleanup">
                             <div>
-                                <span style="font-weight: 500; color: #E0E6E9;">Text Cleanup (OCR Correction)</span>
-                                <p style="margin: 5px 0 0 0; font-size: 13px; color: #A3ADB3;">
+                                <span style="font-weight: 600; color: var(--text-dark);">Text Cleanup (OCR Correction)</span>
+                                <p style="margin: 5px 0 0 0; font-size: 0.8125rem; color: var(--text-muted-light);">
                                     For poorly formatted or OCR-scanned texts. Instructs the LLM to fix: broken line breaks, double spaces, punctuation errors, and merge incorrectly split paragraphs.
                                 </p>
                             </div>
@@ -252,12 +314,12 @@
                     </div>
 
                     <!-- Polish Translation (Refinement Pass) -->
-                    <div class="form-group" style="margin-bottom: 10px;">
+                    <div class="form-group" style="margin-bottom: 0;">
                         <label style="display: flex; align-items: flex-start; gap: 10px; cursor: pointer;">
-                            <input type="checkbox" id="refineTranslation" style="width: auto; margin-top: 3px; accent-color: #79CDDE;">
+                            <input type="checkbox" id="refineTranslation">
                             <div>
-                                <span style="font-weight: 500; color: #E0E6E9;">✨ Polish Translation (2nd Pass)</span>
-                                <p style="margin: 5px 0 0 0; font-size: 13px; color: #A3ADB3;">
+                                <span style="font-weight: 600; color: var(--text-dark);">✨ Polish Translation (2nd Pass)</span>
+                                <p style="margin: 5px 0 0 0; font-size: 0.8125rem; color: var(--text-muted-light);">
                                     Runs a second refinement pass after translation. The LLM rewrites the first-pass translation to improve literary quality, natural flow, and stylistic elegance. Doubles the translation time but significantly improves output quality.
                                 </p>
                             </div>
@@ -266,26 +328,29 @@
                 </div>
 
                 <!-- TTS (Text-to-Speech) Options -->
-                <div class="form-group" style="margin-bottom: 15px;">
-                    <label style="display: flex; align-items: center; gap: 10px;">
-                        <input type="checkbox" id="ttsEnabled" style="width: auto;">
-                        🔊 Generate Audio (TTS) - Create audio narration after translation
+                <div class="form-group" style="margin-bottom: 15px; margin-top: 15px;">
+                    <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
+                        <input type="checkbox" id="ttsEnabled">
+                        <span class="material-symbols-outlined">volume_up</span>
+                        <span style="font-weight: 600;">Speech Generation</span>
                     </label>
-                    <div id="ttsOptions" style="display: none; margin-top: 15px; padding: 15px; background: linear-gradient(135deg, #1a2e1a 0%, #0d1f0d 100%); border-left: 3px solid #22c55e; border-radius: 8px;">
 
+                    <div id="ttsOptions" style="display: none; margin-top: 15px;">
                         <!-- TTS Provider Selection -->
                         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px;">
                             <div class="form-group" style="margin-bottom: 0;">
-                                <label style="font-size: 13px; color: #a3adb3;">TTS Provider</label>
-                                <select class="form-control" id="ttsProvider" style="font-size: 13px;">
-                                    <option value="edge-tts" selected>Edge TTS (Cloud)</option>
-                                    <option value="chatterbox">Chatterbox TTS (Local GPU)</option>
-                                </select>
+                                <label>TTS Provider</label>
+                                <div class="neu-inset-light">
+                                    <select class="form-control" id="ttsProvider">
+                                        <option value="edge-tts" selected>Edge TTS (Cloud)</option>
+                                        <option value="chatterbox">Chatterbox TTS (Local GPU)</option>
+                                    </select>
+                                </div>
                             </div>
 
-                            <!-- GPU Status Indicator (shown for Chatterbox) -->
+                            <!-- GPU Status Indicator -->
                             <div id="gpuStatusSection" class="form-group" style="margin-bottom: 0; display: none;">
-                                <label style="font-size: 13px; color: #a3adb3;">GPU Status</label>
+                                <label>GPU Status</label>
                                 <div id="gpuStatusIndicator" class="gpu-status gpu-checking">
                                     <span id="gpuStatusDot" class="status-dot checking"></span>
                                     <span id="gpuName">Checking...</span>
@@ -296,72 +361,79 @@
 
                         <!-- Edge TTS Options -->
                         <div id="edgeTTSOptions">
-                            <p style="margin: 0 0 15px 0; font-size: 14px; color: #22c55e;">
+                            <p style="margin: 0 0 15px 0; font-size: 0.875rem; color: var(--success-light);">
                                 <strong>🎙️ Edge TTS:</strong> Microsoft Edge neural voices (cloud-based, free).
-                                <br><span style="color: #a3adb3;">⚠️ Requires: ffmpeg installed on the system.</span>
                             </p>
                             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
                                 <div class="form-group" style="margin-bottom: 0;">
-                                    <label for="ttsVoice" style="font-size: 13px; color: #a3adb3;">Voice (auto-select if empty)</label>
-                                    <input type="text" class="form-control" id="ttsVoice" placeholder="e.g., zh-CN-XiaoxiaoNeural" style="font-size: 13px;">
-                                    <small id="ttsVoiceHelp" style="color: #6b7280;">Leave empty for auto-selection based on target language</small>
+                                    <label>Voice (auto-select if empty)</label>
+                                    <div class="neu-inset-light">
+                                        <input type="text" class="form-control" id="ttsVoice" placeholder="e.g., zh-CN-XiaoxiaoNeural">
+                                    </div>
                                 </div>
                                 <div class="form-group" style="margin-bottom: 0;">
-                                    <label style="font-size: 13px; color: #a3adb3;">Speech Rate</label>
-                                    <select class="form-control" id="ttsRate" style="font-size: 13px;">
-                                        <option value="-20%">Slower (-20%)</option>
-                                        <option value="-10%">Slightly slower (-10%)</option>
-                                        <option value="+0%" selected>Normal</option>
-                                        <option value="+10%">Slightly faster (+10%)</option>
-                                        <option value="+20%">Faster (+20%)</option>
-                                        <option value="+30%">Much faster (+30%)</option>
-                                    </select>
+                                    <label>Speech Rate</label>
+                                    <div class="neu-inset-light">
+                                        <select class="form-control" id="ttsRate">
+                                            <option value="-20%">Slower (-20%)</option>
+                                            <option value="-10%">Slightly slower (-10%)</option>
+                                            <option value="+0%" selected>Normal</option>
+                                            <option value="+10%">Slightly faster (+10%)</option>
+                                            <option value="+20%">Faster (+20%)</option>
+                                            <option value="+30%">Much faster (+30%)</option>
+                                        </select>
+                                    </div>
                                 </div>
                                 <div class="form-group" style="margin-bottom: 0;">
-                                    <label style="font-size: 13px; color: #a3adb3;">Audio Format</label>
-                                    <select class="form-control" id="ttsFormat" style="font-size: 13px;">
-                                        <option value="opus" selected>Opus (compact, recommended)</option>
-                                        <option value="mp3">MP3 (compatible)</option>
-                                    </select>
+                                    <label>Audio Format</label>
+                                    <div class="neu-inset-light">
+                                        <select class="form-control" id="ttsFormat">
+                                            <option value="opus" selected>Opus (compact)</option>
+                                            <option value="mp3">MP3 (compatible)</option>
+                                        </select>
+                                    </div>
                                 </div>
                                 <div class="form-group" style="margin-bottom: 0;">
-                                    <label style="font-size: 13px; color: #a3adb3;">Audio Bitrate</label>
-                                    <select class="form-control" id="ttsBitrate" style="font-size: 13px;">
-                                        <option value="48k">48k (smaller file)</option>
-                                        <option value="64k" selected>64k (balanced)</option>
-                                        <option value="96k">96k (higher quality)</option>
-                                        <option value="128k">128k (best quality)</option>
-                                    </select>
+                                    <label>Audio Bitrate</label>
+                                    <div class="neu-inset-light">
+                                        <select class="form-control" id="ttsBitrate">
+                                            <option value="48k">48k (smaller)</option>
+                                            <option value="64k" selected>64k (balanced)</option>
+                                            <option value="96k">96k (higher quality)</option>
+                                            <option value="128k">128k (best)</option>
+                                        </select>
+                                    </div>
                                 </div>
                             </div>
                         </div>
 
-                        <!-- Chatterbox TTS Options (hidden by default) -->
+                        <!-- Chatterbox TTS Options -->
                         <div id="chatterboxOptions" style="display: none;">
-                            <p style="margin: 0 0 15px 0; font-size: 14px; color: #fbbf24;">
+                            <p style="margin: 0 0 15px 0; font-size: 0.875rem; color: #f59e0b;">
                                 <strong>🔥 Chatterbox TTS:</strong> Local GPU-accelerated TTS with voice cloning.
-                                <br><span style="color: #a3adb3;">Supports 23 languages. Upload a voice sample to clone any voice.</span>
                             </p>
 
                             <!-- Voice Cloning Section -->
-                            <div style="background: #2a2a2a; border-radius: 8px; padding: 15px; margin-bottom: 15px; border: 1px solid #333;">
-                                <h4 style="margin: 0 0 12px 0; font-size: 14px; color: #fbbf24;">🎤 Voice Cloning</h4>
+                            <div style="background: rgba(54, 118, 216, 0.05); border-radius: 1rem; padding: 15px; margin-bottom: 15px; border: 1px solid var(--border-light);">
+                                <h4 style="margin: 0 0 12px 0; font-size: 0.875rem; color: var(--text-dark); font-weight: 700;">🎤 Voice Cloning</h4>
                                 <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 15px; align-items: end;">
                                     <div class="form-group" style="margin-bottom: 0;">
-                                        <label style="font-size: 13px; color: #a3adb3;">Voice Prompt</label>
-                                        <select class="form-control" id="voicePromptSelect" style="font-size: 13px;">
-                                            <option value="">Default voice (no cloning)</option>
-                                        </select>
-                                        <small style="color: #6b7280;">Select a voice sample or upload a new one</small>
+                                        <label>Voice Prompt</label>
+                                        <div class="neu-inset-light">
+                                            <select class="form-control" id="voicePromptSelect">
+                                                <option value="">Default voice (no cloning)</option>
+                                            </select>
+                                        </div>
                                     </div>
                                     <div class="form-group" style="margin-bottom: 0;">
-                                        <label style="font-size: 13px; color: #a3adb3;">Upload Voice Sample</label>
-                                        <div style="display: flex; gap: 8px; align-items: center;">
+                                        <label>Upload Voice Sample</label>
+                                        <div style="display: flex; gap: 8px;">
                                             <input type="file" id="voicePromptInput" accept=".wav,.mp3,.flac,.ogg,.m4a" style="display: none;">
-                                            <button type="button" id="uploadVoicePromptBtn" class="btn btn-secondary" onclick="document.getElementById('voicePromptInput').click()" style="font-size: 12px; padding: 8px 12px;">
-                                                📁 Upload
+                                            <button type="button" id="uploadVoicePromptBtn" class="btn btn-secondary" onclick="document.getElementById('voicePromptInput').click()" style="font-size: 0.75rem; padding: 0.5rem 1rem;">
+                                                <span class="material-symbols-outlined" style="font-size: 1rem;">upload_file</span>
+                                                Upload
                                             </button>
-                                            <span id="voicePromptUploadStatus" style="font-size: 12px;"></span>
+                                            <span id="voicePromptUploadStatus" style="font-size: 0.75rem;"></span>
                                         </div>
                                     </div>
                                 </div>
@@ -370,58 +442,62 @@
                             <!-- Emotion Control -->
                             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
                                 <div class="form-group" style="margin-bottom: 0;">
-                                    <label style="font-size: 13px; color: #a3adb3;">
-                                        Exaggeration (Emotion) <span id="exaggerationValue" style="color: #fbbf24;">0.50</span>
+                                    <label>
+                                        Exaggeration (Emotion) <span id="exaggerationValue" style="color: var(--primary-light);">0.50</span>
                                     </label>
                                     <input type="range" id="ttsExaggeration" min="0" max="1" step="0.05" value="0.5" class="tts-slider">
-                                    <small style="color: #6b7280;">Higher = more expressive, Lower = more neutral</small>
+                                    <small style="color: var(--text-muted-light); font-size: 0.75rem;">Higher = more expressive</small>
                                 </div>
                                 <div class="form-group" style="margin-bottom: 0;">
-                                    <label style="font-size: 13px; color: #a3adb3;">
-                                        CFG Weight <span id="cfgWeightValue" style="color: #fbbf24;">0.50</span>
+                                    <label>
+                                        CFG Weight <span id="cfgWeightValue" style="color: var(--primary-light);">0.50</span>
                                     </label>
                                     <input type="range" id="ttsCfgWeight" min="0" max="1" step="0.05" value="0.5" class="tts-slider">
-                                    <small style="color: #6b7280;">Controls how closely output matches the prompt</small>
+                                    <small style="color: var(--text-muted-light); font-size: 0.75rem;">Controls prompt adherence</small>
                                 </div>
                             </div>
 
-                            <!-- Output Format (shared) -->
+                            <!-- Output Format -->
                             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 15px;">
                                 <div class="form-group" style="margin-bottom: 0;">
-                                    <label style="font-size: 13px; color: #a3adb3;">Audio Format</label>
-                                    <select class="form-control" id="chatterboxFormat" style="font-size: 13px;">
-                                        <option value="wav">WAV (lossless)</option>
-                                        <option value="mp3" selected>MP3 (compatible)</option>
-                                        <option value="opus">Opus (compact)</option>
-                                    </select>
+                                    <label>Audio Format</label>
+                                    <div class="neu-inset-light">
+                                        <select class="form-control" id="chatterboxFormat">
+                                            <option value="wav">WAV (lossless)</option>
+                                            <option value="mp3" selected>MP3 (compatible)</option>
+                                            <option value="opus">Opus (compact)</option>
+                                        </select>
+                                    </div>
                                 </div>
                                 <div class="form-group" style="margin-bottom: 0;">
-                                    <label style="font-size: 13px; color: #a3adb3;">Target Language</label>
-                                    <select class="form-control" id="chatterboxLanguage" style="font-size: 13px;">
-                                        <option value="en">English</option>
-                                        <option value="zh">Chinese</option>
-                                        <option value="es">Spanish</option>
-                                        <option value="fr">French</option>
-                                        <option value="de">German</option>
-                                        <option value="it">Italian</option>
-                                        <option value="ja">Japanese</option>
-                                        <option value="ko">Korean</option>
-                                        <option value="pt">Portuguese</option>
-                                        <option value="ru">Russian</option>
-                                        <option value="ar">Arabic</option>
-                                        <option value="hi">Hindi</option>
-                                        <option value="nl">Dutch</option>
-                                        <option value="pl">Polish</option>
-                                        <option value="tr">Turkish</option>
-                                        <option value="vi">Vietnamese</option>
-                                        <option value="th">Thai</option>
-                                        <option value="cs">Czech</option>
-                                        <option value="ro">Romanian</option>
-                                        <option value="hu">Hungarian</option>
-                                        <option value="el">Greek</option>
-                                        <option value="da">Danish</option>
-                                        <option value="fi">Finnish</option>
-                                    </select>
+                                    <label>Target Language</label>
+                                    <div class="neu-inset-light">
+                                        <select class="form-control" id="chatterboxLanguage">
+                                            <option value="en">English</option>
+                                            <option value="zh">Chinese</option>
+                                            <option value="es">Spanish</option>
+                                            <option value="fr">French</option>
+                                            <option value="de">German</option>
+                                            <option value="it">Italian</option>
+                                            <option value="ja">Japanese</option>
+                                            <option value="ko">Korean</option>
+                                            <option value="pt">Portuguese</option>
+                                            <option value="ru">Russian</option>
+                                            <option value="ar">Arabic</option>
+                                            <option value="hi">Hindi</option>
+                                            <option value="nl">Dutch</option>
+                                            <option value="pl">Polish</option>
+                                            <option value="tr">Turkish</option>
+                                            <option value="vi">Vietnamese</option>
+                                            <option value="th">Thai</option>
+                                            <option value="cs">Czech</option>
+                                            <option value="ro">Romanian</option>
+                                            <option value="hu">Hungarian</option>
+                                            <option value="el">Greek</option>
+                                            <option value="da">Danish</option>
+                                            <option value="fi">Finnish</option>
+                                        </select>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -430,45 +506,78 @@
 
                 <!-- Save Settings Button -->
                 <div style="text-align: center; margin: 20px 0;">
-                    <button type="button" class="btn btn-secondary" id="saveSettingsBtn" onclick="saveSettings()" style="padding: 8px 20px; font-size: 14px;" title="Save current settings (API keys, model, languages) to .env file for next session">
-                        💾 Save Settings
+                    <button type="button" class="btn btn-secondary" id="saveSettingsBtn" onclick="saveSettings()">
+                        <span class="material-symbols-outlined">save</span>
+                        Save All Settings
                     </button>
-                    <span id="saveSettingsStatus" style="margin-left: 10px; font-size: 14px;"></span>
+                    <span id="saveSettingsStatus" style="margin-left: 10px; font-size: 0.875rem;"></span>
                 </div>
 
+                <!-- File Upload Area -->
                 <div class="file-upload" id="fileUpload" onclick="document.getElementById('fileInput').click()">
-                    <h3>📁 Drag & Drop your .txt, .epub or .srt files here</h3>
-                    <p>or click to select</p>
+                    <div class="upload-icon">
+                        <span class="material-symbols-outlined">cloud_upload</span>
+                    </div>
+                    <h3>Drop files to translate</h3>
+                    <p>Support for TXT, EPUB, and SRT (Max 25MB per file)</p>
+                    <div class="browse-btn">Browse Files</div>
                     <input type="file" id="fileInput" accept=".txt,.epub,.srt" style="display: none;" onchange="handleFileSelect(event)" multiple>
                 </div>
 
+                <!-- File Info Section -->
                 <div id="fileInfo" class="hidden" style="margin-bottom: 20px;">
-                    <h4>Selected Files:</h4>
-                    <ul id="fileListContainer"></ul> <button class="btn" onclick="resetFiles()" style="background: #e5e7eb; color: #374151; margin-top:10px;">❌ Clear All Files</button>
+                    <h4 style="color: var(--text-dark); font-weight: 700; margin-bottom: 1rem;">Selected Files:</h4>
+                    <ul id="fileListContainer"></ul>
+                    <button class="btn btn-secondary" onclick="resetFiles()" style="margin-top: 10px;">
+                        <span class="material-symbols-outlined">close</span>
+                        Clear All Files
+                    </button>
                 </div>
 
-
+                <!-- Messages -->
                 <div id="messages"></div>
 
+                <!-- Action Buttons -->
                 <div style="text-align: center; margin-top: 30px; display: flex; justify-content: center; gap: 15px;">
-                    <button class="btn btn-primary" id="translateBtn" onclick="startBatchTranslation()" disabled> ▶️ Start Translation Batch
+                    <button class="btn btn-primary" id="translateBtn" onclick="startBatchTranslation()" disabled>
+                        <span class="material-symbols-outlined">play_circle</span>
+                        Start Translation Batch
                     </button>
-                    <button class="btn btn-danger hidden" id="interruptBtn" onclick="interruptCurrentTranslation()"> ⏹️ Interrupt Current & Stop Batch
+                    <button class="btn btn-danger hidden" id="interruptBtn" onclick="interruptCurrentTranslation()">
+                        <span class="material-symbols-outlined">stop_circle</span>
+                        Interrupt Current & Stop Batch
                     </button>
                 </div>
 
+                <!-- Progress Section -->
                 <div id="progressSection" class="progress-section hidden">
-                    <h3 id="currentFileProgressTitle">📊 Translation Progress</h3>
+                    <h3 id="currentFileProgressTitle">
+                        <span class="material-symbols-outlined">monitoring</span>
+                        Translation Progress
+                    </h3>
                     <div class="progress-bar-container">
                         <div class="progress-bar" id="progressBar" style="width: 0%">0%</div>
                     </div>
                     <div class="stats-grid" id="statsGrid">
-                        <div class="stat-card"><h3 id="totalChunks">0</h3><p>Total Chunks</p></div>
-                        <div class="stat-card"><h3 id="completedChunks">0</h3><p>Completed</p></div>
-                        <div class="stat-card"><h3 id="failedChunks">0</h3><p>Failed</p></div>
-                        <div class="stat-card"><h3 id="elapsedTime">0s</h3><p>Time Elapsed</p></div>
+                        <div class="stat-card">
+                            <h3 id="totalChunks">0</h3>
+                            <p>Total Chunks</p>
+                        </div>
+                        <div class="stat-card">
+                            <h3 id="completedChunks">0</h3>
+                            <p>Completed</p>
+                        </div>
+                        <div class="stat-card">
+                            <h3 id="failedChunks">0</h3>
+                            <p>Failed</p>
+                        </div>
+                        <div class="stat-card">
+                            <h3 id="elapsedTime">0s</h3>
+                            <p>Time Elapsed</p>
+                        </div>
                     </div>
-                    <!-- OpenRouter Cost Display (hidden by default, shown only for OpenRouter provider) -->
+
+                    <!-- OpenRouter Cost Display -->
                     <div class="stats-grid hidden" id="openrouterCostGrid" style="margin-top: 15px;">
                         <div class="stat-card" style="background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); border: 1px solid #f59e0b;">
                             <h3 id="openrouterCost" style="color: #92400e;">$0.0000</h3>
@@ -479,40 +588,56 @@
                             <p style="color: #1e3a8a;">Total Tokens</p>
                         </div>
                     </div>
+
+                    <!-- Last Translation Preview -->
                     <div style="margin-top: 20px;">
-                        <h4 style="margin: 0 0 10px 0;">📝 Last Translation Preview</h4>
+                        <h4 style="margin: 0 0 10px 0; color: var(--text-dark); font-weight: 700;">
+                            <span class="material-symbols-outlined" style="vertical-align: middle; font-size: 1.25rem;">description</span>
+                            Last Translation Preview
+                        </h4>
                         <div class="log-container" id="lastTranslationPreview" style="min-height: 300px; max-height: 400px;">
-                            <div style="color: #6b7280; font-style: italic; padding: 10px;">No translation yet...</div>
+                            <div style="color: var(--text-muted-light); font-style: italic; padding: 10px;">No translation yet...</div>
                         </div>
                     </div>
                 </div>
 
-                <!-- TTS Progress Section (shown when TTS is generating) -->
-                <div id="ttsProgressSection" style="display: none; margin-top: 20px; padding: 15px; background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%); border: 1px solid #22c55e; border-radius: 8px;">
-                    <h3 style="margin: 0 0 10px 0; color: #166534;">🔊 Audio Generation</h3>
+                <!-- TTS Progress Section -->
+                <div id="ttsProgressSection" style="display: none; margin-top: 20px; padding: 15px; background: var(--success-light-bg); border: 1px solid var(--success-light); border-radius: 1.5rem;">
+                    <h3 style="margin: 0 0 10px 0; color: var(--success-light); display: flex; align-items: center; gap: 0.5rem;">
+                        <span class="material-symbols-outlined">volume_up</span>
+                        Audio Generation
+                    </h3>
                     <div class="progress-bar-container" style="margin-bottom: 10px;">
-                        <div class="progress-bar" id="ttsProgressBar" style="width: 0%; background: linear-gradient(90deg, #22c55e 0%, #16a34a 100%);">0%</div>
+                        <div class="progress-bar" id="ttsProgressBar" style="width: 0%; background: linear-gradient(90deg, var(--success-light), #22c55e);">0%</div>
                     </div>
-                    <p id="ttsStatusText" style="margin: 0; font-size: 14px; color: #166534;">Waiting to start...</p>
+                    <p id="ttsStatusText" style="margin: 0; font-size: 0.875rem; color: var(--success-light);">Waiting to start...</p>
                 </div>
 
-                <!-- Activity Log - Always visible -->
+                <!-- Activity Log -->
                 <div style="margin-top: 30px;">
                     <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
-                        <h4 style="margin: 0;">💻 Activity Log</h4>
-                        <button class="btn btn-secondary" onclick="clearActivityLog()" style="font-size: 12px; padding: 5px 10px;">🗑️ Clear Log</button>
+                        <h4 style="margin: 0; color: var(--text-dark); font-weight: 700; display: flex; align-items: center; gap: 0.5rem;">
+                            <span class="material-symbols-outlined">terminal</span>
+                            Activity Log
+                        </h4>
+                        <button class="btn btn-secondary" onclick="clearActivityLog()" style="font-size: 0.75rem; padding: 0.5rem 1rem;">
+                            <span class="material-symbols-outlined" style="font-size: 1rem;">delete</span>
+                            Clear Log
+                        </button>
                     </div>
                     <div class="log-container" id="logContainer"></div>
                 </div>
-
             </div>
         </div>
 
         <!-- Resumable Jobs Section -->
         <div class="main-card" id="resumableJobsSection" style="margin-top: 30px; display: none;">
             <div class="card-header">
-                <h2>⏸️ Paused Translations</h2>
-                <button class="btn btn-secondary" onclick="loadResumableJobs()" title="Refresh list" style="margin-left: auto;">🔄 Refresh</button>
+                <span class="material-symbols-outlined">pause_circle</span>
+                <h2>Paused Translations</h2>
+                <button class="btn btn-secondary" onclick="loadResumableJobs()" title="Refresh list" style="margin-left: auto; padding: 0.5rem 1rem;">
+                    <span class="material-symbols-outlined">refresh</span>
+                </button>
             </div>
 
             <div class="card-body">
@@ -526,7 +651,7 @@
                     </div>
 
                     <div id="resumableJobsEmpty" style="text-align: center; padding: 40px; display: none;">
-                        <p style="color: #6b7280;">No paused translations</p>
+                        <p style="color: var(--text-muted-light);">No paused translations</p>
                     </div>
                 </div>
             </div>
@@ -535,54 +660,58 @@
         <!-- File Management Section -->
         <div class="main-card" style="margin-top: 30px;">
             <div class="card-header">
-                <h2>📁 File Management</h2>
-                <button class="btn btn-secondary" onclick="refreshFileList()" title="Refresh file list" style="margin-left: auto;">🔄 Refresh</button>
+                <span class="material-symbols-outlined">folder_open</span>
+                <h2>File Management</h2>
+                <button class="btn btn-secondary" onclick="refreshFileList()" title="Refresh file list" style="margin-left: auto; padding: 0.5rem 1rem;">
+                    <span class="material-symbols-outlined">refresh</span>
+                </button>
             </div>
-            
+
             <div class="card-body">
                 <div id="fileManagementSection">
                     <div class="file-actions" style="margin-bottom: 20px; display: flex; gap: 10px;">
                         <button class="btn btn-primary" disabled id="batchDownloadBtn">
-                            📥 Download Selected (Zip)
+                            <span class="material-symbols-outlined">download</span>
+                            Download Selected (Zip)
                         </button>
                         <button class="btn btn-danger" disabled id="batchDeleteBtn">
-                            🗑️ Delete Selected
+                            <span class="material-symbols-outlined">delete</span>
+                            Delete Selected
                         </button>
-                        <label style="margin-left: auto; display: flex; align-items: center; gap: 5px;">
+                        <label style="margin-left: auto; display: flex; align-items: center; gap: 5px; cursor: pointer;">
                             <input type="checkbox" id="selectAllFiles">
                             Select All
                         </label>
                     </div>
-                    
+
                     <div id="fileListLoading" style="text-align: center; padding: 20px;">
                         <p>Loading files...</p>
                     </div>
-                    
+
                     <div id="fileManagementContainer" style="display: none;">
-                        <table class="file-table" style="width: 100%; border-collapse: collapse;">
+                        <table class="file-table">
                             <thead>
-                                <tr style="background: #f3f4f6;">
-                                    <th style="padding: 10px; text-align: left; width: 40px;">
-                                    </th>
-                                    <th style="padding: 10px; text-align: left;">Filename</th>
-                                    <th style="padding: 10px; text-align: left;">Type</th>
-                                    <th style="padding: 10px; text-align: left;">Size</th>
-                                    <th style="padding: 10px; text-align: left;">Modified</th>
-                                    <th style="padding: 10px; text-align: center;">Actions</th>
+                                <tr>
+                                    <th style="width: 40px;"></th>
+                                    <th>Filename</th>
+                                    <th>Type</th>
+                                    <th>Size</th>
+                                    <th>Modified</th>
+                                    <th style="text-align: center;">Actions</th>
                                 </tr>
                             </thead>
                             <tbody id="fileTableBody">
                             </tbody>
                         </table>
-                        
+
                         <div id="fileListEmpty" style="text-align: center; padding: 40px; display: none;">
-                            <p style="color: #6b7280;">No files found in the translated files directory</p>
+                            <p style="color: var(--text-muted-light);">No files found in the translated files directory</p>
                         </div>
                     </div>
-                    
-                    <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
-                        <p style="color: #6b7280; font-size: 14px;">
-                            <strong>Total:</strong> <span id="totalFileCount">0</span> files, 
+
+                    <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid var(--border-light);">
+                        <p style="color: var(--text-muted-light); font-size: 0.875rem;">
+                            <strong>Total:</strong> <span id="totalFileCount">0</span> files,
                             <span id="totalFileSize">0 MB</span>
                         </p>
                     </div>
@@ -591,15 +720,16 @@
         </div>
     </div>
 
+    <!-- Footer -->
     <footer class="app-footer">
         <p>
-            Made with <span class="heart">❤️</span> by the TBL community |
             <a href="https://github.com/hydropix/TranslateBookWithLLM" target="_blank" rel="noopener noreferrer">
                 View on GitHub
             </a>
         </p>
     </footer>
 
+    <!-- Scripts -->
     <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
     <script type="module" src="/static/js/index.js?v=20251113-001"></script>
 </body>
