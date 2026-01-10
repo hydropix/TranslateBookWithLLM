@@ -10,9 +10,10 @@ This module provides a simplified approach to EPUB translation that:
 6. Restores global indices after translation (PlaceholderManager)
 7. Restores tags and replaces the body
 
-Translation flow with retry:
+Translation flow with multi-phase fallback:
 1. Phase 1: Normal translation (with retry attempts)
-2. Phase 2: Return untranslated text if all retries fail
+2. Phase 2: Token alignment fallback (translate without placeholders, then reinsert)
+3. Phase 3: Return untranslated text if all phases fail
 
 Placeholder Indexing Architecture:
 ===================================
@@ -468,7 +469,87 @@ async def translate_chunk_with_fallback(
             # Continue to next retry attempt
 
     # ==========================================================================
-    # PHASE 2: Return untranslated text (all retry attempts failed)
+    # PHASE 2: TOKEN ALIGNMENT FALLBACK
+    # ==========================================================================
+    from src.config import EPUB_TOKEN_ALIGNMENT_ENABLED
+
+    if EPUB_TOKEN_ALIGNMENT_ENABLED:
+        try:
+            if log_callback:
+                log_callback("phase2_start", "=" * 70)
+                log_callback("phase2_start", "PHASE 2: Token Alignment Fallback - Translating without placeholder constraints...")
+                log_callback("phase2_start", "=" * 70)
+
+            # 1. Extract clean text (without placeholders)
+            from src.common.placeholder_format import PlaceholderFormat
+            fmt = PlaceholderFormat.from_config()
+            clean_text = fmt.remove_all(chunk_text)
+
+            # 2. Translate WITHOUT placeholders (guaranteed to work)
+            # Note: generate_translation_request will show its own logs during translation
+            translated_clean = await generate_translation_request(
+                clean_text,
+                context_before="",
+                context_after="",
+                previous_translation_context="",
+                source_language=source_language,
+                target_language=target_language,
+                model=model_name,
+                llm_client=llm_client,
+                log_callback=log_callback,
+                has_placeholders=False,  # CRITICAL: no placeholder instructions
+                context_manager=context_manager,
+                placeholder_format=None  # No placeholders in prompt
+            )
+
+            if translated_clean is None:
+                raise Exception("LLM returned None for clean translation")
+
+            # Show comparison AFTER translation is complete
+            if log_callback:
+                log_callback("phase2_complete", "-" * 70)
+                log_callback("phase2_complete", "Phase 2 translation complete - now aligning placeholders")
+                log_callback("phase2_complete", "-" * 70)
+                log_callback("phase2_comparison", f"Original (with placeholders):\n{chunk_text}\n")
+                log_callback("phase2_comparison", f"Clean text sent to LLM:\n{clean_text}\n")
+                log_callback("phase2_comparison", f"LLM translation (no placeholders):\n{translated_clean}")
+
+            # 3. Initialize aligner (lazy loading, cached on function)
+            if not hasattr(translate_chunk_with_fallback, '_aligner'):
+                from .token_alignment_fallback import TokenAlignmentFallback
+                translate_chunk_with_fallback._aligner = TokenAlignmentFallback()
+
+            # 4. Align and reinsert placeholders
+            placeholders_list = list(local_tag_map.keys())  # ["[id0]", "[id1]", ...]
+
+            result_with_placeholders = translate_chunk_with_fallback._aligner.align_and_insert_placeholders(
+                original_with_placeholders=chunk_text,
+                translated_without_placeholders=translated_clean,
+                placeholders=placeholders_list
+            )
+
+            # 5. Validate (should always pass, but check anyway)
+            if validate_placeholders(result_with_placeholders, local_tag_map):
+                stats.successful_after_retry += 1  # Count as success
+                if log_callback:
+                    log_callback("phase2_result", f"\nFinal result (with {len(placeholders_list)} placeholders aligned):\n{result_with_placeholders}")
+                    log_callback("phase2_success", "\n✓ Phase 2 SUCCESS - Placeholders correctly aligned and validated!")
+                    log_callback("phase2_success", "=" * 70)
+
+                # 6. Restore global indices and return
+                result = placeholder_mgr.restore_to_global(result_with_placeholders, global_indices)
+                return result
+            else:
+                if log_callback:
+                    log_callback("phase2_validation_failed", "✗ Phase 2 validation failed (unexpected)")
+                    log_callback("phase2_validation_failed", "=" * 70)
+
+        except Exception as e:
+            if log_callback:
+                log_callback("phase2_error", f"Phase 2 error: {str(e)}")
+
+    # ==========================================================================
+    # PHASE 3: UNTRANSLATED FALLBACK
     # ==========================================================================
     stats.fallback_used += 1
 

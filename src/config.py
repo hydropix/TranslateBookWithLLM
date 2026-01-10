@@ -268,6 +268,22 @@ MAX_PLACEHOLDER_RETRIES = 0
 MAX_PLACEHOLDER_CORRECTION_ATTEMPTS = 0
 """Number of LLM correction attempts before falling back to proportional insertion (0 = skip correction phase entirely)"""
 
+# =============================================================================
+# TOKEN ALIGNMENT FALLBACK CONFIGURATION (Phase 2)
+# =============================================================================
+# When LLM fails to preserve placeholders correctly, use word-level alignment
+# to reinsert them at semantically correct positions.
+
+EPUB_TOKEN_ALIGNMENT_ENABLED = os.getenv('EPUB_TOKEN_ALIGNMENT_ENABLED', 'true').lower() == 'true'
+"""Enable token alignment fallback for EPUB translation (Phase 2)"""
+
+EPUB_TOKEN_ALIGNMENT_METHOD = os.getenv('EPUB_TOKEN_ALIGNMENT_METHOD', 'proportional')
+"""
+Alignment method to use:
+- 'proportional': Simple position-based alignment (fast, no dependencies)
+- 'advanced': Future - could add ML-based alignment
+"""
+
 
 def detect_placeholder_mode(text: str) -> tuple:
     """
