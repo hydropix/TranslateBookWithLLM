@@ -16,7 +16,7 @@ class HtmlChunker:
     Chunks HTML with placeholders into complete HTML blocks.
 
     Guarantees that each chunk contains balanced placeholders
-    (no orphan [[3]] without its closing [[4]]).
+    (no orphan [id3] without its closing [id4]).
     """
 
     def __init__(self, max_tokens: int = 450):
@@ -38,8 +38,8 @@ class HtmlChunker:
         - global_indices: list of global indices for reconstruction
 
         Args:
-            text_with_placeholders: "[[0]]Hello[[1]]world[[2]]..."
-            tag_map: {"[[0]]": "<p>", "[[1]]": "<b>", ...}
+            text_with_placeholders: "[id0]Hello[id1]world[id2]..."
+            tag_map: {"[id0]": "<p>", "[id1]": "<b>", ...}
 
         Returns:
             List of chunks with local renumbering
@@ -186,11 +186,8 @@ class HtmlChunker:
     ) -> List[Dict]:
         """
         Merge segments into chunks respecting token limit.
-        If a segment is too large, split it hierarchically:
-        1. Try splitting on sentences
-        2. Try splitting on punctuation (;, :, ,)
-        3. Try splitting on newlines
-        4. Force split at max_tokens
+
+        Simplified to call focused helper functions for better readability.
         """
         if not segments:
             return []
@@ -201,28 +198,27 @@ class HtmlChunker:
         global_offset = 0
 
         for segment in segments:
-            segment_tokens = self.token_chunker.count_tokens(segment)
+            segment_tokens = self._count_segment_tokens(segment)
 
-            # If segment alone exceeds max_tokens, split it
+            # Check if segment is oversized and needs splitting
             if segment_tokens > self.max_tokens:
-                # First, finalize current chunk if any
+                # Finalize current chunk before processing oversized segment
                 if current_segments:
-                    chunk = self._create_chunk(current_segments, global_tag_map, global_offset)
+                    chunk = self._finalize_chunk(current_segments, global_tag_map, global_offset)
                     chunks.append(chunk)
                     global_offset += len(chunk['local_tag_map'])
                     current_segments = []
                     current_tokens = 0
 
-                # Split the oversized segment hierarchically
+                # Split and process oversized segment
                 sub_segments = self._split_oversized_segment(segment, global_tag_map)
 
-                # Add sub-segments to chunks
                 for sub_seg in sub_segments:
-                    sub_tokens = self.token_chunker.count_tokens(sub_seg)
+                    sub_tokens = self._count_segment_tokens(sub_seg)
 
-                    if current_tokens + sub_tokens > self.max_tokens and current_segments:
+                    if self._would_exceed_limit(current_tokens, sub_tokens) and current_segments:
                         # Finalize current chunk
-                        chunk = self._create_chunk(current_segments, global_tag_map, global_offset)
+                        chunk = self._finalize_chunk(current_segments, global_tag_map, global_offset)
                         chunks.append(chunk)
                         global_offset += len(chunk['local_tag_map'])
 
@@ -232,9 +228,9 @@ class HtmlChunker:
                         current_segments.append(sub_seg)
                         current_tokens += sub_tokens
 
-            elif current_tokens + segment_tokens > self.max_tokens and current_segments:
+            elif self._would_exceed_limit(current_tokens, segment_tokens) and current_segments:
                 # Finalize current chunk
-                chunk = self._create_chunk(current_segments, global_tag_map, global_offset)
+                chunk = self._finalize_chunk(current_segments, global_tag_map, global_offset)
                 chunks.append(chunk)
                 global_offset += len(chunk['local_tag_map'])
 
@@ -244,12 +240,53 @@ class HtmlChunker:
                 current_segments.append(segment)
                 current_tokens += segment_tokens
 
-        # Last chunk
+        # Finalize last chunk
         if current_segments:
-            chunk = self._create_chunk(current_segments, global_tag_map, global_offset)
+            chunk = self._finalize_chunk(current_segments, global_tag_map, global_offset)
             chunks.append(chunk)
 
         return chunks
+
+    def _count_segment_tokens(self, segment: str) -> int:
+        """Count tokens in a segment.
+
+        Args:
+            segment: Text segment to count
+
+        Returns:
+            Number of tokens in the segment
+        """
+        return self.token_chunker.count_tokens(segment)
+
+    def _would_exceed_limit(self, current_tokens: int, new_tokens: int) -> bool:
+        """Check if adding new tokens would exceed limit.
+
+        Args:
+            current_tokens: Current token count
+            new_tokens: Tokens to add
+
+        Returns:
+            True if adding new_tokens would exceed max_tokens
+        """
+        return (current_tokens + new_tokens) > self.max_tokens
+
+    def _finalize_chunk(
+        self,
+        segments: List[str],
+        global_tag_map: Dict[str, str],
+        global_offset: int
+    ) -> Dict:
+        """Finalize a chunk by merging segments and renumbering placeholders.
+
+        Args:
+            segments: List of segment strings
+            global_tag_map: Global tag mapping
+            global_offset: Current global offset
+
+        Returns:
+            Chunk dictionary with local renumbering
+        """
+        return self._create_chunk(segments, global_tag_map, global_offset)
 
     def _split_oversized_segment(
         self,
@@ -474,25 +511,18 @@ class HtmlChunker:
 
         Returns:
             {
-                'text': "[[0]]Hello[[1]]world[[2]]",
-                'local_tag_map': {"[[0]]": "<p>", "[[1]]": "<b>", "[[2]]": "</b></p>"},
+                'text': "[id0]Hello[id1]world[id2]",
+                'local_tag_map': {"[id0]": "<p>", "[id1]": "<b>", "[id2]": "</b></p>"},
                 'global_offset': 5,
-                'global_indices': [5, 6, 7],
-                'boundary_prefix': "<body>",  # Only if present in global_tag_map
-                'boundary_suffix': "</body>"  # Only if present in global_tag_map
+                'global_indices': [5, 6, 7]
             }
         """
         merged_text = "".join(segments)
 
-        # Detect placeholder format
-        from src.config import detect_placeholder_format_in_text
-        prefix, suffix = detect_placeholder_format_in_text(merged_text)
-
-        # Set appropriate regex pattern
-        if prefix == "[" and suffix == "]":
-            placeholder_pattern = r'(?<!\[)\[(\d+)\](?!\])'
-        else:
-            placeholder_pattern = r'\[\[(\d+)\]\]'
+        # Detect placeholder format from existing placeholders in the text
+        # (not from content conflicts, since text already contains placeholders)
+        from src.config import detect_existing_placeholder_format
+        prefix, suffix, placeholder_pattern = detect_existing_placeholder_format(merged_text)
 
         # Find all global placeholders in this chunk (may contain duplicates)
         # Build renumbering map: global_placeholder -> local_placeholder
@@ -529,33 +559,29 @@ class HtmlChunker:
             for global_ph, local_ph in renumbering_map.items()
         }
 
-        result = {
+        return {
             'text': renumbered_text,
             'local_tag_map': local_tag_map,
             'global_offset': global_offset,
             'global_indices': global_indices
         }
 
-        # Pass through boundary tags if present in global_tag_map
-        if "__boundary_prefix__" in global_tag_map:
-            result['boundary_prefix'] = global_tag_map["__boundary_prefix__"]
-        if "__boundary_suffix__" in global_tag_map:
-            result['boundary_suffix'] = global_tag_map["__boundary_suffix__"]
-
-        return result
-
 
 def extract_text_and_positions(text_with_placeholders: str) -> Tuple[str, Dict[int, float]]:
     """
     Extract pure text and calculate relative positions of placeholders.
 
+    Uses unified placeholder format: [idN]
+
     Args:
-        text_with_placeholders: "[[0]]Hello [[1]]world[[2]]"
+        text_with_placeholders: "[id0]Hello [id1]world[id2]"
 
     Returns:
         ("Hello world", {0: 0.0, 1: 0.46, 2: 1.0})
     """
-    pattern = r'\[\[(\d+)\]\]'
+    # Detect placeholder format from existing placeholders in the text
+    from src.config import detect_existing_placeholder_format
+    prefix, suffix, pattern = detect_existing_placeholder_format(text_with_placeholders)
 
     # Text without placeholders
     pure_text = re.sub(pattern, '', text_with_placeholders)
@@ -592,19 +618,19 @@ def reinsert_placeholders(
         translated_text: "Bonjour monde"
         positions: {0: 0.0, 1: 0.5, 2: 1.0}
         placeholder_format: Optional (prefix, suffix) tuple.
-                          If None, uses safe format [[N]]
-                          Examples: ("[[", "]]") or ("[", "]")
+                          If None, uses unified format [idN]
+                          Examples: ("[id", "]")
 
     Returns:
-        "[[0]]Bonjour [[1]]monde[[2]]" (or with [N] format if specified)
+        "[id0]Bonjour [id1]monde[id2]"
     """
     if not positions:
         return translated_text
 
-    # Use provided format or default to safe
+    # Use provided format or default to [idN]
     if placeholder_format is None:
-        from src.config import PLACEHOLDER_PREFIX_SAFE, PLACEHOLDER_SUFFIX_SAFE
-        prefix, suffix = PLACEHOLDER_PREFIX_SAFE, PLACEHOLDER_SUFFIX_SAFE
+        from src.config import PLACEHOLDER_PREFIX, PLACEHOLDER_SUFFIX
+        prefix, suffix = PLACEHOLDER_PREFIX, PLACEHOLDER_SUFFIX
     else:
         prefix, suffix = placeholder_format
 
@@ -618,9 +644,12 @@ def reinsert_placeholders(
         abs_pos = find_nearest_word_boundary(translated_text, abs_pos)
         insertions.append((abs_pos, idx))
 
-    # Sort by position first, then by index to maintain order when positions are equal
-    # Use reverse=True to insert from end to start (avoids position shifting)
-    insertions.sort(key=lambda x: (x[0], x[1]), reverse=True)
+    # CRITICAL: Sort by position (descending) then by index (ASCENDING to preserve order)
+    # When multiple placeholders have the same position, we must preserve their
+    # sequential order (0, 1, 2...) to avoid tag mismatches.
+    # We insert from end to start (reverse position) to avoid position shifting,
+    # but within the same position, we insert in sequential order.
+    insertions.sort(key=lambda x: (-x[0], x[1]))
 
     result = translated_text
     for abs_pos, idx in insertions:
@@ -634,23 +663,30 @@ def find_nearest_word_boundary(text: str, pos: int) -> int:
     """
     Find the nearest word boundary to the given position.
     Avoids cutting in the middle of a word.
+
+    Handles multi-byte Unicode characters and various whitespace types.
     """
     if pos <= 0:
         return 0
     if pos >= len(text):
         return len(text)
 
-    # If we're on a space, perfect
-    if text[pos] == ' ':
+    # Word boundary characters (spaces, punctuation, etc.)
+    # Includes various Unicode whitespace and CJK punctuation
+    def is_boundary(char: str) -> bool:
+        return char in ' \t\n\r\u00A0\u2000\u2001\u2002\u2003\u2004\u2005\u2006\u2007\u2008\u2009\u200A\u202F\u205F\u3000.,;:!?\u3001\u3002\uff0c\uff1a\uff1b\uff1f\uff01'
+
+    # If we're already on a boundary, perfect
+    if is_boundary(text[pos]):
         return pos
 
-    # Find the nearest space (before or after)
+    # Find the nearest boundary (before or after)
     left = pos
     right = pos
 
-    while left > 0 and text[left] != ' ':
+    while left > 0 and not is_boundary(text[left]):
         left -= 1
-    while right < len(text) and text[right] != ' ':
+    while right < len(text) and not is_boundary(text[right]):
         right += 1
 
     # Return the closest one
@@ -663,16 +699,15 @@ class TranslationStats:
     """Track statistics for translation attempts and fallbacks.
 
     Translation flow:
-    1. Phase 1: Normal translation (1 attempt)
-    2. Phase 2: LLM placeholder correction (up to 2 attempts)
-    3. Phase 3: Proportional fallback (if correction fails)
+    1. Phase 1: Normal translation (with retry attempts)
+    2. Phase 2: Proportional fallback (if all retries fail)
     """
 
     def __init__(self):
         self.total_chunks = 0
         self.successful_first_try = 0
-        self.successful_after_retry = 0  # Renamed semantically but kept for compatibility
-        self.correction_attempts = 0  # Total LLM correction attempts made
+        self.successful_after_retry = 0  # Success on 2nd+ retry attempt
+        self.retry_attempts = 0  # Total number of retry attempts made
         self.fallback_used = 0
 
     def log_summary(self, log_callback=None):
@@ -681,8 +716,8 @@ class TranslationStats:
             f"=== Translation Summary ===\n"
             f"Total chunks: {self.total_chunks}\n"
             f"Success 1st try: {self.successful_first_try} ({self._pct(self.successful_first_try)}%)\n"
-            f"Success after LLM correction: {self.successful_after_retry} ({self._pct(self.successful_after_retry)}%)\n"
-            f"LLM correction attempts: {self.correction_attempts}\n"
+            f"Success after retry: {self.successful_after_retry} ({self._pct(self.successful_after_retry)}%)\n"
+            f"Total retry attempts: {self.retry_attempts}\n"
             f"Proportional fallback used: {self.fallback_used} ({self._pct(self.fallback_used)}%)"
         )
         if log_callback:
