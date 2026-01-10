@@ -603,9 +603,6 @@ async def _translate_all_chunks(
     translated_chunks = []
 
     for i, chunk in enumerate(chunks):
-        if progress_callback:
-            progress_callback((i / len(chunks)) * 100)
-
         translated = await translate_chunk_with_fallback(
             chunk_text=chunk['text'],
             local_tag_map=chunk['local_tag_map'],
@@ -621,6 +618,10 @@ async def _translate_all_chunks(
             placeholder_format=placeholder_format
         )
         translated_chunks.append(translated)
+
+        # Report progress after completing each chunk
+        if progress_callback:
+            progress_callback(((i + 1) / len(chunks)) * 100)
 
     return translated_chunks, stats
 

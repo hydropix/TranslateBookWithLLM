@@ -12,7 +12,7 @@ import os
 import zipfile
 import tempfile
 import aiofiles
-from typing import Dict, Any, Optional, Callable, Tuple
+from typing import Dict, Any, Optional, Callable, Tuple, List
 from lxml import etree
 from tqdm.auto import tqdm
 
@@ -425,15 +425,8 @@ async def _translate_single_file(
             log_callback("epub_file_translate_start",
                          f"Translating file {file_idx + 1}/{total_files}: {content_href}")
 
-        # Create file-specific progress callback
-        def file_progress_callback(file_progress):
-            if progress_callback:
-                # Map file progress (0-100) to overall progress
-                base_progress = ((file_idx / total_files) * 90) + 5
-                file_contribution = (file_progress / 100) * (90 / total_files)
-                progress_callback(base_progress + file_contribution)
-
         # Translate using simplified mode
+        # Note: progress_callback is now token-aware wrapper from _process_all_content_files
         success = await translate_xhtml_simplified(
             doc_root=doc_root,
             source_language=source_language,
@@ -442,7 +435,7 @@ async def _translate_single_file(
             llm_client=llm_client,
             max_tokens_per_chunk=max_tokens_per_chunk,
             log_callback=log_callback,
-            progress_callback=file_progress_callback,
+            progress_callback=progress_callback,  # Pass through token-based wrapper directly
             context_manager=context_manager,
             max_retries=max_attempts
         )
@@ -470,6 +463,82 @@ async def _translate_single_file(
         return None, file_path_abs, False
 
 
+async def _count_all_chunks(
+    content_files: list,
+    opf_dir: str,
+    max_tokens_per_chunk: int,
+    log_callback: Optional[Callable] = None
+) -> List[Tuple[str, List[Dict], int]]:
+    """
+    Pre-count all chunks across all XHTML files.
+
+    Returns list of (file_href, chunks_info, total_tokens) for each file.
+    This allows accurate progress tracking based on actual chunk count, not file count.
+    """
+    from .xhtml_translator import _setup_translation, _preserve_tags, _create_chunks
+    from .body_serializer import extract_body_html
+    import aiofiles
+    from lxml import etree
+
+    file_chunk_info = []
+    total_chunks_all_files = 0
+
+    if log_callback:
+        log_callback("epub_precount_start", f"📊 Pre-counting chunks across {len(content_files)} files...")
+
+    for content_href in content_files:
+        file_path_abs = os.path.normpath(os.path.join(opf_dir, content_href))
+        if not os.path.exists(file_path_abs):
+            # File not found, will be skipped during translation
+            file_chunk_info.append((content_href, [], 0))
+            continue
+
+        try:
+            async with aiofiles.open(file_path_abs, 'r', encoding='utf-8') as f:
+                content = await f.read()
+
+            parser = etree.XMLParser(encoding='utf-8', recover=True, remove_blank_text=False)
+            doc_root = etree.fromstring(content.encode('utf-8'), parser)
+
+            # Extract body and count chunks (same logic as translation)
+            body_html, body_element, tag_preserver = _setup_translation(doc_root, log_callback, None)
+
+            if not body_html:
+                file_chunk_info.append((content_href, [], 0))
+                continue
+
+            # Preserve tags
+            text_with_placeholders, global_tag_map, _ = _preserve_tags(body_html, tag_preserver, log_callback)
+
+            # Create chunks
+            chunks = _create_chunks(text_with_placeholders, global_tag_map, max_tokens_per_chunk, log_callback, None)
+
+            # Calculate total tokens for this file
+            from src.core.chunking.token_chunker import TokenChunker
+            token_counter = TokenChunker(max_tokens=max_tokens_per_chunk)
+            file_total_tokens = sum(token_counter.count_tokens(chunk['text']) for chunk in chunks)
+
+            file_chunk_info.append((content_href, chunks, file_total_tokens))
+            total_chunks_all_files += len(chunks)
+
+        except Exception as e:
+            if log_callback:
+                log_callback("epub_precount_error", f"Error pre-counting chunks in '{content_href}': {e}")
+            file_chunk_info.append((content_href, [], 0))
+
+    if log_callback:
+        log_callback("epub_precount_complete",
+                     f"📊 Pre-count complete: {total_chunks_all_files} total chunks across {len(content_files)} files")
+        # Log per-file breakdown for debugging
+        for i, (href, chunks, tokens) in enumerate(file_chunk_info[:5]):  # Show first 5 files
+            log_callback("epub_precount_file_detail",
+                         f"  File {i+1}: {href} → {len(chunks)} chunks, {tokens} tokens")
+        if len(file_chunk_info) > 5:
+            log_callback("epub_precount_more", f"  ... and {len(file_chunk_info) - 5} more files")
+
+    return file_chunk_info
+
+
 async def _process_all_content_files(
     content_files: list,
     opf_dir: str,
@@ -488,7 +557,7 @@ async def _process_all_content_files(
     stats_callback: Optional[Callable] = None,
     check_interruption_callback: Optional[Callable] = None
 ) -> Dict:
-    """Process all XHTML content files.
+    """Process all XHTML content files with accurate token-based progress tracking.
 
     Args:
         content_files: List of content file hrefs
@@ -511,17 +580,41 @@ async def _process_all_content_files(
     Returns:
         Dictionary with processing results and parsed documents
     """
+    from src.core.progress_tracker import TokenProgressTracker
+
+    # Pre-count all chunks across all files for accurate progress
+    file_chunk_info = await _count_all_chunks(content_files, opf_dir, max_tokens_per_chunk, log_callback)
+
+    # Initialize token-based progress tracker
+    progress_tracker = TokenProgressTracker()
+    progress_tracker.start()
+
+    # Register all chunks with their token counts
+    total_registered_chunks = 0
+    total_registered_tokens = 0
+    for file_href, chunks, file_tokens in file_chunk_info:
+        if chunks:
+            from src.core.chunking.token_chunker import TokenChunker
+            token_counter = TokenChunker(max_tokens=max_tokens_per_chunk)
+            for chunk in chunks:
+                token_count = token_counter.count_tokens(chunk['text'])
+                progress_tracker.register_chunk(token_count)
+                total_registered_chunks += 1
+                total_registered_tokens += token_count
+
+    if log_callback:
+        log_callback("epub_tracker_initialized",
+                     f"📈 Progress tracker initialized: {total_registered_chunks} chunks, {total_registered_tokens} tokens")
+
+    # Initial stats
+    if stats_callback:
+        stats_callback(progress_tracker.get_stats().to_dict())
+
     parsed_xhtml_docs: Dict[str, etree._Element] = {}
     total_files = len(content_files)
     completed_files = 0
     failed_files = 0
-
-    if stats_callback:
-        stats_callback({
-            'total_chunks': total_files,
-            'completed_chunks': 0,
-            'failed_chunks': 0
-        })
+    global_chunk_index = 0  # Track global chunk index across all files
 
     iterator = tqdm(
         enumerate(content_files),
@@ -538,17 +631,52 @@ async def _process_all_content_files(
                              f"Translation interrupted at file {file_idx + 1}/{total_files}")
             break
 
+        # Get chunk info for this file
+        _, file_chunks, _ = file_chunk_info[file_idx]
+        file_chunk_count = len(file_chunks)
+
         # Skip already processed files on resume
         if file_idx < resume_from_index:
             completed_files += 1
+            # Mark all chunks in this file as completed for progress tracker
+            for chunk_idx in range(file_chunk_count):
+                progress_tracker.mark_completed(global_chunk_index + chunk_idx, 0.0)
+            global_chunk_index += file_chunk_count
             continue
 
-        # Update progress
-        if progress_callback:
-            progress_percent = ((file_idx / total_files) * 90) + 5
-            progress_callback(progress_percent)
+        # Create wrapper progress callback
+        # The existing code calls progress_callback with percentage (0-100) per file
+        # We intercept that and update the global tracker based on chunk completion
+        file_start_chunk_idx = global_chunk_index
+        last_reported_chunk = [0]  # Mutable to capture in closure
 
-        # Translate the file
+        def file_progress_wrapper(file_percent: float):
+            """
+            Intercept file-level progress (0-100%) and convert to chunk-level progress.
+
+            file_percent: Progress within this file (0-100)
+            """
+            if file_chunk_count == 0:
+                return
+
+            # Estimate which chunk we're on based on percentage
+            chunks_completed_in_file = int((file_percent / 100) * file_chunk_count)
+            chunks_completed_in_file = min(chunks_completed_in_file, file_chunk_count)
+
+            # Mark newly completed chunks since last call
+            for chunk_offset in range(last_reported_chunk[0], chunks_completed_in_file):
+                actual_global_idx = file_start_chunk_idx + chunk_offset
+                progress_tracker.mark_completed(actual_global_idx, 0.0)  # No time measurement available
+
+            last_reported_chunk[0] = chunks_completed_in_file
+
+            # Update global progress
+            if progress_callback:
+                progress_callback(progress_tracker.get_progress_percent())
+            if stats_callback:
+                stats_callback(progress_tracker.get_stats().to_dict())
+
+        # Translate the file (reuse existing function)
         doc_root, file_path_abs, success = await _translate_single_file(
             file_idx=file_idx,
             content_href=content_href,
@@ -563,8 +691,16 @@ async def _process_all_content_files(
             translation_id=translation_id,
             total_files=total_files,
             log_callback=log_callback,
-            progress_callback=progress_callback
+            progress_callback=file_progress_wrapper  # Use our wrapper
         )
+
+        # Ensure all chunks in this file are marked complete after translation finishes
+        for chunk_offset in range(last_reported_chunk[0], file_chunk_count):
+            actual_global_idx = file_start_chunk_idx + chunk_offset
+            progress_tracker.mark_completed(actual_global_idx, 0.0)
+
+        # Advance global chunk index by number of chunks in this file
+        global_chunk_index += file_chunk_count
 
         # Save the document if translation succeeded
         # Note: doc_root is modified in-place only if _replace_body succeeds
@@ -583,24 +719,22 @@ async def _process_all_content_files(
         else:
             failed_files += 1
 
-        # Update statistics
+        # Update statistics from progress tracker
         if stats_callback:
-            stats_callback({
-                'completed_chunks': completed_files,
-                'failed_chunks': failed_files
-            })
+            stats_callback(progress_tracker.get_stats().to_dict())
 
         # Save checkpoint after each file
         if checkpoint_manager and translation_id:
+            stats = progress_tracker.get_stats()
             checkpoint_manager.save_checkpoint(
                 translation_id=translation_id,
                 chunk_index=file_idx + 1,
                 original_text=content_href,
                 translated_text=content_href,
                 chunk_data={'last_file': content_href},
-                total_chunks=len(content_files),
-                completed_chunks=completed_files,
-                failed_chunks=failed_files
+                total_chunks=stats.total_chunks,
+                completed_chunks=stats.completed_chunks,
+                failed_chunks=stats.failed_chunks
             )
 
     return {

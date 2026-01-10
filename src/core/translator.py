@@ -21,6 +21,8 @@ from .context_optimizer import (
     INITIAL_CONTEXT_SIZE,
     CONTEXT_STEP
 )
+from .progress_tracker import TokenProgressTracker
+from .chunking.token_chunker import TokenChunker
 from typing import List, Dict, Tuple, Optional
 
 
@@ -476,8 +478,16 @@ async def translate_chunks(chunks, source_language, target_language, model_name,
     total_chunks = len(chunks)
     full_translation_parts = []
     last_successful_llm_context = ""
-    completed_chunks_count = 0
-    failed_chunks_count = 0
+
+    # Initialize token-based progress tracker
+    progress_tracker = TokenProgressTracker()
+    progress_tracker.start()
+    token_counter = TokenChunker(max_tokens=800)  # Just for counting, max doesn't matter
+
+    # Register all chunks with their token counts
+    for chunk in chunks:
+        token_count = token_counter.count_tokens(chunk.get('main_content', ''))
+        progress_tracker.register_chunk(token_count)
 
     # Get chunk_size from first chunk (assuming consistent chunking)
     chunk_size = 25  # Default fallback
@@ -491,23 +501,24 @@ async def translate_chunks(chunks, source_language, target_language, model_name,
         if checkpoint_data:
             # Restore completed chunks
             saved_chunks = checkpoint_data['chunks']
-            for chunk in saved_chunks:
+            for i, chunk in enumerate(saved_chunks):
                 if chunk['status'] == 'completed' and chunk['translated_text']:
                     full_translation_parts.append(chunk['translated_text'])
-                    completed_chunks_count += 1
-                else:
+                    progress_tracker.mark_completed(i, 0.0)  # No elapsed time for resumed chunks
+                elif chunk['status'] == 'failed':
                     # Failed chunk - use original
                     full_translation_parts.append(chunk['original_text'])
-                    failed_chunks_count += 1
+                    progress_tracker.mark_failed(i)
 
             # Restore translation context for continuity
             if checkpoint_data.get('translation_context'):
                 context = checkpoint_data['translation_context']
                 last_successful_llm_context = context.get('last_llm_context', '')
 
+            stats = progress_tracker.get_stats()
             if log_callback:
                 log_callback("checkpoint_resumed",
-                    f"Resumed from checkpoint: {completed_chunks_count} chunks already completed, "
+                    f"Resumed from checkpoint: {stats.completed_chunks} chunks already completed, "
                     f"resuming from chunk {resume_from_index + 1}/{total_chunks}")
 
     if log_callback:
@@ -588,8 +599,9 @@ async def translate_chunks(chunks, source_language, target_language, model_name,
                     full_translation_parts.append(remaining_chunk["main_content"])
                 break
 
-            if progress_callback and total_chunks > 0:
-                progress_callback((i / total_chunks) * 100)
+            # Update progress (token-based)
+            if progress_callback:
+                progress_callback(progress_tracker.get_progress_percent())
 
             # Log progress summary periodically
             if log_callback and i > 0 and i % 5 == 0:
@@ -598,31 +610,37 @@ async def translate_chunks(chunks, source_language, target_language, model_name,
                 })
                 # Log context manager stats periodically
                 if context_manager:
-                    stats = context_manager.get_stats()
+                    ctx_stats = context_manager.get_stats()
                     log_callback("context_adaptive",
-                        f"📊 Context stats: current={stats['current_context']}, "
-                        f"avg_usage={stats['avg_usage']:.0f}, max_usage={stats['max_usage']}")
+                        f"📊 Context stats: current={ctx_stats['current_context']}, "
+                        f"avg_usage={ctx_stats['avg_usage']:.0f}, max_usage={ctx_stats['max_usage']}")
 
             main_content_to_translate = chunk_data["main_content"]
             context_before_text = chunk_data["context_before"]
             context_after_text = chunk_data["context_after"]
 
+            # Measure translation time for this chunk
+            chunk_start_time = time.time()
+
             if not main_content_to_translate.strip():
                 full_translation_parts.append(main_content_to_translate)
-                completed_chunks_count += 1
-                if stats_callback and total_chunks > 0:
-                    stats_callback({'completed_chunks': completed_chunks_count, 'failed_chunks': failed_chunks_count})
+                chunk_elapsed = time.time() - chunk_start_time
+                progress_tracker.mark_completed(i, chunk_elapsed)
+
+                if stats_callback:
+                    stats_callback(progress_tracker.get_stats().to_dict())
                 # Save checkpoint for empty chunks too
                 if checkpoint_manager and translation_id:
+                    stats = progress_tracker.get_stats()
                     checkpoint_manager.save_checkpoint(
                         translation_id=translation_id,
                         chunk_index=i,
                         original_text=main_content_to_translate,
                         translated_text=main_content_to_translate,
                         chunk_data=chunk_data,
-                        total_chunks=total_chunks,
-                        completed_chunks=completed_chunks_count,
-                        failed_chunks=failed_chunks_count
+                        total_chunks=stats.total_chunks,
+                        completed_chunks=stats.completed_chunks,
+                        failed_chunks=stats.failed_chunks
                     )
                 continue
 
@@ -631,7 +649,8 @@ async def translate_chunks(chunks, source_language, target_language, model_name,
                 if log_callback:
                     log_callback("skip_translation", f"Skipping LLM for single/empty character: '{main_content_to_translate}'")
                 full_translation_parts.append(main_content_to_translate)
-                completed_chunks_count += 1
+                chunk_elapsed = time.time() - chunk_start_time
+                progress_tracker.mark_completed(i, chunk_elapsed)
                 continue
 
             # Use adaptive context translation
@@ -659,14 +678,17 @@ async def translate_chunks(chunks, source_language, target_language, model_name,
                     context_limit=llm_response.context_limit
                 )
 
+            chunk_elapsed = time.time() - chunk_start_time
+
             if translated_chunk_text is not None:
                 # Single point of cleaning - applies HTML entity cleanup and whitespace normalization
                 # Note: Does NOT remove TAG placeholders - those are handled by EPUB processor
                 # (placeholder format defined in src/core/epub/constants.py)
                 translated_chunk_text = clean_translated_text(translated_chunk_text)
-                
+
                 full_translation_parts.append(translated_chunk_text)
-                completed_chunks_count += 1
+                progress_tracker.mark_completed(i, chunk_elapsed)
+
                 words = translated_chunk_text.split()
                 if len(words) > 25:
                     last_successful_llm_context = " ".join(words[-25:])
@@ -674,23 +696,24 @@ async def translate_chunks(chunks, source_language, target_language, model_name,
                     last_successful_llm_context = translated_chunk_text
             else:
                 err_msg_chunk = f"ERROR translating segment {i+1}. Original content preserved."
-                if log_callback: 
+                if log_callback:
                     log_callback("txt_chunk_translation_error", err_msg_chunk)
-                else: 
+                else:
                     tqdm.write(f"\n{err_msg_chunk}")
                 error_placeholder = f"[TRANSLATION_ERROR SEGMENT {i+1}]\n{main_content_to_translate}\n[/TRANSLATION_ERROR SEGMENT {i+1}]"
                 full_translation_parts.append(error_placeholder)
-                failed_chunks_count += 1
+                progress_tracker.mark_failed(i)
                 last_successful_llm_context = ""
 
-            if stats_callback and total_chunks > 0:
-                stats_callback({'completed_chunks': completed_chunks_count, 'failed_chunks': failed_chunks_count})
+            if stats_callback:
+                stats_callback(progress_tracker.get_stats().to_dict())
 
             # Save checkpoint after each chunk
             if checkpoint_manager and translation_id:
                 translation_context = {
                     'last_llm_context': last_successful_llm_context
                 }
+                stats = progress_tracker.get_stats()
                 checkpoint_manager.save_checkpoint(
                     translation_id=translation_id,
                     chunk_index=i,
@@ -698,9 +721,9 @@ async def translate_chunks(chunks, source_language, target_language, model_name,
                     translated_text=translated_chunk_text if translated_chunk_text is not None else None,
                     chunk_data=chunk_data,
                     translation_context=translation_context,
-                    total_chunks=total_chunks,
-                    completed_chunks=completed_chunks_count,
-                    failed_chunks=failed_chunks_count
+                    total_chunks=stats.total_chunks,
+                    completed_chunks=stats.completed_chunks,
+                    failed_chunks=stats.failed_chunks
                 )
     
     finally:
@@ -841,7 +864,8 @@ async def refine_chunks(
     context_window=2048,
     auto_adjust_context=True,
     has_images=False,
-    prompt_options=None
+    prompt_options=None,
+    progress_tracker: Optional[TokenProgressTracker] = None
 ) -> List[str]:
     """
     Refine translated chunks with a second pass for literary quality improvement.
@@ -868,6 +892,7 @@ async def refine_chunks(
         auto_adjust_context: Enable adaptive context adjustment
         has_images: If True, includes image placeholder preservation
         prompt_options: Optional dict with prompt customization options
+        progress_tracker: Optional TokenProgressTracker for accurate progress tracking
 
     Returns:
         List of refined text strings
@@ -875,8 +900,15 @@ async def refine_chunks(
     total_chunks = len(translated_chunks)
     refined_parts = []
     last_refined_context = ""
-    completed_count = 0
-    failed_count = 0
+
+    # Create a separate progress tracker for refinement if not provided
+    if progress_tracker is None:
+        progress_tracker = TokenProgressTracker()
+        progress_tracker.start()
+        token_counter = TokenChunker(max_tokens=800)
+        for chunk_text in translated_chunks:
+            token_count = token_counter.count_tokens(chunk_text)
+            progress_tracker.register_chunk(token_count)
 
     if log_callback:
         log_callback("refinement_start", f"✨ Starting refinement pass ({total_chunks} chunks)...")
@@ -944,28 +976,27 @@ async def refine_chunks(
                     refined_parts.append(remaining)
                 break
 
-            # Progress update
-            if progress_callback and total_chunks > 0:
-                # Refinement is second half of total progress (50-100%)
-                progress = 50 + ((i / total_chunks) * 50)
-                progress_callback(progress)
+            # Progress update (token-based)
+            if progress_callback:
+                progress_callback(progress_tracker.get_progress_percent())
+
+            # Measure refinement time for this chunk
+            chunk_start_time = time.time()
 
             # Skip empty chunks
             if not draft_text.strip():
                 refined_parts.append(draft_text)
-                completed_count += 1
+                chunk_elapsed = time.time() - chunk_start_time
+                progress_tracker.mark_completed(i, chunk_elapsed)
                 if stats_callback:
-                    stats_callback({
-                        'completed_chunks': completed_count,
-                        'failed_chunks': failed_count,
-                        'phase': 'refinement'
-                    })
+                    stats_callback(progress_tracker.get_stats().to_dict())
                 continue
 
             # Skip very short content
             if len(draft_text.strip()) <= 1:
                 refined_parts.append(draft_text)
-                completed_count += 1
+                chunk_elapsed = time.time() - chunk_start_time
+                progress_tracker.mark_completed(i, chunk_elapsed)
                 continue
 
             # Get context from original chunks if available
@@ -999,11 +1030,13 @@ async def refine_chunks(
                     context_limit=llm_response.context_limit
                 )
 
+            chunk_elapsed = time.time() - chunk_start_time
+
             if refined_text is not None:
                 # Clean the refined text
                 refined_text = clean_translated_text(refined_text)
                 refined_parts.append(refined_text)
-                completed_count += 1
+                progress_tracker.mark_completed(i, chunk_elapsed)
 
                 # Update context for next chunk
                 words = refined_text.split()
@@ -1017,23 +1050,20 @@ async def refine_chunks(
                     log_callback("refinement_chunk_failed",
                         f"Refinement failed for chunk {i+1}, keeping original translation")
                 refined_parts.append(draft_text)
-                failed_count += 1
+                progress_tracker.mark_failed(i)
                 last_refined_context = ""
 
             if stats_callback:
-                stats_callback({
-                    'completed_chunks': completed_count,
-                    'failed_chunks': failed_count,
-                    'phase': 'refinement'
-                })
+                stats_callback(progress_tracker.get_stats().to_dict())
 
     finally:
         if llm_client:
             await llm_client.close()
 
+    stats = progress_tracker.get_stats()
     if log_callback:
         log_callback("refinement_complete",
-            f"✨ Refinement complete: {completed_count} refined, {failed_count} kept original")
+            f"✨ Refinement complete: {stats.completed_chunks} refined, {stats.failed_chunks} kept original")
 
     return refined_parts
 
