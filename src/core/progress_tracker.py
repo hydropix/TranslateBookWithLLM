@@ -48,6 +48,10 @@ class TokenProgressTracker:
     - Fixed overhead: ~3s per chunk (prompt processing)
     - Variable time: proportional to token count
     - Auto-calibrates based on actual performance
+
+    Supports two-phase workflows (translation + refinement):
+    - Phase 1 (translation): 0-50% if refinement enabled, 0-100% otherwise
+    - Phase 2 (refinement): 50-100% when enabled
     """
 
     FIXED_PROMPT_OVERHEAD = 3.0  # seconds per chunk
@@ -55,7 +59,13 @@ class TokenProgressTracker:
     CALIBRATION_THRESHOLD = 5    # chunks needed before calibration kicks in
     CALIBRATION_SMOOTHING = 0.3  # weight for new data vs historical
 
-    def __init__(self):
+    def __init__(self, enable_refinement: bool = False):
+        """
+        Initialize progress tracker.
+
+        Args:
+            enable_refinement: If True, progress is split 50/50 between translation and refinement
+        """
         self._total_tokens = 0
         self._completed_tokens = 0
         self._total_chunks = 0
@@ -65,6 +75,8 @@ class TokenProgressTracker:
         self._chunk_times = []   # actual elapsed time per chunk
         self._start_time: Optional[float] = None
         self._token_rate = self.DEFAULT_TOKEN_RATE
+        self._enable_refinement = enable_refinement
+        self._current_phase = 1  # 1 = translation, 2 = refinement
 
     def start(self):
         """Mark the start of translation."""
@@ -98,11 +110,38 @@ class TokenProgressTracker:
         self._completed_chunks += 1
         self._completed_tokens += self._chunk_tokens[chunk_index]
 
+    def start_refinement_phase(self):
+        """Switch to refinement phase (resets counters for phase 2)."""
+        self._current_phase = 2
+        self._completed_tokens = 0
+        self._completed_chunks = 0
+        self._failed_chunks = 0
+        self._chunk_times = []
+
     def get_progress_percent(self) -> float:
-        """Calculate progress as percentage of total tokens completed."""
+        """
+        Calculate progress as percentage of total tokens completed.
+
+        For two-phase workflows:
+        - Phase 1 (translation): returns 0-50%
+        - Phase 2 (refinement): returns 50-100%
+        """
         if self._total_tokens == 0:
             return 0.0
-        return (self._completed_tokens / self._total_tokens) * 100
+
+        # Calculate raw progress (0-100%)
+        raw_progress = (self._completed_tokens / self._total_tokens) * 100
+
+        if not self._enable_refinement:
+            return raw_progress
+
+        # Apply phase weighting for two-phase workflows
+        if self._current_phase == 1:
+            # Translation phase: 0-50%
+            return raw_progress * 0.5
+        else:
+            # Refinement phase: 50-100%
+            return 50.0 + (raw_progress * 0.5)
 
     def get_estimated_remaining_seconds(self) -> float:
         """Estimate remaining time based on token count and real performance."""

@@ -255,8 +255,26 @@ async def _make_llm_request_with_adaptive_context(
             if translated_text:
                 all_translations.append(translated_text)
             else:
-                # Fallback to raw response if no tags found
+                # Extraction failed - tags not found or malformed
+                if log_callback:
+                    log_callback("translation_extraction_failed",
+                        "⚠️ WARNING: Failed to extract translation (tags not found or malformed)")
+                    log_callback("translation_extraction_failed_preview",
+                        f"Response preview (first 300 chars): {full_raw_response[:300]}")
+
+                # For EPUB with placeholders, failing to extract is CRITICAL
+                # because using the raw response would include <TRANSLATION> tags in the HTML
+                if has_placeholders:
+                    if log_callback:
+                        log_callback("epub_extraction_critical_fail",
+                            "CRITICAL: Cannot use raw response for EPUB (would corrupt HTML structure)")
+                    return None, main_content, last_response
+
+                # For plain text, try fallback to raw response (legacy behavior)
                 if current_content not in full_raw_response:
+                    if log_callback:
+                        log_callback("using_raw_response_fallback",
+                            "Using raw response as fallback (plain text mode)")
                     all_translations.append(full_raw_response.strip())
                 else:
                     # Response contains input - this is an error
@@ -449,7 +467,7 @@ async def translate_chunks(chunks, source_language, target_language, model_name,
                           openrouter_api_key=None,
                           context_window=2048, auto_adjust_context=True, min_chunk_size=5,
                           checkpoint_manager=None, translation_id=None, resume_from_index=0,
-                          has_images=False, prompt_options=None):
+                          has_images=False, prompt_options=None, enable_refinement=False):
     """
     Translate a list of text chunks
 
@@ -471,16 +489,18 @@ async def translate_chunks(chunks, source_language, target_language, model_name,
         resume_from_index: Index to resume from (for resumed jobs)
         has_images (bool): If True, includes image placeholder preservation instructions
         prompt_options (dict): Optional dict with prompt customization options
+        enable_refinement (bool): If True, progress tracker splits progress 50/50 for translation+refinement
 
     Returns:
-        list: List of translated chunks
+        tuple: (list of translated chunks, TokenProgressTracker instance)
     """
     total_chunks = len(chunks)
     full_translation_parts = []
     last_successful_llm_context = ""
 
     # Initialize token-based progress tracker
-    progress_tracker = TokenProgressTracker()
+    # If refinement is enabled, progress will be split 50/50 between translation and refinement
+    progress_tracker = TokenProgressTracker(enable_refinement=enable_refinement)
     progress_tracker.start()
     token_counter = TokenChunker(max_tokens=800)  # Just for counting, max doesn't matter
 
@@ -731,7 +751,7 @@ async def translate_chunks(chunks, source_language, target_language, model_name,
         if llm_client:
             await llm_client.close()
 
-    return full_translation_parts
+    return full_translation_parts, progress_tracker
 
 
 async def _make_refinement_request(
@@ -771,6 +791,9 @@ async def _make_refinement_request(
         Tuple of (refined_text or None, LLMResponse)
     """
     try:
+        # Extract refinement instructions from prompt_options
+        refinement_instructions = prompt_options.get('refinement_instructions', '') if prompt_options else ''
+
         # Generate refinement prompts
         prompt_pair = generate_refinement_prompt(
             draft_translation=draft_translation,
@@ -780,7 +803,8 @@ async def _make_refinement_request(
             target_language=target_language,
             has_placeholders=False,
             has_images=has_images,
-            prompt_options=prompt_options
+            prompt_options=prompt_options,
+            additional_instructions=refinement_instructions
         )
 
         # Log the request
@@ -901,14 +925,18 @@ async def refine_chunks(
     refined_parts = []
     last_refined_context = ""
 
-    # Create a separate progress tracker for refinement if not provided
+    # Switch progress tracker to refinement phase (or create new one if not provided)
     if progress_tracker is None:
-        progress_tracker = TokenProgressTracker()
+        # Standalone refinement (no prior translation pass)
+        progress_tracker = TokenProgressTracker(enable_refinement=False)
         progress_tracker.start()
         token_counter = TokenChunker(max_tokens=800)
         for chunk_text in translated_chunks:
             token_count = token_counter.count_tokens(chunk_text)
             progress_tracker.register_chunk(token_count)
+    else:
+        # Part of two-phase workflow - switch to refinement phase
+        progress_tracker.start_refinement_phase()
 
     if log_callback:
         log_callback("refinement_start", f"✨ Starting refinement pass ({total_chunks} chunks)...")

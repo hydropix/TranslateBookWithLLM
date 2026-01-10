@@ -161,7 +161,8 @@ async def translate_epub_file(
                 log_callback=log_callback,
                 progress_callback=progress_callback,
                 stats_callback=stats_callback,
-                check_interruption_callback=check_interruption_callback
+                check_interruption_callback=check_interruption_callback,
+                prompt_options=prompt_options
             )
 
             # 4. Save translated files
@@ -383,7 +384,8 @@ async def _translate_single_file(
     translation_id: Optional[str],
     total_files: int,
     log_callback: Optional[Callable] = None,
-    progress_callback: Optional[Callable] = None
+    progress_callback: Optional[Callable] = None,
+    prompt_options: Optional[Dict] = None
 ) -> Tuple[Optional[etree._Element], str, bool]:
     """Translate a single XHTML file.
 
@@ -437,7 +439,8 @@ async def _translate_single_file(
             log_callback=log_callback,
             progress_callback=progress_callback,  # Pass through token-based wrapper directly
             context_manager=context_manager,
-            max_retries=max_attempts
+            max_retries=max_attempts,
+            prompt_options=prompt_options
         )
 
         if success:
@@ -555,7 +558,8 @@ async def _process_all_content_files(
     log_callback: Optional[Callable] = None,
     progress_callback: Optional[Callable] = None,
     stats_callback: Optional[Callable] = None,
-    check_interruption_callback: Optional[Callable] = None
+    check_interruption_callback: Optional[Callable] = None,
+    prompt_options: Optional[Dict] = None
 ) -> Dict:
     """Process all XHTML content files with accurate token-based progress tracking.
 
@@ -585,11 +589,16 @@ async def _process_all_content_files(
     # Pre-count all chunks across all files for accurate progress
     file_chunk_info = await _count_all_chunks(content_files, opf_dir, max_tokens_per_chunk, log_callback)
 
-    # Initialize token-based progress tracker
-    progress_tracker = TokenProgressTracker()
+    # Check if refinement is enabled
+    enable_refinement = prompt_options and prompt_options.get('refine', False) if prompt_options else False
+
+    # Initialize token-based progress tracker (no 2-phase mode for EPUB)
+    # For EPUB, we double-count chunks when refinement is enabled instead
+    progress_tracker = TokenProgressTracker(enable_refinement=False)
     progress_tracker.start()
 
     # Register all chunks with their token counts
+    # If refinement is enabled, register each chunk twice (translation + refinement)
     total_registered_chunks = 0
     total_registered_tokens = 0
     for file_href, chunks, file_tokens in file_chunk_info:
@@ -598,13 +607,20 @@ async def _process_all_content_files(
             token_counter = TokenChunker(max_tokens=max_tokens_per_chunk)
             for chunk in chunks:
                 token_count = token_counter.count_tokens(chunk['text'])
+                # Register for translation
                 progress_tracker.register_chunk(token_count)
                 total_registered_chunks += 1
                 total_registered_tokens += token_count
+                # Register again for refinement if enabled
+                if enable_refinement:
+                    progress_tracker.register_chunk(token_count)
+                    total_registered_chunks += 1
+                    total_registered_tokens += token_count
 
     if log_callback:
+        refinement_info = " (with refinement enabled, chunks counted twice)" if enable_refinement else ""
         log_callback("epub_tracker_initialized",
-                     f"📈 Progress tracker initialized: {total_registered_chunks} chunks, {total_registered_tokens} tokens")
+                     f"📈 Progress tracker initialized: {total_registered_chunks} chunks, {total_registered_tokens} tokens{refinement_info}")
 
     # Initial stats
     if stats_callback:
@@ -635,13 +651,19 @@ async def _process_all_content_files(
         _, file_chunks, _ = file_chunk_info[file_idx]
         file_chunk_count = len(file_chunks)
 
+        # Calculate total chunks for this file (2x if refinement enabled)
+        # When refinement is enabled, we have 2x chunks registered per file:
+        # - First file_chunk_count chunks: translation
+        # - Second file_chunk_count chunks: refinement
+        total_chunks_for_file = file_chunk_count * 2 if enable_refinement else file_chunk_count
+
         # Skip already processed files on resume
         if file_idx < resume_from_index:
             completed_files += 1
             # Mark all chunks in this file as completed for progress tracker
-            for chunk_idx in range(file_chunk_count):
+            for chunk_idx in range(total_chunks_for_file):
                 progress_tracker.mark_completed(global_chunk_index + chunk_idx, 0.0)
-            global_chunk_index += file_chunk_count
+            global_chunk_index += total_chunks_for_file
             continue
 
         # Create wrapper progress callback
@@ -655,13 +677,31 @@ async def _process_all_content_files(
             Intercept file-level progress (0-100%) and convert to chunk-level progress.
 
             file_percent: Progress within this file (0-100)
+            When refinement is enabled:
+            - Translation phase reports 0-100% for first N chunks
+            - Refinement phase reports 0-100% for next N chunks
+            We detect the transition when progress goes backwards.
             """
             if file_chunk_count == 0:
                 return
 
-            # Estimate which chunk we're on based on percentage
-            chunks_completed_in_file = int((file_percent / 100) * file_chunk_count)
-            chunks_completed_in_file = min(chunks_completed_in_file, file_chunk_count)
+            # Calculate which chunk we're on based on percentage
+            chunks_completed_in_phase = int((file_percent / 100) * file_chunk_count)
+            chunks_completed_in_phase = min(chunks_completed_in_phase, file_chunk_count)
+
+            # Detect if we've moved to refinement phase (progress went backwards)
+            # This happens when _refine_epub_chunks starts reporting 0-100% after translation finished
+            if enable_refinement and chunks_completed_in_phase < (last_reported_chunk[0] % file_chunk_count):
+                # We've moved to refinement phase - offset by file_chunk_count
+                chunks_completed_in_file = file_chunk_count + chunks_completed_in_phase
+            elif enable_refinement and last_reported_chunk[0] >= file_chunk_count:
+                # Already in refinement phase
+                chunks_completed_in_file = file_chunk_count + chunks_completed_in_phase
+            else:
+                # Translation phase (or no refinement)
+                chunks_completed_in_file = chunks_completed_in_phase
+
+            chunks_completed_in_file = min(chunks_completed_in_file, total_chunks_for_file)
 
             # Mark newly completed chunks since last call
             for chunk_offset in range(last_reported_chunk[0], chunks_completed_in_file):
@@ -691,16 +731,19 @@ async def _process_all_content_files(
             translation_id=translation_id,
             total_files=total_files,
             log_callback=log_callback,
-            progress_callback=file_progress_wrapper  # Use our wrapper
+            progress_callback=file_progress_wrapper,  # Use our wrapper
+            prompt_options=prompt_options
         )
 
         # Ensure all chunks in this file are marked complete after translation finishes
-        for chunk_offset in range(last_reported_chunk[0], file_chunk_count):
+        # (includes both translation and refinement chunks if enabled)
+        for chunk_offset in range(last_reported_chunk[0], total_chunks_for_file):
             actual_global_idx = file_start_chunk_idx + chunk_offset
             progress_tracker.mark_completed(actual_global_idx, 0.0)
 
         # Advance global chunk index by number of chunks in this file
-        global_chunk_index += file_chunk_count
+        # (includes both translation and refinement chunks if enabled)
+        global_chunk_index += total_chunks_for_file
 
         # Save the document if translation succeeded
         # Note: doc_root is modified in-place only if _replace_body succeeds

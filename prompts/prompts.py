@@ -281,16 +281,17 @@ Provide your translation now:"""
 
 def generate_refinement_prompt(
     draft_translation: str,
-    context_before: str,
-    context_after: str,
-    previous_refined_context: str,
+    context_before: str = "",
+    context_after: str = "",
+    previous_refined_context: str = "",
     target_language: str = "Chinese",
     translate_tag_in: str = TRANSLATE_TAG_IN,
     translate_tag_out: str = TRANSLATE_TAG_OUT,
     has_placeholders: bool = True,
     has_images: bool = False,
     prompt_options: dict = None,
-    placeholder_format: Optional[Tuple[str, str]] = None
+    placeholder_format: Optional[Tuple[str, str]] = None,
+    additional_instructions: str = ""
 ) -> PromptPair:
     """
     Generate a refinement prompt to polish a draft translation.
@@ -300,9 +301,9 @@ def generate_refinement_prompt(
 
     Args:
         draft_translation: The first-pass translation to refine
-        context_before: Previously refined text for context
-        context_after: Text appearing after for context
-        previous_refined_context: Last refined text for consistency
+        context_before: Previously refined text for context (default: "")
+        context_after: Text appearing after for context (default: "")
+        previous_refined_context: Last refined text for consistency (default: "")
         target_language: Target language name
         translate_tag_in: Opening tag for translation output
         translate_tag_out: Closing tag for translation output
@@ -312,6 +313,7 @@ def generate_refinement_prompt(
         placeholder_format: Optional tuple of (prefix, suffix) for placeholders.
             e.g., ('[', ']') for [0] format or ('[[', ']]') for [[0]] format.
             If None, uses default [[0]] format
+        additional_instructions: Additional refinement instructions to include in the prompt (default: "")
 
     Returns:
         PromptPair: A named tuple with 'system' and 'user' prompts
@@ -359,6 +361,15 @@ def generate_refinement_prompt(
     # Build optional prompt sections
     optional_sections = _build_optional_prompt_sections(prompt_options)
 
+    # Add additional instructions section if provided
+    additional_instructions_section = ""
+    if additional_instructions and additional_instructions.strip():
+        additional_instructions_section = f"""
+
+# ADDITIONAL REFINEMENT INSTRUCTIONS
+
+{additional_instructions.strip()}"""
+
     # SYSTEM PROMPT for refinement
     system_prompt = f"""You are an elite {target_language} literary editor and prose stylist.
 
@@ -404,12 +415,18 @@ Your job is to REWRITE it with perfect literary {target_language} style.
 {optional_sections}
 {placeholder_section}
 {image_section}
+{additional_instructions_section}
 
 # CRITICAL REMINDER
 
 You are NOT translating - you are REWRITING in {target_language.upper()}.
 The input is already in {target_language}, but poorly written.
 Your output must be polished, literary-quality {target_language}.
+
+**⚠️ PLACEHOLDER PRESERVATION IS ABSOLUTELY CRITICAL:**
+If the input contains ANY placeholders (like [id0], [id1], etc.), you MUST preserve them EXACTLY.
+Removing or corrupting placeholders will corrupt the document structure.
+Your refinement MUST maintain the exact same placeholders in the exact same positions.
 
 {output_format_section}"""
 
@@ -693,3 +710,52 @@ Keep the translated text unchanged - only fix placeholder positions.
 Provide your corrected version now:"""
 
     return PromptPair(system=system_prompt.strip(), user=user_prompt.strip())
+
+
+# ============================================================================
+# ALIAS FOR BACKWARDS COMPATIBILITY
+# ============================================================================
+
+def generate_post_processing_prompt(
+    translated_text: str,
+    target_language: str = "Chinese",
+    context_before: str = "",
+    context_after: str = "",
+    additional_instructions: str = "",
+    has_placeholders: bool = True,
+    has_images: bool = False,
+    prompt_options: dict = None,
+    placeholder_format: Optional[Tuple[str, str]] = None
+) -> PromptPair:
+    """
+    Alias for generate_refinement_prompt with parameter name mapping.
+
+    This function exists for backwards compatibility and to provide a more intuitive
+    API for post-processing/refinement use cases.
+
+    Args:
+        translated_text: The draft translation to refine (mapped to draft_translation)
+        target_language: Target language name
+        context_before: Previously refined text for context
+        context_after: Text appearing after for context
+        additional_instructions: Additional refinement instructions
+        has_placeholders: If True, includes placeholder preservation instructions
+        has_images: If True, includes image marker preservation instructions
+        prompt_options: Optional dict with prompt customization options
+        placeholder_format: Optional tuple of (prefix, suffix) for placeholders
+
+    Returns:
+        PromptPair: A named tuple with 'system' and 'user' prompts
+    """
+    return generate_refinement_prompt(
+        draft_translation=translated_text,
+        context_before=context_before,
+        context_after=context_after,
+        previous_refined_context="",  # Not used in post-processing calls
+        target_language=target_language,
+        has_placeholders=has_placeholders,
+        has_images=has_images,
+        prompt_options=prompt_options,
+        placeholder_format=placeholder_format,
+        additional_instructions=additional_instructions
+    )

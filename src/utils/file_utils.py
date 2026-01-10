@@ -172,23 +172,17 @@ async def translate_text_file_with_callbacks(input_filepath, output_filepath,
         if enable_refinement:
             log_callback("refinement_info", "📝 Translation will use 2-pass mode: translate → refine")
 
-    # Adjust progress for refinement (translation = 0-50%, refinement = 50-100%)
-    def translation_progress(pct):
-        if progress_callback:
-            if enable_refinement:
-                # Translation is first half (0-50%)
-                progress_callback(pct * 0.5)
-            else:
-                progress_callback(pct)
+    # Progress is handled directly by translator.py's ProgressTracker
+    # which automatically accounts for refinement phase (50/50 split)
 
     # Translate chunks
-    translated_parts = await translate_chunks(
+    translated_parts, progress_tracker = await translate_chunks(
         structured_chunks,
         source_language,
         target_language,
         model_name,
         cli_api_endpoint,
-        progress_callback=translation_progress,
+        progress_callback=progress_callback,
         log_callback=log_callback,
         stats_callback=stats_callback,
         check_interruption_callback=check_interruption_callback,
@@ -202,7 +196,8 @@ async def translate_text_file_with_callbacks(input_filepath, output_filepath,
         checkpoint_manager=checkpoint_manager,
         translation_id=translation_id,
         resume_from_index=resume_from_index,
-        prompt_options=prompt_options
+        prompt_options=prompt_options,
+        enable_refinement=enable_refinement
     )
 
     # Refinement pass (if enabled and not interrupted)
@@ -229,7 +224,8 @@ async def translate_text_file_with_callbacks(input_filepath, output_filepath,
             openrouter_api_key=openrouter_api_key,
             context_window=context_window,
             auto_adjust_context=auto_adjust_context,
-            prompt_options=prompt_options
+            prompt_options=prompt_options,
+            progress_tracker=progress_tracker
         )
     elif enable_refinement and was_interrupted:
         if log_callback:
@@ -366,6 +362,10 @@ async def translate_srt_file_with_callbacks(input_filepath, output_filepath,
         log_callback("srt_translation_start", 
                     f"Translating {len(subtitles)} subtitles in {len(subtitle_blocks)} blocks from {source_language} to {target_language}...")
     
+    # Extract refinement settings from prompt_options if available
+    enable_post_processing = prompt_options.get('refine', False) if prompt_options else False
+    post_processing_instructions = prompt_options.get('refinement_instructions', '') if prompt_options else ''
+
     translations = await translate_subtitles_in_blocks(
         subtitle_blocks,
         source_language,
@@ -380,9 +380,12 @@ async def translate_srt_file_with_callbacks(input_filepath, output_filepath,
         gemini_api_key=gemini_api_key,
         openai_api_key=openai_api_key,
         openrouter_api_key=openrouter_api_key,
+        enable_post_processing=enable_post_processing,
+        post_processing_instructions=post_processing_instructions,
         checkpoint_manager=checkpoint_manager,
         translation_id=translation_id,
-        resume_from_block_index=resume_from_block_index
+        resume_from_block_index=resume_from_block_index,
+        prompt_options=prompt_options
     )
     
     # Update subtitles with translations

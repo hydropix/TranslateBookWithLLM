@@ -19,7 +19,8 @@ async def translate_subtitles(subtitles: List[Dict[str, str]], source_language: 
                             stats_callback=None, check_interruption_callback=None, custom_instructions="",
                             llm_provider="ollama", gemini_api_key=None, openai_api_key=None,
                             openrouter_api_key=None,
-                            enable_post_processing=False, post_processing_instructions="") -> Dict[int, str]:
+                            enable_post_processing=False, post_processing_instructions="",
+                            prompt_options=None) -> Dict[int, str]:
     """
     Translate subtitle entries preserving structure
     
@@ -63,7 +64,7 @@ async def translate_subtitles(subtitles: List[Dict[str, str]], source_language: 
                 break
             
             if progress_callback and total_subtitles > 0:
-                progress_callback((idx / total_subtitles) * 100)
+                progress_callback(((idx + 1) / total_subtitles) * 100)
             
             text_to_translate = subtitle['text'].strip()
             
@@ -118,15 +119,137 @@ async def translate_subtitles(subtitles: List[Dict[str, str]], source_language: 
                 })
     
         if log_callback:
-            log_callback("srt_translation_complete", 
+            log_callback("srt_translation_complete",
                         f"Completed translation: {completed_count} successful, {failed_count} failed")
-    
+
+        # Refinement pass (if enabled)
+        enable_refinement = (prompt_options and prompt_options.get('refine')) if prompt_options else enable_post_processing
+
+        if enable_refinement and translations:
+            if log_callback:
+                log_callback("srt_refinement_start", "✨ Starting SRT refinement pass to polish translation quality...")
+
+            # Apply refinement to each translated subtitle
+            refined_translations = await _refine_subtitle_translations(
+                translations=translations,
+                target_language=target_language,
+                model_name=model_name,
+                llm_client=llm_client,
+                log_callback=log_callback,
+                progress_callback=progress_callback,
+                prompt_options=prompt_options,
+                post_processing_instructions=post_processing_instructions
+            )
+
+            if log_callback:
+                successful_refinements = sum(1 for idx in translations if translations[idx] != refined_translations.get(idx, translations[idx]))
+                log_callback("srt_refinement_complete",
+                           f"✨ Refinement complete: {successful_refinements}/{len(translations)} subtitles improved")
+
+            translations = refined_translations
+
     finally:
         # Clean up LLM client resources if created
         if llm_client:
             await llm_client.close()
-    
+
     return translations
+
+
+async def _refine_subtitle_translations(
+    translations: Dict[int, str],
+    target_language: str,
+    model_name: str,
+    llm_client,
+    log_callback=None,
+    progress_callback=None,
+    prompt_options=None,
+    post_processing_instructions=""
+) -> Dict[int, str]:
+    """
+    Refine subtitle translations using a second LLM pass.
+
+    This function applies refinement to already-translated subtitles while preserving
+    the subtitle index structure [N].
+
+    Args:
+        translations: Dict mapping subtitle index to translated text
+        target_language: Target language
+        model_name: LLM model name
+        llm_client: LLM client instance
+        log_callback: Optional logging callback
+        progress_callback: Optional progress callback
+        prompt_options: Optional prompt options dict
+        post_processing_instructions: Additional refinement instructions
+
+    Returns:
+        Dict mapping subtitle index to refined text
+    """
+    from prompts.prompts import generate_post_processing_prompt
+
+    total_subtitles = len(translations)
+    refined_translations = {}
+
+    if log_callback:
+        log_callback("srt_refinement_info", f"Refining {total_subtitles} subtitles...")
+
+    subtitle_indices = sorted(translations.keys())
+
+    for i, idx in enumerate(subtitle_indices):
+        translated_text = translations[idx]
+
+        # Build context from surrounding subtitles
+        context_before = translations.get(subtitle_indices[i - 1], "") if i > 0 else ""
+        context_after = translations.get(subtitle_indices[i + 1], "") if i < len(subtitle_indices) - 1 else ""
+
+        # Generate refinement prompt
+        try:
+            prompt_pair = generate_post_processing_prompt(
+                translated_text=translated_text,
+                target_language=target_language,
+                context_before=context_before,
+                context_after=context_after,
+                additional_instructions=post_processing_instructions or '',
+                has_placeholders=False,  # SRT doesn't use HTML placeholders
+                placeholder_format=None,
+                prompt_options=prompt_options
+            )
+
+            # Make refinement request
+            llm_response = await llm_client.make_request(
+                prompt_pair.user, model_name, system_prompt=prompt_pair.system
+            )
+
+            if llm_response and llm_response.content:
+                # Extract refined text
+                refined_text = llm_client.extract_translation(llm_response.content)
+
+                if refined_text:
+                    refined_translations[idx] = refined_text
+                    if log_callback:
+                        log_callback("srt_subtitle_refined", f"Subtitle {idx + 1}/{total_subtitles} refined successfully")
+                else:
+                    # Fallback to original translation if extraction fails
+                    refined_translations[idx] = translated_text
+                    if log_callback:
+                        log_callback("srt_refinement_fallback", f"Subtitle {idx + 1}: using original translation")
+            else:
+                # Fallback to original translation if request fails
+                refined_translations[idx] = translated_text
+                if log_callback:
+                    log_callback("srt_refinement_failed", f"Subtitle {idx + 1}: refinement failed, using original")
+
+        except Exception as e:
+            # Fallback to original translation on error
+            refined_translations[idx] = translated_text
+            if log_callback:
+                log_callback("srt_refinement_error", f"Subtitle {idx + 1}: error during refinement: {e}")
+
+        # Update progress
+        if progress_callback:
+            progress_callback(((i + 1) / total_subtitles) * 100)
+
+    return refined_translations
 
 
 async def translate_subtitles_in_blocks(subtitle_blocks: List[List[Dict[str, str]]],
@@ -140,7 +263,8 @@ async def translate_subtitles_in_blocks(subtitle_blocks: List[List[Dict[str, str
                                       enable_post_processing=False,
                                       post_processing_instructions="",
                                       checkpoint_manager=None, translation_id=None,
-                                      resume_from_block_index=0) -> Dict[int, str]:
+                                      resume_from_block_index=0,
+                                      prompt_options=None) -> Dict[int, str]:
     """
     Translate subtitle entries in blocks for better context preservation.
 
@@ -233,7 +357,7 @@ async def translate_subtitles_in_blocks(subtitle_blocks: List[List[Dict[str, str
                 break
 
             if progress_callback and total_blocks > 0:
-                progress_callback((block_idx / total_blocks) * 100)
+                progress_callback(((block_idx + 1) / total_blocks) * 100)
             
             # Prepare subtitle blocks with indices
             subtitle_tuples = []
@@ -473,12 +597,38 @@ async def translate_subtitles_in_blocks(subtitle_blocks: List[List[Dict[str, str
                 })
         
         if log_callback:
-            log_callback("srt_block_translation_complete", 
+            log_callback("srt_block_translation_complete",
                         f"Completed block translation: {completed_count} successful, {failed_count} failed")
-    
+
+        # Refinement pass (if enabled)
+        enable_refinement = (prompt_options and prompt_options.get('refine')) or enable_post_processing
+
+        if enable_refinement and translations:
+            if log_callback:
+                log_callback("srt_refinement_start", "✨ Starting SRT refinement pass to polish translation quality...")
+
+            # Apply refinement to each translated subtitle
+            refined_translations = await _refine_subtitle_translations(
+                translations=translations,
+                target_language=target_language,
+                model_name=model_name,
+                llm_client=llm_client,
+                log_callback=log_callback,
+                progress_callback=progress_callback,
+                prompt_options=prompt_options,
+                post_processing_instructions=post_processing_instructions
+            )
+
+            if log_callback:
+                successful_refinements = sum(1 for idx in translations if translations[idx] != refined_translations.get(idx, translations[idx]))
+                log_callback("srt_refinement_complete",
+                           f"✨ Refinement complete: {successful_refinements}/{len(translations)} subtitles improved")
+
+            translations = refined_translations
+
     finally:
         # Clean up LLM client resources if created
         if llm_client:
             await llm_client.close()
-    
+
     return translations

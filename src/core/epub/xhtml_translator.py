@@ -818,6 +818,162 @@ def _report_statistics(
         progress_callback(100)
 
 
+async def _refine_epub_chunks(
+    translated_chunks: List[str],
+    chunks: List[Dict],
+    target_language: str,
+    model_name: str,
+    llm_client: Any,
+    context_manager: Optional[AdaptiveContextManager],
+    placeholder_format: Tuple[str, str],
+    log_callback: Optional[Callable],
+    progress_callback: Optional[Callable],
+    prompt_options: Optional[Dict]
+) -> List[str]:
+    """
+    Refine translated EPUB chunks using a second LLM pass.
+
+    This function applies refinement to already-translated chunks while preserving
+    HTML placeholders. It uses the same generate_translation_request approach
+    but with a refinement-focused prompt.
+
+    Args:
+        translated_chunks: List of translated chunk texts (with placeholders)
+        chunks: Original chunk dictionaries (for structure)
+        target_language: Target language
+        model_name: LLM model name
+        llm_client: LLM client instance
+        context_manager: Optional context manager
+        placeholder_format: Placeholder format tuple (prefix, suffix)
+        log_callback: Optional logging callback
+        progress_callback: Optional progress callback
+        prompt_options: Prompt options dict
+
+    Returns:
+        List of refined chunk texts
+    """
+    from prompts.prompts import generate_post_processing_prompt
+
+    total_chunks = len(translated_chunks)
+    refined_chunks = []
+
+    if log_callback:
+        log_callback("epub_refinement_info",
+                     f"Refining {total_chunks} EPUB chunks (original chunks: {len(chunks)})...")
+
+    # Ensure we have matching lengths
+    if len(translated_chunks) != len(chunks):
+        if log_callback:
+            log_callback("epub_refinement_warning",
+                        f"Warning: Length mismatch - translated_chunks: {len(translated_chunks)}, chunks: {len(chunks)}")
+
+    for idx, (translated_text, chunk_dict) in enumerate(zip(translated_chunks, chunks)):
+        # Build context from surrounding chunks
+        context_before = translated_chunks[idx - 1] if idx > 0 else ""
+        context_after = translated_chunks[idx + 1] if idx < len(translated_chunks) - 1 else ""
+
+        # Extract refinement instructions from prompt_options
+        refinement_instructions = prompt_options.get('refinement_instructions', '') if prompt_options else ''
+
+        # Get local tag map for placeholder validation
+        local_tag_map = chunk_dict.get('local_tag_map', {})
+
+        # Generate refinement prompt
+        prompt_pair = generate_post_processing_prompt(
+            translated_text=translated_text,
+            target_language=target_language,
+            context_before=context_before,
+            context_after=context_after,
+            additional_instructions=refinement_instructions,
+            has_placeholders=True,
+            placeholder_format=placeholder_format,
+            prompt_options=prompt_options
+        )
+
+        # Make refinement request
+        try:
+            # Log the refinement request (like translation does)
+            if log_callback:
+                log_callback("llm_request", "Sending refinement request to LLM", data={
+                    'type': 'llm_request',
+                    'system_prompt': prompt_pair.system,
+                    'user_prompt': prompt_pair.user,
+                    'model': model_name
+                })
+
+            # Set context from manager if available
+            if context_manager and hasattr(llm_client, 'context_window'):
+                new_ctx = context_manager.get_context_size()
+                if llm_client.context_window != new_ctx:
+                    llm_client.context_window = new_ctx
+
+            import time
+            start_time = time.time()
+            llm_response = await llm_client.make_request(
+                prompt_pair.user, model_name, system_prompt=prompt_pair.system
+            )
+            execution_time = time.time() - start_time
+
+            # Log the response (like translation does)
+            if log_callback and llm_response:
+                log_callback("llm_response", "LLM Response received", data={
+                    'type': 'llm_response',
+                    'response': llm_response.content,
+                    'execution_time': execution_time,
+                    'model': model_name,
+                    'tokens': {
+                        'prompt': llm_response.prompt_tokens,
+                        'completion': llm_response.completion_tokens,
+                        'total': llm_response.context_used,
+                        'limit': llm_response.context_limit
+                    }
+                })
+
+            if llm_response and llm_response.content:
+                # Extract refined text
+                refined_text = llm_client.extract_translation(llm_response.content)
+
+                if refined_text:
+                    # CRITICAL: Validate placeholders before accepting refinement
+                    # If placeholders are corrupted, fall back to original translation
+                    if local_tag_map and not validate_placeholders(refined_text, local_tag_map):
+                        if log_callback:
+                            log_callback("epub_refinement_placeholder_corruption",
+                                        f"Chunk {idx + 1}/{total_chunks}: refinement corrupted placeholders, using original translation")
+                        refined_chunks.append(translated_text)
+                    else:
+                        refined_chunks.append(refined_text)
+                        if log_callback:
+                            log_callback("epub_chunk_refined", f"Chunk {idx + 1}/{total_chunks} refined successfully")
+                else:
+                    # Fallback to original translation if extraction fails
+                    refined_chunks.append(translated_text)
+                    if log_callback:
+                        log_callback("epub_refinement_fallback", f"Chunk {idx + 1}/{total_chunks}: using original translation")
+            else:
+                # Fallback to original translation if request fails
+                refined_chunks.append(translated_text)
+                if log_callback:
+                    log_callback("epub_refinement_failed", f"Chunk {idx + 1}/{total_chunks}: refinement failed, using original")
+
+        except Exception as e:
+            # Fallback to original translation on error
+            refined_chunks.append(translated_text)
+            if log_callback:
+                log_callback("epub_refinement_error", f"Chunk {idx + 1}/{total_chunks}: error during refinement: {e}")
+
+        # Update progress
+        if progress_callback:
+            progress_callback(((idx + 1) / total_chunks) * 100)
+
+    if log_callback:
+        successful_refinements = sum(1 for orig, ref in zip(translated_chunks, refined_chunks) if orig != ref)
+        log_callback("epub_refinement_complete",
+                     f"✨ Refinement complete: {successful_refinements}/{total_chunks} chunks improved")
+
+    return refined_chunks
+
+
 async def translate_xhtml_simplified(
     doc_root: etree._Element,
     source_language: str,
@@ -829,7 +985,8 @@ async def translate_xhtml_simplified(
     progress_callback: Optional[Callable] = None,
     context_manager: Optional[AdaptiveContextManager] = None,
     max_retries: int = 1,
-    container: Optional[TranslationContainer] = None
+    container: Optional[TranslationContainer] = None,
+    prompt_options: Optional[Dict] = None
 ) -> bool:
     """
     Translate an XHTML document using the simplified approach.
@@ -841,7 +998,8 @@ async def translate_xhtml_simplified(
     2. Replace all tags with placeholders
     3. Chunk by complete HTML blocks with local renumbering
     4. Translate each chunk (with retry attempts)
-    5. Reconstruct and replace body
+    5. (Optional) Refine translated chunks if prompt_options['refine'] is True
+    6. Reconstruct and replace body
 
     Args:
         doc_root: Parsed XHTML document (modified in-place)
@@ -855,6 +1013,7 @@ async def translate_xhtml_simplified(
         context_manager: Optional AdaptiveContextManager for handling context overflow
         max_retries: Maximum translation retry attempts per chunk
         container: Optional dependency injection container for components
+        prompt_options: Optional dict with prompt customization options (e.g., refine=True)
 
     Returns:
         True if successful, False otherwise
@@ -887,7 +1046,16 @@ async def translate_xhtml_simplified(
         container
     )
 
+    # Check if refinement is enabled
+    enable_refinement = prompt_options and prompt_options.get('refine')
+
+    if log_callback:
+        log_callback("epub_refinement_config",
+                     f"Refinement enabled: {enable_refinement} (prompt_options={prompt_options})")
+
     # 4. Translation
+    # Note: Progress is reported as raw 0-100% chunk-based progress
+    # The parent epub/translator.py handles token-based progress via its own ProgressTracker
     translated_chunks, stats = await _translate_all_chunks(
         chunks=chunks,
         source_language=source_language,
@@ -898,8 +1066,38 @@ async def translate_xhtml_simplified(
         context_manager=context_manager,
         placeholder_format=placeholder_format,
         log_callback=log_callback,
-        progress_callback=progress_callback
+        progress_callback=progress_callback  # Pass through to parent's token tracker
     )
+
+    # 4.5. Refinement (optional)
+    if enable_refinement and translated_chunks:
+        if log_callback:
+            log_callback("epub_refinement_start",
+                        f"✨ Starting EPUB refinement pass to polish translation quality... ({len(translated_chunks)} chunks)")
+
+        refined_result = await _refine_epub_chunks(
+            translated_chunks=translated_chunks,
+            chunks=chunks,
+            target_language=target_language,
+            model_name=model_name,
+            llm_client=llm_client,
+            context_manager=context_manager,
+            placeholder_format=placeholder_format,
+            log_callback=log_callback,
+            progress_callback=progress_callback,  # Pass through to parent's token tracker
+            prompt_options=prompt_options
+        )
+
+        if refined_result:
+            translated_chunks = refined_result
+            if log_callback:
+                log_callback("epub_refinement_applied", f"Applied refinement to {len(refined_result)} chunks")
+        else:
+            if log_callback:
+                log_callback("epub_refinement_empty", "Warning: Refinement returned empty result, using original translation")
+    elif enable_refinement and not translated_chunks:
+        if log_callback:
+            log_callback("epub_refinement_skipped", "Refinement skipped: no translated chunks available")
 
     # 5. Reconstruction
     final_html = _reconstruct_html(
