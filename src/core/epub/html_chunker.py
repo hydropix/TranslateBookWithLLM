@@ -704,7 +704,7 @@ class TranslationStats:
 
     Translation flow:
     1. Phase 1: Normal translation (with retry attempts)
-    2. Phase 2: Proportional fallback (if all retries fail)
+    2. Phase 2: Untranslated fallback (if all retries fail, returns original text)
     """
 
     def __init__(self):
@@ -712,7 +712,7 @@ class TranslationStats:
         self.successful_first_try = 0
         self.successful_after_retry = 0  # Success on 2nd+ retry attempt
         self.retry_attempts = 0  # Total number of retry attempts made
-        self.fallback_used = 0
+        self.fallback_used = 0  # Chunks returned untranslated after all retries failed
 
     def log_summary(self, log_callback=None):
         """Log a summary of translation statistics."""
@@ -722,7 +722,7 @@ class TranslationStats:
             f"Success 1st try: {self.successful_first_try} ({self._pct(self.successful_first_try)}%)\n"
             f"Success after retry: {self.successful_after_retry} ({self._pct(self.successful_after_retry)}%)\n"
             f"Total retry attempts: {self.retry_attempts}\n"
-            f"Proportional fallback used: {self.fallback_used} ({self._pct(self.fallback_used)}%)"
+            f"Untranslated chunks (fallback): {self.fallback_used} ({self._pct(self.fallback_used)}%)"
         )
         if log_callback:
             log_callback("translation_stats", summary)
@@ -751,7 +751,7 @@ class TranslationMetrics:
     total_chunks: int = 0
     successful_first_try: int = 0
     successful_after_retry: int = 0
-    fallback_used: int = 0
+    fallback_used: int = 0  # Chunks returned untranslated after all retries failed
     failed_chunks: int = 0
 
     # === Timing ===
@@ -793,7 +793,7 @@ class TranslationMetrics:
         self._update_chunk_stats(chunk_size)
 
     def record_fallback(self, chunk_size: int) -> None:
-        """Record fallback usage.
+        """Record fallback usage (untranslated chunk returned).
 
         Args:
             chunk_size: Size of chunk in tokens
@@ -883,7 +883,7 @@ class TranslationMetrics:
 Total Chunks: {self.total_chunks}
 Success (first try): {self.successful_first_try} ({self.first_try_rate:.1%})
 Success (after retry): {self.successful_after_retry}
-Fallback Used: {self.fallback_used}
+Untranslated (fallback): {self.fallback_used}
 Failed: {self.failed_chunks}
 
 Overall Success Rate: {self.success_rate:.1%}

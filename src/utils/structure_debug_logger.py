@@ -245,10 +245,10 @@ class StructureDebugLogger:
 
         Args:
             chunk_index: Index of chunk
-            fallback_type: Type of fallback (proportional, original, etc.)
+            fallback_type: Type of fallback (untranslated, etc.)
             reason: Why fallback was triggered
-            original_text: Original text with placeholders (for proportional fallback)
-            translated_text: Translated text WITHOUT placeholders (for proportional fallback)
+            original_text: Original text with placeholders
+            translated_text: Translated text (if any was produced before failure)
             positions_before: Original placeholder positions dict
             positions_after: Sequential positions dict after processing
             result_with_placeholders: Final result after reinserting placeholders
@@ -258,8 +258,8 @@ class StructureDebugLogger:
         self._write("TYPE", f"Fallback type: {fallback_type}")
         self._write("REASON", reason)
 
-        if fallback_type == "proportional":
-            # Log detailed proportional fallback info
+        if fallback_type == "untranslated":
+            # Log detailed untranslated fallback info
             if original_text:
                 self._write("ORIGINAL_LENGTH", f"{len(original_text)} chars")
                 # Count placeholders in original
@@ -444,7 +444,7 @@ class StructureDebugLogger:
         self._write("STATS", f"Success 1st try: {stats.successful_first_try} ({stats._pct(stats.successful_first_try)}%)")
         self._write("STATS", f"Success after retry: {stats.successful_after_retry} ({stats._pct(stats.successful_after_retry)}%)")
         self._write("STATS", f"Retry attempts: {stats.retry_attempts}")
-        self._write("STATS", f"Fallback used: {stats.fallback_used} ({stats._pct(stats.fallback_used)}%)")
+        self._write("STATS", f"Untranslated chunks (fallback): {stats.fallback_used} ({stats._pct(stats.fallback_used)}%)")
 
         self._write("COMPLETION", f"Log saved to: {self.log_file}")
         self._write("COMPLETION", f"Finished: {datetime.now().isoformat()}")

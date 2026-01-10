@@ -1,8 +1,8 @@
-# Integration Test: EPUB Fallback with Simple Format [N]
+# Integration Test: EPUB Untranslated Fallback with Simple Format [N]
 
 **Test ID:** Step 17 - Integration Test
 **Priority:** CRITICAL
-**Objective:** Verify that the proportional fallback uses the correct simple format `[N]` on a real EPUB
+**Objective:** Verify that when fallback is triggered (returning untranslated text), the correct simple format `[N]` is used on a real EPUB
 
 ## Prerequisites
 
@@ -18,7 +18,7 @@ Use a small EPUB without brackets in the text. You can create one or use an exis
 
 ### Step 2: Force the Fallback
 
-To force the proportional fallback to trigger, you have two options:
+To force the untranslated fallback to trigger, you have two options:
 
 **Option A: Temporarily modify configuration**
 ```python
@@ -40,7 +40,7 @@ python translate.py -i test.epub -o test_translated.epub -sl English -tl French
 
 Check the console output for:
 
-1. ✅ Look for message: "Proportional fallback used"
+1. ✅ Look for message: "Untranslated chunks (fallback): X (Y%)"
 2. ✅ Look for message: "Format: [N]" (single brackets)
 3. ❌ Should NOT see: "Format: [[N]]" (double brackets)
 4. ❌ Should NOT see XML errors like "Opening and ending tag mismatch"
@@ -75,7 +75,7 @@ Check the console output for:
 | Check | Expected Result |
 |-------|----------------|
 | Translation completes | ✅ Success |
-| Fallback triggered | ✅ "Proportional fallback used" in logs |
+| Fallback triggered | ✅ "Untranslated chunks (fallback)" in logs |
 | Format detected | ✅ "Format: [N]" (simple format) |
 | No format mixing | ✅ No mix of `[N]` and `[[N]]` |
 | EPUB opens | ✅ Opens correctly in reader |
@@ -85,7 +85,7 @@ Check the console output for:
 ## Success Criteria
 
 - [x] EPUB translates successfully
-- [x] Proportional fallback uses simple format `[N]`
+- [x] Untranslated fallback uses simple format `[N]`
 - [x] No mixed formats in the same document
 - [x] EPUB is valid and readable
 - [x] No XML parsing errors

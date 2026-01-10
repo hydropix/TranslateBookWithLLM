@@ -1,9 +1,10 @@
 """
 Test boundary tag restoration in fallback scenarios.
 
-This test ensures that when the translation fallback is triggered,
-the boundary tags (first and last HTML tags) are correctly restored
-to prevent invalid HTML output.
+This test ensures that when the translation fallback is triggered
+(returning the original untranslated text), the boundary tags
+(first and last HTML tags) are correctly restored to prevent
+invalid HTML output.
 """
 
 import sys

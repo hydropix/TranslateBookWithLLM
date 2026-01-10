@@ -43,7 +43,7 @@ class TestTranslationMetrics:
         assert metrics.retry_distribution[2] == 1
 
     def test_record_fallback(self):
-        """Record fallback usage."""
+        """Record fallback usage (untranslated chunk)."""
         metrics = TranslationMetrics()
         metrics.record_fallback(chunk_size=200)
 
@@ -91,7 +91,7 @@ class TestTranslationMetrics:
 
         metrics.record_success(attempt=0, chunk_size=100)  # Success
         metrics.record_success(attempt=1, chunk_size=100)  # Success
-        metrics.record_fallback(chunk_size=100)  # Not counted as success
+        metrics.record_fallback(chunk_size=100)  # Untranslated (not counted as success)
         metrics.record_failure(chunk_size=100)  # Failed
 
         # 2 successful out of 4 total
@@ -169,7 +169,7 @@ class TestTranslationMetrics:
         assert "Translation Metrics Summary" in output
         assert "Total Chunks: 3" in output
         assert "Success (first try):" in output
-        assert "Fallback Used:" in output
+        assert "Untranslated (fallback):" in output
 
     def test_log_summary_with_callback(self):
         """Log summary with callback."""
@@ -211,7 +211,7 @@ class TestTranslationMetrics:
                 # 15% succeed after retry
                 metrics.record_success(attempt=1, chunk_size=100 + i)
             else:
-                # 5% use fallback
+                # 5% return untranslated (fallback)
                 metrics.record_fallback(chunk_size=100 + i)
 
         metrics.finalize()

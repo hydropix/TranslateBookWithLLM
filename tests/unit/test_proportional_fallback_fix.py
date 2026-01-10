@@ -1,8 +1,9 @@
 """
 Unit tests for placeholder extraction and reinsertion with format detection
 
-Tests the fix for the proportional fallback issue where placeholders were not
-being properly extracted when using different placeholder formats ([idN], [[N]], etc.)
+Tests the fix for the fallback issue where placeholders were not being properly
+extracted when using different placeholder formats ([idN], [[N]], etc.). Note that
+the fallback now returns untranslated text instead of using proportional distribution.
 """
 import pytest
 from src.core.epub.html_chunker import extract_text_and_positions, reinsert_placeholders
