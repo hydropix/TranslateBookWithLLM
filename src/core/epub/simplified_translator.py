@@ -10,28 +10,29 @@ This module provides a simplified approach to EPUB translation that:
 6. Restores global indices after translation (PlaceholderManager)
 7. Restores tags and replaces the body
 
-Translation flow with LLM placeholder correction:
-1. Phase 1: Normal translation (1 attempt)
-2. Phase 2: LLM correction (up to MAX_PLACEHOLDER_CORRECTION_ATTEMPTS)
-3. Phase 3: Proportional fallback (if correction fails)
+Translation flow with retry:
+1. Phase 1: Normal translation (with retry attempts)
+2. Phase 2: Return untranslated text if all retries fail
 
 Placeholder Indexing Architecture:
 ===================================
 
 LEVEL 1 - Document level (TagPreserver):
     Input HTML: "<body><p>Hello</p></body>"
-    → Preserves tags as placeholders: "[[0]][[1]]Hello[[2]][[3]]"
-    → global_tag_map: {"[[0]]": "<body>", "[[1]]": "<p>", ...}
+    → Preserves tags as placeholders: "[id0]Hello[id1]"
+    → global_tag_map: {"[id0]": "<body><p>", "[id1]": "</p></body>"}
 
 LEVEL 2 - Chunk level (HtmlChunker):
-    Global HTML: "[[5]]<p>[[6]]Hello[[7]]</p>[[8]]"
-    → Chunk text: "[[0]]<p>[[1]]Hello[[2]]</p>[[3]]" (renumbered locally)
-    → global_indices: [5, 6, 7, 8] (mapping to restore later)
+    Global text: "[id5]Hello[id6] [id7]World[id8]"
+    → Chunk 1: "[id0]Hello[id1]" (renumbered locally)
+    → global_indices: [5, 6] (mapping to restore later)
+    → Chunk 2: "[id0]World[id1]" (renumbered locally)
+    → global_indices: [7, 8]
 
 LEVEL 3 - Translation (PlaceholderManager):
-    Chunk text: "[[0]]<p>[[1]]Hello[[2]]</p>[[3]]" (sent to LLM as-is)
-    LLM returns: "[[0]]<p>[[1]]Bonjour[[2]]</p>[[3]]"
-    → Restored: "[[5]]<p>[[6]]Bonjour[[7]]</p>[[8]]" (global indices)
+    Chunk text: "[id0]Hello[id1]" (sent to LLM as-is)
+    LLM returns: "[id0]Bonjour[id1]"
+    → Restored: "[id5]Bonjour[id6]" (global indices)
 """
 import re
 from collections import Counter
@@ -41,11 +42,16 @@ from lxml import etree
 from .body_serializer import extract_body_html, replace_body_content
 from .html_chunker import (
     HtmlChunker,
-    extract_text_and_positions,
-    reinsert_placeholders,
     TranslationStats
 )
 from .tag_preservation import TagPreserver
+from .exceptions import (
+    PlaceholderValidationError,
+    TagRestorationError,
+    XmlParsingError
+)
+from .placeholder_validator import PlaceholderValidator
+from .container import TranslationContainer
 from ..translator import generate_translation_request
 from ..context_optimizer import AdaptiveContextManager, INITIAL_CONTEXT_SIZE, CONTEXT_STEP, MAX_CONTEXT_SIZE
 from src.config import (
@@ -53,12 +59,12 @@ from src.config import (
     MAX_PLACEHOLDER_CORRECTION_ATTEMPTS,
     create_placeholder,
     detect_placeholder_format_in_text,
-    get_mutation_variants,
+    detect_format_from_placeholder,
     THINKING_MODELS,
     ADAPTIVE_CONTEXT_INITIAL_THINKING,
 )
 from prompts.prompts import generate_placeholder_correction_prompt, CORRECTED_TAG_IN, CORRECTED_TAG_OUT
-from src.utils.llm_logger import log_llm_interaction
+from src.utils.structure_debug_logger import StructureDebugLogger
 
 
 class PlaceholderManager:
@@ -123,45 +129,14 @@ def validate_placeholders(translated_text: str, local_tag_map: Dict[str, str]) -
 
     Args:
         translated_text: Text with placeholders after translation
-        local_tag_map: Expected local tag map (may contain __boundary_* keys)
+        local_tag_map: Expected local tag map
 
     Returns:
         True if all placeholders present and valid
     """
-    # Count only regular placeholders (not boundary keys)
-    expected_count = len([k for k in local_tag_map.keys() if not k.startswith("__")])
-    if expected_count == 0:
-        return True
-
-    # Detect format from tag_map keys (get first non-boundary placeholder)
-    sample_placeholder = next((k for k in local_tag_map.keys() if not k.startswith("__")), "[[0]]")
-    use_simple_format = sample_placeholder.startswith("[") and not sample_placeholder.startswith("[[")
-
-    # Use appropriate pattern based on detected format
-    if use_simple_format:
-        # Use negative lookahead/behind to avoid matching [[0]] when looking for [0]
-        pattern = r'(?<!\[)\[(\d+)\](?!\])'
-        prefix_len = 1
-        suffix_len = 1
-    else:
-        pattern = r'\[\[(\d+)\]\]'
-        prefix_len = 2
-        suffix_len = 2
-
-    found = re.findall(pattern, translated_text)
-
-    if len(found) != expected_count:
-        return False
-
-    # Check sequential order (0, 1, 2, ...)
-    expected_indices = set(range(expected_count))
-    found_indices = set()
-
-    for num_str in found:
-        idx = int(num_str)
-        found_indices.add(idx)
-
-    return found_indices == expected_indices
+    # Use centralized PlaceholderValidator
+    is_valid, error_msg = PlaceholderValidator.validate_strict(translated_text, local_tag_map)
+    return is_valid
 
 
 def build_specific_error_details(translated_text: str, expected_count: int, local_tag_map: Dict[str, str] = None) -> str:
@@ -179,18 +154,29 @@ def build_specific_error_details(translated_text: str, expected_count: int, loca
     errors = []
 
     # Detect format from tag_map keys
-    use_simple_format = False
+    current_format = "safe"
     if local_tag_map:
         sample_placeholder = next((k for k in local_tag_map.keys() if not k.startswith("__")), "[[0]]")
-        use_simple_format = sample_placeholder.startswith("[") and not sample_placeholder.startswith("[[")
+        current_format = detect_format_from_placeholder(sample_placeholder)
 
-    # Set appropriate pattern and placeholder functions
-    if use_simple_format:
-        # Use negative lookahead/behind to avoid matching [[0]] when looking for [0]
+    # Set appropriate pattern and placeholder functions based on format
+    if current_format == "id":
+        pattern = r'\[id(\d+)\]'
+        prefix = "[id"
+        suffix = "]"
+    elif current_format == "slash":
+        pattern = r'/(\d+)(?!/)'
+        prefix = "/"
+        suffix = ""
+    elif current_format == "dollar":
+        pattern = r'\$(\d+)\$'
+        prefix = "$"
+        suffix = "$"
+    elif current_format == "simple":
         pattern = r'(?<!\[)\[(\d+)\](?!\])'
         prefix = "["
         suffix = "]"
-    else:
+    else:  # safe
         pattern = r'\[\[(\d+)\]\]'
         prefix = "[["
         suffix = "]]"
@@ -218,28 +204,15 @@ def build_specific_error_details(translated_text: str, expected_count: int, loca
         for idx, count in duplicates.items():
             errors.append(f"- Duplicate: {make_placeholder(idx)} appears {count} times (should appear once)")
 
-    # 4. Detect mutations (incorrect formats) - use get_mutation_variants()
-    mutations_found = []
-    for i in range(expected_count):
-        if i not in found_set:
-            correct_placeholder = make_placeholder(i)
-            # Search for possible mutations
-            for variant in get_mutation_variants(i, use_simple_format):
-                if variant in translated_text and correct_placeholder not in translated_text:
-                    mutations_found.append(f"{variant} instead of {correct_placeholder}")
-                    break  # One mutation per index
-    if mutations_found:
-        errors.append(f"- Mutated placeholders: Found {', '.join(mutations_found)}")
-
-    # 5. Check order
+    # 4. Check order
     if found_indices != sorted(found_indices):
         errors.append("- Out of order: placeholders are not in sequential order")
 
-    # 6. Count summary
+    # 5. Count summary
     if len(found_correct) != expected_count:
         errors.append(f"- Count mismatch: Expected {expected_count} placeholders, found {len(found_correct)}")
 
-    # 7. Position hint - if count matches but indices don't, placeholders are shifted
+    # 6. Position hint - if count matches but indices don't, placeholders are shifted
     if len(found_correct) == expected_count and found_set != expected_indices:
         # Some placeholders have wrong indices (shifted)
         wrong_indices = found_set - expected_indices
@@ -293,7 +266,7 @@ async def attempt_placeholder_correction(
     Args:
         original_text: Source text with correct placeholders
         translated_text: Translation with placeholder errors
-        local_tag_map: Expected local tag map (may contain __boundary_* keys)
+        local_tag_map: Expected local tag map
         source_language: Source language name
         target_language: Target language name
         llm_client: LLM client instance
@@ -304,8 +277,7 @@ async def attempt_placeholder_correction(
     Returns:
         Tuple (corrected_text, success)
     """
-    # Count only regular placeholders (not boundary keys)
-    expected_count = len([k for k in local_tag_map.keys() if not k.startswith("__")])
+    expected_count = len(local_tag_map)
 
     # Generate error details
     specific_errors = build_specific_error_details(translated_text, expected_count, local_tag_map)
@@ -342,16 +314,6 @@ async def attempt_placeholder_correction(
                 prompt_pair.user,
                 system_prompt=prompt_pair.system
             )
-
-            # Log full interaction if DEBUG_MODE is enabled
-            if llm_response is not None:
-                log_llm_interaction(
-                    system_prompt=prompt_pair.system,
-                    user_prompt=prompt_pair.user,
-                    raw_response=llm_response.content,
-                    interaction_type="placeholder_correction",
-                    prefix=f"Attempt {retry + 1}/{max_retries}"
-                )
 
             if llm_response is None:
                 return translated_text, False
@@ -420,16 +382,17 @@ async def translate_chunk_with_fallback(
     log_callback: Optional[Callable] = None,
     max_retries: int = 1,
     context_manager: Optional[AdaptiveContextManager] = None,
-    placeholder_format: Optional[Tuple[str, str]] = None
+    placeholder_format: Optional[Tuple[str, str]] = None,
+    debug_logger: Optional[StructureDebugLogger] = None,
+    chunk_index: int = 0
 ) -> str:
     """
-    Translate a chunk with LLM correction and proportional fallback.
+    Translate a chunk with retry mechanism.
 
     Translation flow:
-    1. Phase 1: Normal translation (1 attempt) - chunk already has local indices (0, 1, 2...)
-    2. Phase 2: LLM correction (up to MAX_PLACEHOLDER_CORRECTION_ATTEMPTS)
-    3. Phase 3: Proportional fallback (if correction fails)
-    4. Restore global indices
+    1. Phase 1: Normal translation (up to max_retries attempts)
+    2. Phase 2: Return untranslated text if all retries fail
+    3. Restore global indices
 
     Args:
         chunk_text: Text with local placeholders (0, 1, 2...)
@@ -441,7 +404,7 @@ async def translate_chunk_with_fallback(
         llm_client: LLM client
         stats: TranslationStats instance for tracking
         log_callback: Optional logging callback
-        max_retries: Maximum initial translation attempts (unused, kept for compatibility)
+        max_retries: Maximum translation retry attempts (default from config)
         context_manager: Optional AdaptiveContextManager for handling context overflow
 
     Returns:
@@ -452,135 +415,388 @@ async def translate_chunk_with_fallback(
     # Initialize placeholder manager
     placeholder_mgr = PlaceholderManager()
 
-    # Calculate if this chunk has placeholders (excluding boundary keys)
-    placeholder_count = len([k for k in local_tag_map.keys() if not k.startswith("__")])
-    has_placeholders = placeholder_count > 0
+    # Calculate if this chunk has placeholders
+    has_placeholders = len(local_tag_map) > 0
+
+    # DEBUG: Log translation request
+    if debug_logger:
+        debug_logger.log_translation_request(chunk_index, chunk_text, has_placeholders)
 
     # ==========================================================================
-    # PHASE 1: Normal translation (1 attempt)
+    # PHASE 1: Normal translation with retries
     # ==========================================================================
-    # Send chunk as-is to LLM (already has local indices 0, 1, 2...)
-    translated = await generate_translation_request(
-        chunk_text,
-        context_before="",
-        context_after="",
-        previous_translation_context="",
-        source_language=source_language,
-        target_language=target_language,
-        model=model_name,
-        llm_client=llm_client,
-        log_callback=log_callback,
-        has_placeholders=has_placeholders,
-        context_manager=context_manager,
-        placeholder_format=placeholder_format
-    )
+    translated = None
 
-    if translated is None:
-        if log_callback:
-            log_callback("chunk_translation_failed", "Translation returned None")
-    elif validate_placeholders(translated, local_tag_map):
-        # Success on first try - restore to global indices
-        stats.successful_first_try += 1
-        result = placeholder_mgr.restore_to_global(translated, global_indices)
-        return result
-    else:
-        if log_callback:
-            log_callback("placeholder_mismatch", "Phase 1: Placeholder validation failed")
+    for attempt in range(max_retries):
+        if log_callback and max_retries > 1:
+            log_callback("translation_attempt", f"Translation attempt {attempt + 1}/{max_retries}")
 
-    # ==========================================================================
-    # PHASE 2: LLM Correction (up to MAX_PLACEHOLDER_CORRECTION_ATTEMPTS)
-    # ==========================================================================
-    if translated is not None and has_placeholders:
-        if log_callback:
-            log_callback("placeholder_correction_start",
-                f"Starting LLM correction phase ({MAX_PLACEHOLDER_CORRECTION_ATTEMPTS} attempts)")
-
-        for correction_attempt in range(MAX_PLACEHOLDER_CORRECTION_ATTEMPTS):
-            stats.correction_attempts += 1
-            if log_callback:
-                log_callback("placeholder_correction_attempt",
-                    f"Correction attempt {correction_attempt + 1}/{MAX_PLACEHOLDER_CORRECTION_ATTEMPTS}")
-
-            corrected, success = await attempt_placeholder_correction(
-                original_text=chunk_text,
-                translated_text=translated,
-                local_tag_map=local_tag_map,
-                source_language=source_language,
-                target_language=target_language,
-                llm_client=llm_client,
-                log_callback=log_callback,
-                placeholder_format=placeholder_format,
-                context_manager=context_manager
-            )
-
-            if success:
-                stats.successful_after_retry += 1
-                if log_callback:
-                    log_callback("placeholder_correction_success",
-                        f"Correction succeeded after {correction_attempt + 1} attempt(s)")
-                return placeholder_mgr.restore_to_global(corrected, global_indices)
-
-            # Use corrected text for next attempt even if validation failed
-            translated = corrected
-
-        if log_callback:
-            log_callback("placeholder_correction_failed",
-                "All correction attempts failed, falling back to proportional insertion")
-
-    # ==========================================================================
-    # PHASE 3: Proportional fallback with boundary restoration
-    # ==========================================================================
-    stats.fallback_used += 1
-
-    # Proportional reinsertion if we have a translation and placeholders
-    if translated is not None and has_placeholders:
-        if log_callback:
-            log_callback("fallback_proportional",
-                "Using proportional fallback - reinserting placeholders into translated text")
-
-        # Extract placeholder positions from original chunk
-        translated_pure, global_positions = extract_text_and_positions(chunk_text)
-
-        # Reinsert placeholders proportionally into the translation
-        result_with_placeholders = reinsert_placeholders(
-            translated,
-            global_positions,
+        # Send chunk as-is to LLM (already has local indices 0, 1, 2...)
+        translated = await generate_translation_request(
+            chunk_text,
+            context_before="",
+            context_after="",
+            previous_translation_context="",
+            source_language=source_language,
+            target_language=target_language,
+            model=model_name,
+            llm_client=llm_client,
+            log_callback=log_callback,
+            has_placeholders=has_placeholders,
+            context_manager=context_manager,
             placeholder_format=placeholder_format
         )
 
-        # Restore global indices
-        result_with_globals = placeholder_mgr.restore_to_global(
-            result_with_placeholders,
-            global_indices
+        if translated is None:
+            if log_callback:
+                log_callback("chunk_translation_failed", f"Attempt {attempt + 1}/{max_retries}: Translation returned None")
+            stats.retry_attempts += 1
+            continue  # Try again
+
+        # Validate placeholders
+        validation_result = validate_placeholders(translated, local_tag_map)
+
+        # DEBUG: Log translation response (only failures)
+        if debug_logger:
+            debug_logger.log_translation_response(
+                chunk_index,
+                translated,
+                len(local_tag_map),
+                validation_result,
+                retry_attempt=attempt
+            )
+
+        if validation_result:
+            # Success - restore to global indices
+            if attempt == 0:
+                stats.successful_first_try += 1
+            else:
+                stats.successful_after_retry += 1
+                if log_callback:
+                    log_callback("retry_success", f"Translation succeeded after {attempt + 1} attempt(s)")
+
+            result = placeholder_mgr.restore_to_global(translated, global_indices)
+
+            # DEBUG: Log global restoration (only if problems occur, checked inside function)
+            if debug_logger:
+                debug_logger.log_global_restoration(
+                    chunk_index,
+                    translated,
+                    result,
+                    global_indices,
+                    is_fallback=False
+                )
+
+            return result
+        else:
+            if log_callback:
+                log_callback("placeholder_mismatch", f"Attempt {attempt + 1}/{max_retries}: Placeholder validation failed")
+            stats.retry_attempts += 1
+            # Continue to next retry attempt
+
+    # ==========================================================================
+    # PHASE 2: Return untranslated text (all retry attempts failed)
+    # ==========================================================================
+    stats.fallback_used += 1
+
+    if log_callback:
+        log_callback("fallback_untranslated",
+            "All translation attempts failed - returning original untranslated text")
+
+    # Return the original chunk_text with global indices restored
+    result_final = placeholder_mgr.restore_to_global(chunk_text, global_indices)
+
+    # DEBUG: Log fallback usage
+    if debug_logger:
+        debug_logger.log_fallback_usage(
+            chunk_index,
+            "untranslated",
+            f"All {max_retries} translation attempts failed validation - returning untranslated text",
+            original_text=chunk_text,
+            translated_text=translated if translated is not None else "None (translation failed)",
+            positions_before={},
+            positions_after={},
+            result_with_placeholders=chunk_text
+        )
+        debug_logger.log_global_restoration(
+            chunk_index,
+            chunk_text,
+            result_final,
+            global_indices,
+            is_fallback=True
         )
 
-        # Restore boundary tags
-        boundary_prefix = local_tag_map.get("__boundary_prefix__", "")
-        boundary_suffix = local_tag_map.get("__boundary_suffix__", "")
+    return result_final
 
-        if boundary_prefix or boundary_suffix:
-            result_with_globals = boundary_prefix + result_with_globals + boundary_suffix
 
-        return result_with_globals
+# === Private Helper Functions ===
 
-    # SAFE FALLBACK: Return original text with global placeholders and boundaries
-    # Used when: translated=None OR has_placeholders=False
-    # This preserves HTML structure perfectly
+def _setup_translation(
+    doc_root: etree._Element,
+    enable_structure_debug: bool = True,
+    translation_id: str = None,
+    file_path: str = None,
+    log_callback: Optional[Callable] = None,
+    container: Optional[TranslationContainer] = None
+) -> Tuple[str, etree._Element, TagPreserver, Optional[StructureDebugLogger]]:
+    """Extract body HTML and initialize tag preserver.
+
+    Args:
+        doc_root: XHTML document root
+        enable_structure_debug: Enable detailed structure debugging
+        translation_id: Optional translation ID for debug logs
+        file_path: Optional file path for debug logs
+        log_callback: Optional logging callback
+        container: Optional dependency injection container (uses default if None)
+
+    Returns:
+        Tuple of (body_html, body_element, tag_preserver, debug_logger)
+    """
+    # Initialize debug logger if enabled
+    debug_logger = None
+    if enable_structure_debug:
+        debug_logger = StructureDebugLogger(translation_id=translation_id)
+        if log_callback:
+            log_callback("debug_logger", f"Structure debug logging enabled: {debug_logger.log_file}")
+
+    # Extract body
+    body_html, body_element = extract_body_html(doc_root)
+
+    # DEBUG: Log original HTML
+    if debug_logger:
+        debug_logger.log_original_html(body_html, file_path)
+
+    # Initialize tag preserver (use container if provided, otherwise create directly)
+    if container is not None:
+        tag_preserver = container.tag_preserver
+    else:
+        tag_preserver = TagPreserver()
+
+    return body_html, body_element, tag_preserver, debug_logger
+
+
+def _preserve_tags(
+    body_html: str,
+    tag_preserver: TagPreserver,
+    debug_logger: Optional[StructureDebugLogger],
+    log_callback: Optional[Callable] = None
+) -> Tuple[str, Dict[str, str], Tuple[str, str]]:
+    """Replace HTML tags with placeholders.
+
+    Args:
+        body_html: HTML content to process
+        tag_preserver: TagPreserver instance
+        debug_logger: Optional debug logger
+        log_callback: Optional logging callback
+
+    Returns:
+        Tuple of (text_with_placeholders, global_tag_map, placeholder_format)
+    """
+    text_with_placeholders, global_tag_map = tag_preserver.preserve_tags(body_html)
+
+    # Extract placeholder format for prompt generation
+    placeholder_format = (tag_preserver.placeholder_prefix, tag_preserver.placeholder_suffix)
+
     if log_callback:
-        log_callback("fallback_original",
-            "Using safe fallback - returning original untranslated text with proper HTML structure")
+        format_info = f" using format {placeholder_format[0]}N{placeholder_format[1]}"
+        log_callback("tags_preserved", f"Preserved {len(global_tag_map)} tag groups{format_info}")
 
-    # Restore global indices for internal placeholders
-    result_with_globals = placeholder_mgr.restore_to_global(chunk_text, global_indices)
+    # DEBUG: Log tag preservation
+    if debug_logger:
+        debug_logger.log_tag_preservation(text_with_placeholders, global_tag_map, placeholder_format)
 
-    # Restore boundary tags if present
-    boundary_prefix = local_tag_map.get("__boundary_prefix__", "")
-    boundary_suffix = local_tag_map.get("__boundary_suffix__", "")
+    return text_with_placeholders, global_tag_map, placeholder_format
 
-    if boundary_prefix or boundary_suffix:
-        result_with_globals = boundary_prefix + result_with_globals + boundary_suffix
 
-    return result_with_globals
+def _create_chunks(
+    text: str,
+    tag_map: Dict[str, str],
+    max_tokens: int,
+    debug_logger: Optional[StructureDebugLogger],
+    log_callback: Optional[Callable] = None,
+    container: Optional[TranslationContainer] = None
+) -> List[Dict]:
+    """Chunk text into translatable segments.
+
+    Args:
+        text: Text with placeholders
+        tag_map: Global tag map
+        max_tokens: Maximum tokens per chunk
+        debug_logger: Optional debug logger
+        log_callback: Optional logging callback
+        container: Optional dependency injection container (uses default if None)
+
+    Returns:
+        List of chunk dictionaries
+    """
+    # Use container's chunker if provided, otherwise create directly
+    if container is not None:
+        chunker = container.chunker
+    else:
+        chunker = HtmlChunker(max_tokens=max_tokens)
+
+    chunks = chunker.chunk_html_with_placeholders(text, tag_map)
+
+    if log_callback:
+        log_callback("chunks_created", f"Created {len(chunks)} chunks")
+
+    # DEBUG: Log chunk creation
+    if debug_logger:
+        debug_logger.log_chunk_creation(chunks, tag_map)
+
+    return chunks
+
+
+async def _translate_all_chunks(
+    chunks: List[Dict],
+    source_language: str,
+    target_language: str,
+    model_name: str,
+    llm_client: Any,
+    max_retries: int,
+    context_manager: Optional[AdaptiveContextManager],
+    placeholder_format: Tuple[str, str],
+    debug_logger: Optional[StructureDebugLogger],
+    log_callback: Optional[Callable] = None,
+    progress_callback: Optional[Callable] = None
+) -> Tuple[List[str], TranslationStats]:
+    """Translate all chunks with fallback.
+
+    Args:
+        chunks: List of chunk dictionaries
+        source_language: Source language name
+        target_language: Target language name
+        model_name: LLM model name
+        llm_client: LLM client instance
+        max_retries: Maximum retry attempts per chunk
+        context_manager: Optional context window manager
+        placeholder_format: Tuple of (prefix, suffix) for placeholders
+        debug_logger: Optional debug logger
+        log_callback: Optional callback for progress
+        progress_callback: Optional callback for progress percentage
+
+    Returns:
+        Tuple of (translated_chunks, statistics)
+    """
+    stats = TranslationStats()
+    translated_chunks = []
+
+    for i, chunk in enumerate(chunks):
+        if progress_callback:
+            progress_callback((i / len(chunks)) * 100)
+
+        translated = await translate_chunk_with_fallback(
+            chunk_text=chunk['text'],
+            local_tag_map=chunk['local_tag_map'],
+            global_indices=chunk['global_indices'],
+            source_language=source_language,
+            target_language=target_language,
+            model_name=model_name,
+            llm_client=llm_client,
+            stats=stats,
+            log_callback=log_callback,
+            max_retries=max_retries,
+            context_manager=context_manager,
+            placeholder_format=placeholder_format,
+            debug_logger=debug_logger,
+            chunk_index=i
+        )
+        translated_chunks.append(translated)
+
+    return translated_chunks, stats
+
+
+def _reconstruct_html(
+    translated_chunks: List[str],
+    global_tag_map: Dict[str, str],
+    tag_preserver: TagPreserver,
+    debug_logger: Optional[StructureDebugLogger]
+) -> str:
+    """Reconstruct full HTML from translated chunks.
+
+    Args:
+        translated_chunks: List of translated chunk texts
+        global_tag_map: Global tag map
+        tag_preserver: TagPreserver instance
+        debug_logger: Optional debug logger
+
+    Returns:
+        Reconstructed HTML string
+    """
+    full_translated_text = ''.join(translated_chunks)
+    final_html = tag_preserver.restore_tags(full_translated_text, global_tag_map)
+
+    # DEBUG: Log tag restoration
+    if debug_logger:
+        debug_logger.log_tag_restoration(full_translated_text, final_html, global_tag_map)
+
+    return final_html
+
+
+def _replace_body(
+    body_element: etree._Element,
+    new_html: str,
+    debug_logger: Optional[StructureDebugLogger]
+) -> bool:
+    """Replace body content with translated HTML.
+
+    Args:
+        body_element: Body element to update
+        new_html: New HTML content
+        debug_logger: Optional debug logger
+
+    Returns:
+        True if successful, False otherwise
+    """
+    # Capture XML parsing errors if they occur
+    xml_errors = []
+    try:
+        replace_body_content(body_element, new_html)
+        xml_success = True
+    except Exception as e:
+        xml_success = False
+        xml_errors.append(str(e))
+
+    # DEBUG: Log XML validation
+    if debug_logger:
+        # Try to parse the HTML to check for errors
+        from lxml import etree as ET
+        parser = ET.XMLParser(recover=True)
+        try:
+            ET.fromstring(f"<root>{new_html}</root>", parser)
+            parse_errors = [str(err) for err in parser.error_log]
+            debug_logger.log_xml_validation(new_html, xml_success, parse_errors if parse_errors else xml_errors)
+        except Exception as e:
+            debug_logger.log_xml_validation(new_html, False, [str(e)])
+
+    return xml_success
+
+
+def _report_statistics(
+    stats: TranslationStats,
+    debug_logger: Optional[StructureDebugLogger],
+    log_callback: Optional[Callable] = None,
+    progress_callback: Optional[Callable] = None
+) -> None:
+    """Report translation statistics.
+
+    Args:
+        stats: TranslationStats instance
+        debug_logger: Optional debug logger
+        log_callback: Optional callback for logging
+        progress_callback: Optional callback for progress percentage
+    """
+    stats.log_summary(log_callback)
+
+    # DEBUG: Log summary
+    if debug_logger:
+        debug_logger.log_summary(stats)
+
+    if log_callback:
+        log_callback("translation_complete", "Body translation complete")
+
+    if progress_callback:
+        progress_callback(100)
 
 
 async def translate_xhtml_simplified(
@@ -592,15 +808,23 @@ async def translate_xhtml_simplified(
     max_tokens_per_chunk: int = 450,
     log_callback: Optional[Callable] = None,
     progress_callback: Optional[Callable] = None,
-    context_manager: Optional[AdaptiveContextManager] = None
+    context_manager: Optional[AdaptiveContextManager] = None,
+    max_retries: int = 1,
+    translation_id: str = None,
+    file_path: str = None,
+    enable_structure_debug: bool = True,
+    container: Optional[TranslationContainer] = None
 ) -> bool:
     """
     Translate an XHTML document using the simplified approach.
 
+    Simplified to call focused sub-functions for each step.
+    Main orchestration function is now ~40 lines total.
+
     1. Extract body as HTML string
     2. Replace all tags with placeholders
     3. Chunk by complete HTML blocks with local renumbering
-    4. Translate each chunk
+    4. Translate each chunk (with retry attempts)
     5. Reconstruct and replace body
 
     Args:
@@ -613,81 +837,75 @@ async def translate_xhtml_simplified(
         log_callback: Optional logging callback
         progress_callback: Optional progress callback (0-100)
         context_manager: Optional AdaptiveContextManager for handling context overflow
+        max_retries: Maximum translation retry attempts per chunk
+        translation_id: Optional translation ID for debug logs
+        file_path: Optional file path for debug logs
+        enable_structure_debug: Enable detailed structure debugging (default: True)
+        container: Optional dependency injection container for components
 
     Returns:
         True if successful, False otherwise
     """
-    # 1. Extract body
-    body_html, body_element = extract_body_html(doc_root)
+    # 1. Setup
+    body_html, body_element, tag_preserver, debug_logger = _setup_translation(
+        doc_root,
+        enable_structure_debug,
+        translation_id,
+        file_path,
+        log_callback,
+        container
+    )
+
     if not body_html or body_element is None:
         if log_callback:
             log_callback("no_body", "No <body> element found")
         return False
 
-    # 2. Preserve tags (with boundary optimization - first/last tags stored separately)
-    tag_preserver = TagPreserver()
-    text_with_placeholders, global_tag_map = tag_preserver.preserve_tags(body_html)
+    # 2. Tag Preservation
+    text_with_placeholders, global_tag_map, placeholder_format = _preserve_tags(
+        body_html,
+        tag_preserver,
+        debug_logger,
+        log_callback
+    )
 
-    # Extract placeholder format for prompt generation
-    placeholder_format = (tag_preserver.placeholder_prefix, tag_preserver.placeholder_suffix)
+    # 3. Chunking
+    chunks = _create_chunks(
+        text_with_placeholders,
+        global_tag_map,
+        max_tokens_per_chunk,
+        debug_logger,
+        log_callback,
+        container
+    )
 
-    # Count actual placeholders (excluding boundary keys)
-    internal_placeholder_count = len([k for k in global_tag_map.keys() if not k.startswith("__")])
-    has_boundaries = tag_preserver.boundary_prefix or tag_preserver.boundary_suffix
+    # 4. Translation
+    translated_chunks, stats = await _translate_all_chunks(
+        chunks=chunks,
+        source_language=source_language,
+        target_language=target_language,
+        model_name=model_name,
+        llm_client=llm_client,
+        max_retries=max_retries,
+        context_manager=context_manager,
+        placeholder_format=placeholder_format,
+        debug_logger=debug_logger,
+        log_callback=log_callback,
+        progress_callback=progress_callback
+    )
 
-    if log_callback:
-        boundary_info = " (+ boundary tags stripped)" if has_boundaries else ""
-        format_info = f" using format {placeholder_format[0]}N{placeholder_format[1]}"
-        log_callback("tags_preserved", f"Preserved {internal_placeholder_count} internal tag groups{boundary_info}{format_info}")
+    # 5. Reconstruction
+    final_html = _reconstruct_html(
+        translated_chunks,
+        global_tag_map,
+        tag_preserver,
+        debug_logger
+    )
 
-    # 3. Chunk by complete HTML blocks
-    chunker = HtmlChunker(max_tokens=max_tokens_per_chunk)
-    chunks = chunker.chunk_html_with_placeholders(text_with_placeholders, global_tag_map)
+    # 6. Replace body
+    xml_success = _replace_body(body_element, final_html, debug_logger)
 
-    if log_callback:
-        log_callback("chunks_created", f"Created {len(chunks)} chunks")
+    # 7. Report stats
+    _report_statistics(stats, debug_logger, log_callback, progress_callback)
 
-    # 4. Translate each chunk
-    translated_chunks = []
-    stats = TranslationStats()
-
-    for i, chunk in enumerate(chunks):
-        if progress_callback:
-            progress_callback((i / len(chunks)) * 100)
-
-        # Translate with fallback
-        translated = await translate_chunk_with_fallback(
-            chunk_text=chunk['text'],
-            local_tag_map=chunk['local_tag_map'],
-            global_indices=chunk['global_indices'],
-            source_language=source_language,
-            target_language=target_language,
-            model_name=model_name,
-            llm_client=llm_client,
-            stats=stats,
-            log_callback=log_callback,
-            context_manager=context_manager,
-            placeholder_format=placeholder_format
-        )
-
-        translated_chunks.append(translated)
-
-    # Log translation statistics
-    stats.log_summary(log_callback)
-
-    # 5. Reconstruct full HTML
-    full_translated = "".join(translated_chunks)
-
-    # Restore tags
-    final_html = tag_preserver.restore_tags(full_translated, global_tag_map)
-
-    # 6. Replace body content
-    replace_body_content(body_element, final_html)
-
-    if log_callback:
-        log_callback("translation_complete", "Body translation complete")
-
-    if progress_callback:
-        progress_callback(100)
-
-    return True
+    return xml_success
