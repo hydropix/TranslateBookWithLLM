@@ -9,6 +9,7 @@ import re
 from typing import List, Dict, Tuple, Optional
 
 from src.core.chunking.token_chunker import TokenChunker
+from src.common.placeholder_format import PlaceholderFormat
 
 
 class HtmlChunker:
@@ -22,6 +23,7 @@ class HtmlChunker:
     def __init__(self, max_tokens: int = 450):
         self.max_tokens = max_tokens
         self.token_chunker = TokenChunker(max_tokens=max_tokens)
+        self.placeholder_format = PlaceholderFormat.from_config()
 
     def chunk_html_with_placeholders(
         self,
@@ -76,17 +78,13 @@ class HtmlChunker:
         """
         split_points = []
 
-        # Detect placeholder format dynamically from the text
-        from src.config import detect_existing_placeholder_format
-        prefix, suffix, pattern = detect_existing_placeholder_format(text)
-
-        # Pattern to find placeholders with their positions
+        # Find placeholders with their positions
         placeholder_positions = [
-            (m.start(), m.end(), m.group())
-            for m in re.finditer(pattern, text)
+            (start, end, placeholder, idx)
+            for start, end, placeholder, idx in self.placeholder_format.find_all(text)
         ]
 
-        for i, (start, end, placeholder) in enumerate(placeholder_positions):
+        for i, (start, end, placeholder, idx) in enumerate(placeholder_positions):
             tag = tag_map.get(placeholder, "")
 
             # If this is a block closing tag
@@ -523,37 +521,27 @@ class HtmlChunker:
         """
         merged_text = "".join(segments)
 
-        # Detect placeholder format from existing placeholders in the text
-        # (not from content conflicts, since text already contains placeholders)
-        from src.config import detect_existing_placeholder_format
-        prefix, suffix, placeholder_pattern = detect_existing_placeholder_format(merged_text)
-
         # Find all global placeholders in this chunk (may contain duplicates)
         # Build renumbering map: global_placeholder -> local_placeholder
         renumbering_map = {}
         global_indices = []
         local_idx = 0
 
-        for match in re.finditer(placeholder_pattern, merged_text):
-            global_placeholder = match.group(0)
-
+        for start, end, global_placeholder, global_idx in self.placeholder_format.find_all(merged_text):
             # Skip if already processed (deduplication)
             if global_placeholder in renumbering_map:
                 continue
 
-            local_placeholder = f"{prefix}{local_idx}{suffix}"
+            local_placeholder = self.placeholder_format.create(local_idx)
             renumbering_map[global_placeholder] = local_placeholder
-
-            # Extract global index
-            global_idx = int(global_placeholder[len(prefix):-len(suffix)])
             global_indices.append(global_idx)
 
             local_idx += 1
 
-        # Apply renumbering in REVERSE order (to avoid [[10]] -> [[1]]0 issues)
+        # Apply renumbering in REVERSE order (to avoid [id10] -> [id1]0 issues)
         renumbered_text = merged_text
         for global_ph in sorted(renumbering_map.keys(),
-                               key=lambda p: int(p[len(prefix):-len(suffix)]),
+                               key=lambda p: self.placeholder_format.parse(p) or 0,
                                reverse=True):
             renumbered_text = renumbered_text.replace(global_ph, renumbering_map[global_ph])
 
@@ -583,29 +571,27 @@ def extract_text_and_positions(text_with_placeholders: str) -> Tuple[str, Dict[i
     Returns:
         ("Hello world", {0: 0.0, 1: 0.46, 2: 1.0})
     """
-    # Detect placeholder format from existing placeholders in the text
-    from src.config import detect_existing_placeholder_format
-    prefix, suffix, pattern = detect_existing_placeholder_format(text_with_placeholders)
+    # Use centralized placeholder format
+    fmt = PlaceholderFormat.from_config()
 
     # Text without placeholders
-    pure_text = re.sub(pattern, '', text_with_placeholders)
+    pure_text = fmt.remove_all(text_with_placeholders)
     pure_length = len(pure_text)
 
     if pure_length == 0:
         # Edge case: only placeholders, no text
-        matches = list(re.finditer(pattern, text_with_placeholders))
-        return "", {int(m.group(1)): i / max(1, len(matches))
-                    for i, m in enumerate(matches)}
+        placeholders = fmt.find_all(text_with_placeholders)
+        return "", {idx: i / max(1, len(placeholders))
+                    for i, (_, _, _, idx) in enumerate(placeholders)}
 
     # Calculate relative position of each placeholder
     positions = {}
 
-    for match in re.finditer(pattern, text_with_placeholders):
-        placeholder_idx = int(match.group(1))
+    for start, end, placeholder, idx in fmt.find_all(text_with_placeholders):
         # Text before this placeholder (without previous placeholders)
-        text_before = re.sub(pattern, '', text_with_placeholders[:match.start()])
+        text_before = fmt.remove_all(text_with_placeholders[:start])
         relative_pos = len(text_before) / pure_length
-        positions[placeholder_idx] = relative_pos
+        positions[idx] = relative_pos
 
     return pure_text, positions
 
@@ -631,12 +617,15 @@ def reinsert_placeholders(
     if not positions:
         return translated_text
 
-    # Use provided format or default to [idN]
+    # Use centralized PlaceholderFormat
     if placeholder_format is None:
-        from src.config import PLACEHOLDER_PREFIX, PLACEHOLDER_SUFFIX
-        prefix, suffix = PLACEHOLDER_PREFIX, PLACEHOLDER_SUFFIX
+        fmt = PlaceholderFormat.from_config()
     else:
+        # Support legacy tuple format for backward compatibility
         prefix, suffix = placeholder_format
+        # Create pattern from prefix/suffix (simplified - assumes [idN] format)
+        pattern = r'\[id(\d+)\]'
+        fmt = PlaceholderFormat(prefix, suffix, pattern)
 
     text_length = len(translated_text)
 
@@ -657,7 +646,7 @@ def reinsert_placeholders(
 
     result = translated_text
     for abs_pos, idx in insertions:
-        placeholder = f"{prefix}{idx}{suffix}"
+        placeholder = fmt.create(idx)
         result = result[:abs_pos] + placeholder + result[abs_pos:]
 
     return result

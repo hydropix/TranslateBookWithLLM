@@ -528,7 +528,7 @@ def _preserve_tags(
     text_with_placeholders, global_tag_map = tag_preserver.preserve_tags(body_html)
 
     # Extract placeholder format for prompt generation
-    placeholder_format = (tag_preserver.placeholder_prefix, tag_preserver.placeholder_suffix)
+    placeholder_format = (tag_preserver.placeholder_format.prefix, tag_preserver.placeholder_format.suffix)
 
     if log_callback:
         format_info = f" using format {placeholder_format[0]}N{placeholder_format[1]}"

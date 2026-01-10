@@ -13,6 +13,7 @@ import re
 from typing import Dict, List, Tuple
 
 from .placeholder_validator import PlaceholderValidator
+from src.common.placeholder_format import PlaceholderFormat
 
 
 def is_non_translatable(text: str) -> bool:
@@ -50,14 +51,6 @@ def is_non_translatable(text: str) -> bool:
     non_translatable_pattern = r'^[\d\.\-\–\—\)\(\s\u00A0\u2000-\u200F\u2028\u2029IVXLCDM]+$'
     return bool(re.match(non_translatable_pattern, stripped, re.IGNORECASE))
 
-from src.config import (
-    PLACEHOLDER_PREFIX,
-    PLACEHOLDER_SUFFIX,
-    PLACEHOLDER_PATTERN,
-    create_placeholder,
-)
-
-
 class TagPreserver:
     """
     Preserves HTML/XML tags during translation by replacing them with simple placeholders
@@ -77,9 +70,7 @@ class TagPreserver:
     def __init__(self):
         self.tag_map: Dict[str, str] = {}
         self.counter: int = 0
-        self.placeholder_prefix: str = PLACEHOLDER_PREFIX
-        self.placeholder_suffix: str = PLACEHOLDER_SUFFIX
-        self.placeholder_pattern: str = PLACEHOLDER_PATTERN
+        self.placeholder_format: PlaceholderFormat = PlaceholderFormat.from_config()
 
     def preserve_tags(self, text: str) -> Tuple[str, Dict[str, str]]:
         """
@@ -134,7 +125,7 @@ class TagPreserver:
                 # Found translatable text - flush the group as a placeholder
                 if current_group:
                     merged_content = ''.join(current_group)
-                    placeholder = f"{self.placeholder_prefix}{self.counter}{self.placeholder_suffix}"
+                    placeholder = self.placeholder_format.create(self.counter)
                     self.tag_map[placeholder] = merged_content
                     merged_segments.append(placeholder)
                     self.counter += 1
@@ -145,7 +136,7 @@ class TagPreserver:
         # Flush remaining group at the end
         if current_group:
             merged_content = ''.join(current_group)
-            placeholder = f"{self.placeholder_prefix}{self.counter}{self.placeholder_suffix}"
+            placeholder = self.placeholder_format.create(self.counter)
             self.tag_map[placeholder] = merged_content
             merged_segments.append(placeholder)
             self.counter += 1
@@ -175,17 +166,9 @@ class TagPreserver:
 
         # Sort placeholders by number in reverse order to avoid partial replacements
         # e.g., replace [id10] before [id1]
-        def get_placeholder_num(placeholder: str) -> int:
-            try:
-                # Extract number from [idN] format
-                num_str = placeholder[len(self.placeholder_prefix):-len(self.placeholder_suffix)]
-                return int(num_str)
-            except (ValueError, IndexError):
-                return 0
-
         placeholders = sorted(
             tag_map.keys(),
-            key=get_placeholder_num,
+            key=lambda p: self.placeholder_format.parse(p) or 0,
             reverse=True
         )
 
