@@ -46,6 +46,7 @@ import { ResumeManager } from './translation/resume-manager.js';
 import { Validators } from './utils/validators.js';
 import { LifecycleManager } from './utils/lifecycle-manager.js';
 import { StatusManager } from './utils/status-manager.js';
+import { initializeThemeManager } from './utils/theme-manager.js';
 
 // ========================================
 // TTS Modules
@@ -267,6 +268,7 @@ function initializeModules() {
     SettingsManager.initialize();
 
     // 2. UI modules
+    initializeThemeManager();
     FormManager.initialize();
     StatusManager.initialize();
 

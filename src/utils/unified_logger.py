@@ -44,12 +44,13 @@ class Colors:
     GRAY = '' if NO_COLOR else '\033[90m'         # Pour les infos techniques
     ORANGE = '' if NO_COLOR else '\033[38;5;214m' # Orange clair - INPUT vers LLM
     GREEN = '' if NO_COLOR else '\033[92m'        # Vert clair - OUTPUT du LLM
+    RED = '' if NO_COLOR else '\033[91m'          # Rouge - ERREURS
     ENDC = '' if NO_COLOR else '\033[0m'          # Reset
 
     @classmethod
     def disable(cls):
         """Disable all colors"""
-        cls.YELLOW = cls.WHITE = cls.GRAY = cls.ORANGE = cls.GREEN = cls.ENDC = ''
+        cls.YELLOW = cls.WHITE = cls.GRAY = cls.ORANGE = cls.GREEN = cls.RED = cls.ENDC = ''
 
 
 class UnifiedLogger:
@@ -117,8 +118,8 @@ class UnifiedLogger:
             LogLevel.DEBUG: Colors.GRAY,
             LogLevel.INFO: Colors.WHITE,
             LogLevel.WARNING: Colors.YELLOW,
-            LogLevel.ERROR: Colors.WHITE,
-            LogLevel.CRITICAL: Colors.WHITE
+            LogLevel.ERROR: Colors.RED,
+            LogLevel.CRITICAL: Colors.RED
         }
         
         color = level_colors.get(level, Colors.WHITE)
@@ -269,12 +270,12 @@ class UnifiedLogger:
         output = []
 
         timestamp = self._format_timestamp()
-        output.append(f"{Colors.WHITE}[{timestamp}] ERROR: {message}{Colors.ENDC}")
+        output.append(f"{Colors.RED}[{timestamp}] ERROR: {message}{Colors.ENDC}")
 
         if 'details' in data:
-            output.append(f"{Colors.GRAY}Details: {data['details']}{Colors.ENDC}")
+            output.append(f"{Colors.RED}Details: {data['details']}{Colors.ENDC}")
         if 'chunk' in data:
-            output.append(f"{Colors.GRAY}Chunk: {data['chunk']}{Colors.ENDC}")
+            output.append(f"{Colors.RED}Chunk: {data['chunk']}{Colors.ENDC}")
 
         return '\n'.join(output)
 

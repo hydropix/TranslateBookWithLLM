@@ -104,26 +104,6 @@ Source: "{example_source}"
 # These functions are no longer needed with unified [idN] format
 
 
-def build_image_placeholder_section(
-    source_lang: str,
-    target_lang: str
-) -> str:
-    """
-    Build the image marker preservation section with generic instructions.
-
-    Returns formatted instructions for preserving image markers.
-    """
-    return """# IMAGE MARKERS - PRESERVE EXACTLY
-
-Markers like [IMG001] represent images in the text.
-
-**MANDATORY RULES:**
-1. Keep ALL image markers EXACTLY as they appear (e.g., [IMG001], [IMG002])
-2. Do NOT translate, modify, or remove them
-3. Maintain their EXACT position between paragraphs
-"""
-
-
 def has_example_for_pair(source_lang: str, target_lang: str) -> bool:
     """Check if a placeholder example exists for the given language pair.
 

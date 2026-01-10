@@ -521,35 +521,41 @@ class HtmlChunker:
         """
         merged_text = "".join(segments)
 
-        # Find all global placeholders in this chunk (may contain duplicates)
-        # Build renumbering map: global_placeholder -> local_placeholder
-        renumbering_map = {}
-        global_indices = []
-        local_idx = 0
+        # Find all global placeholders in this chunk (including duplicates as separate entries)
+        # Each occurrence will get a unique local index
+        placeholder_occurrences = []
 
         for start, end, global_placeholder, global_idx in self.placeholder_format.find_all(merged_text):
-            # Skip if already processed (deduplication)
-            if global_placeholder in renumbering_map:
-                continue
+            placeholder_occurrences.append((start, end, global_placeholder, global_idx))
 
+        # Step 1: Replace each occurrence with a unique temporary marker
+        # This prevents issues with overlapping replacements
+        temp_markers = []
+        for i, (start, end, global_placeholder, global_idx) in enumerate(placeholder_occurrences):
+            temp_marker = f"__TEMP_PH_{i}__"
+            temp_markers.append(temp_marker)
+
+        # Apply temp markers in REVERSE order to avoid position shifts
+        temp_text = merged_text
+        for i in range(len(placeholder_occurrences) - 1, -1, -1):
+            start, end, _, _ = placeholder_occurrences[i]
+            temp_text = temp_text[:start] + temp_markers[i] + temp_text[end:]
+
+        # Step 2: Replace temp markers with local placeholders (0, 1, 2, ...)
+        renumbered_text = temp_text
+        local_tag_map = {}
+        global_indices = []
+
+        for local_idx, (_, _, global_placeholder, global_idx) in enumerate(placeholder_occurrences):
             local_placeholder = self.placeholder_format.create(local_idx)
-            renumbering_map[global_placeholder] = local_placeholder
+            temp_marker = temp_markers[local_idx]
+
+            # Replace temp marker with local placeholder
+            renumbered_text = renumbered_text.replace(temp_marker, local_placeholder, 1)
+
+            # Build mapping
+            local_tag_map[local_placeholder] = global_tag_map.get(global_placeholder, "")
             global_indices.append(global_idx)
-
-            local_idx += 1
-
-        # Apply renumbering in REVERSE order (to avoid [id10] -> [id1]0 issues)
-        renumbered_text = merged_text
-        for global_ph in sorted(renumbering_map.keys(),
-                               key=lambda p: self.placeholder_format.parse(p) or 0,
-                               reverse=True):
-            renumbered_text = renumbered_text.replace(global_ph, renumbering_map[global_ph])
-
-        # Build local_tag_map
-        local_tag_map = {
-            local_ph: global_tag_map.get(global_ph, "")
-            for global_ph, local_ph in renumbering_map.items()
-        }
 
         return {
             'text': renumbered_text,

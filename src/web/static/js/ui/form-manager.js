@@ -85,6 +85,19 @@ export const FormManager = {
             });
         }
 
+        // Prompt options checkboxes - keep section open if any is checked
+        const preserveTechnical = DomHelpers.getElement('preserveTechnicalContent');
+        const textCleanup = DomHelpers.getElement('textCleanup');
+        const refineTranslation = DomHelpers.getElement('refineTranslation');
+
+        [preserveTechnical, textCleanup, refineTranslation].forEach(checkbox => {
+            if (checkbox) {
+                checkbox.addEventListener('change', () => {
+                    this.handlePromptOptionChange();
+                });
+            }
+        });
+
         // Reset button
         const resetBtn = DomHelpers.getElement('resetBtn');
         if (resetBtn) {
@@ -145,6 +158,30 @@ export const FormManager = {
 
         // Update state
         StateManager.setState('ui.isPromptOptionsOpen', !isHidden);
+    },
+
+    /**
+     * Handle prompt option checkbox change - keep section open if any option is checked
+     */
+    handlePromptOptionChange() {
+        const preserveTechnical = DomHelpers.getElement('preserveTechnicalContent');
+        const textCleanup = DomHelpers.getElement('textCleanup');
+        const refineTranslation = DomHelpers.getElement('refineTranslation');
+
+        const anyChecked = (preserveTechnical?.checked || textCleanup?.checked || refineTranslation?.checked);
+
+        if (anyChecked) {
+            const section = DomHelpers.getElement('promptOptionsSection');
+            const icon = DomHelpers.getElement('promptOptionsIcon');
+
+            if (section && section.classList.contains('hidden')) {
+                section.classList.remove('hidden');
+                if (icon) {
+                    icon.style.transform = 'rotate(180deg)';
+                }
+                StateManager.setState('ui.isPromptOptionsOpen', true);
+            }
+        }
     },
 
     /**

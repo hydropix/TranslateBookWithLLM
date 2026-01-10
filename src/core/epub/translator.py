@@ -197,9 +197,11 @@ async def translate_epub_file(
         except Exception as e_epub:
             err_msg = f"MAJOR ERROR processing EPUB '{input_filepath}': {e_epub}"
             if log_callback:
-                log_callback("epub_major_error", err_msg)
+                # Import helper from xhtml_translator
+                from .xhtml_translator import _log_error
+                _log_error(log_callback, "epub_major_error", err_msg)
                 import traceback
-                log_callback("epub_major_error_traceback", traceback.format_exc())
+                _log_error(log_callback, "epub_major_error_traceback", traceback.format_exc())
             else:
                 print(err_msg)
                 import traceback
@@ -327,7 +329,8 @@ def _create_llm_client(
     if llm_client is None:
         err_msg = "ERROR: Could not create LLM client."
         if log_callback:
-            log_callback("llm_client_error", err_msg)
+            from .xhtml_translator import _log_error
+            _log_error(log_callback, "llm_client_error", err_msg)
         else:
             print(err_msg)
 
@@ -449,19 +452,22 @@ async def _translate_single_file(
                              f"Completed file {file_idx + 1}/{total_files}: {content_href}")
         else:
             if log_callback:
-                log_callback("epub_file_translate_failed",
+                from .xhtml_translator import _log_error
+                _log_error(log_callback, "epub_file_translate_failed",
                              f"Failed to translate file {file_idx + 1}/{total_files}: {content_href}")
 
         return doc_root, file_path_abs, success
 
     except etree.XMLSyntaxError as e_xml:
         if log_callback:
-            log_callback("epub_xml_error",
+            from .xhtml_translator import _log_error
+            _log_error(log_callback, "epub_xml_error",
                          f"XML error in '{content_href}': {e_xml}")
         return None, file_path_abs, False
     except Exception as e_file:
         if log_callback:
-            log_callback("epub_file_error",
+            from .xhtml_translator import _log_error
+            _log_error(log_callback, "epub_file_error",
                          f"Error processing '{content_href}': {e_file}")
         return None, file_path_abs, False
 
@@ -526,7 +532,8 @@ async def _count_all_chunks(
 
         except Exception as e:
             if log_callback:
-                log_callback("epub_precount_error", f"Error pre-counting chunks in '{content_href}': {e}")
+                from .xhtml_translator import _log_error
+                _log_error(log_callback, "epub_precount_error", f"Error pre-counting chunks in '{content_href}': {e}")
             file_chunk_info.append((content_href, [], 0))
 
     if log_callback:
@@ -757,7 +764,8 @@ async def _process_all_content_files(
             parsed_xhtml_docs[file_path_abs] = doc_root
             failed_files += 1
             if log_callback:
-                log_callback("epub_xml_reconstruction_failed",
+                from .xhtml_translator import _log_error
+                _log_error(log_callback, "epub_xml_reconstruction_failed",
                              f"File {file_idx + 1}/{total_files} kept original due to XML errors: {content_href}")
         else:
             failed_files += 1
@@ -816,7 +824,8 @@ async def _save_translated_files(
                 )
         except Exception as e_write:
             if log_callback:
-                log_callback("epub_write_error",
+                from .xhtml_translator import _log_error
+                _log_error(log_callback, "epub_write_error",
                              f"Error writing '{file_path_abs}': {e_write}")
 
 

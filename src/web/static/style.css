@@ -20,6 +20,96 @@
     --shadow-light: #ffffff;
 }
 
+/* ========================================
+   Dark Mode Theme
+   ======================================== */
+
+html.dark {
+    /* Dark mode colors */
+    --primary-light: #5a8ee8;
+    --background-light: #1a1f2e;
+    --text-dark: #e5e7eb;
+    --text-muted-light: #9ca3af;
+    --border-light: #2d3548;
+    --success-light: #34d399;
+    --success-light-bg: #1a3a2e;
+    --info-light: #60a5fa;
+    --info-light-bg: #1e3a5f;
+
+    /* Neumorphic shadows for dark mode */
+    --shadow-dark: #0d1117;
+    --shadow-light: #252b3b;
+}
+
+html.dark .neu-inset-light {
+    background: #151923;
+    border: 2px solid rgba(90, 142, 232, 0.15);
+}
+
+html.dark .neu-inset-light:hover {
+    border-color: rgba(90, 142, 232, 0.35);
+}
+
+html.dark .neu-inset-light:focus-within {
+    border-color: var(--primary-light);
+}
+
+html.dark .form-control {
+    background: #151923;
+    color: #e5e7eb;
+}
+
+html.dark .neu-inset-light .form-control {
+    background: #151923;
+}
+
+html.dark .form-control:focus {
+    background: #151923;
+}
+
+html.dark .form-control::placeholder {
+    color: #6b7280;
+}
+
+html.dark .header {
+    background: rgba(26, 31, 46, 0.9);
+}
+
+html.dark .file-upload {
+    background: var(--background-light);
+}
+
+html.dark .file-table thead tr {
+    background: rgba(90, 142, 232, 0.1);
+}
+
+html.dark .file-table tbody tr:hover {
+    background: rgba(90, 142, 232, 0.05);
+}
+
+html.dark .message.error {
+    background: #2d1f1f;
+    border-color: #7f1d1d;
+    color: #fca5a5;
+}
+
+html.dark .message.success {
+    background: #1a3a2e;
+    border-color: #166534;
+    color: #86efac;
+}
+
+html.dark .message.info {
+    background: #1e3a5f;
+    border-color: #1e40af;
+    color: #93c5fd;
+}
+
+html.dark #ttsOptions {
+    background: linear-gradient(135deg, rgba(52, 211, 153, 0.15) 0%, rgba(52, 211, 153, 0.08) 100%);
+    border-color: rgba(52, 211, 153, 0.4);
+}
+
 * {
     margin: 0;
     padding: 0;
@@ -34,6 +124,7 @@ body {
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     padding: 20px;
+    transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 /* ========================================
@@ -48,10 +139,21 @@ body {
 }
 
 .neu-inset-light {
-    background: var(--background-light);
+    background: #ffffff;
     box-shadow: inset 3px 3px 6px var(--shadow-dark), inset -3px -3px 6px var(--shadow-light);
-    border: 1px solid var(--border-light);
+    border: 2px solid rgba(54, 118, 216, 0.15);
     border-radius: 1rem;
+    transition: all 0.3s ease;
+}
+
+.neu-inset-light:hover {
+    border-color: rgba(54, 118, 216, 0.35);
+    box-shadow: inset 4px 4px 8px var(--shadow-dark), inset -4px -4px 8px var(--shadow-light);
+}
+
+.neu-inset-light:focus-within {
+    border-color: var(--primary-light);
+    box-shadow: inset 3px 3px 6px var(--shadow-dark), inset -3px -3px 6px var(--shadow-light), 0 0 0 3px rgba(54, 118, 216, 0.1);
 }
 
 /* ========================================
@@ -80,6 +182,24 @@ body {
     z-index: 50;
     border-bottom: 1px solid var(--border-light);
     border-radius: 2rem;
+}
+
+.header #themeToggleBtn {
+    min-width: 3rem;
+    height: 3rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s ease;
+}
+
+.header #themeToggleBtn:hover {
+    transform: scale(1.05) rotate(15deg);
+}
+
+.header #themeToggleBtn .material-symbols-outlined {
+    font-size: 1.5rem;
+    transition: transform 0.3s ease;
 }
 
 .header .logo-section {
@@ -244,21 +364,29 @@ body {
     width: 100%;
     padding: 1rem 1.25rem;
     height: 3.5rem;
-    background: transparent;
+    background: #ffffff;
     border: none;
-    color: var(--text-dark);
-    font-size: 0.875rem;
-    font-family: 'Monaco', 'Consolas', 'Courier New', monospace;
+    border-radius: 1rem;
+    color: #1a1a1a;
+    font-size: 1rem;
+    font-family: "Inter", -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     transition: all 0.3s;
+    font-weight: 600;
 }
 
 .neu-inset-light .form-control {
-    background: var(--background-light);
+    background: #ffffff;
+    border-radius: 1rem;
 }
 
 .form-control:focus {
     outline: none;
-    box-shadow: inset 3px 3px 6px var(--shadow-dark), inset -3px -3px 6px var(--shadow-light);
+    background: #ffffff;
+}
+
+.form-control::placeholder {
+    color: #9ca3af;
+    font-weight: 400;
 }
 
 select.form-control {
@@ -504,9 +632,36 @@ select.form-control {
     border: 1px solid var(--border-light);
     border-radius: 2rem;
     padding: 2rem;
+    padding-right: 1.5rem; /* Réduit pour faire de la place à la scrollbar */
     font-family: 'Monaco', 'Consolas', 'Courier New', monospace;
     font-size: 0.875rem;
     margin-top: 1rem;
+}
+
+/* Scrollbar visible uniquement pour log-container */
+.log-container::-webkit-scrollbar {
+    width: 8px;
+}
+
+.log-container::-webkit-scrollbar-track {
+    background: transparent;
+    margin: 1rem 0; /* Décale la scrollbar pour éviter les coins arrondis */
+}
+
+.log-container::-webkit-scrollbar-thumb {
+    background: var(--shadow-dark);
+    border-radius: 4px;
+    transition: background 0.3s ease;
+}
+
+.log-container::-webkit-scrollbar-thumb:hover {
+    background: var(--text-muted-light);
+}
+
+/* Scrollbar pour Firefox */
+.log-container {
+    scrollbar-width: thin;
+    scrollbar-color: var(--shadow-dark) transparent;
 }
 
 .log-entry {
@@ -620,8 +775,11 @@ select.form-control {
 input[type="checkbox"] {
     width: 1.25rem;
     height: 1.25rem;
+    min-width: 1.25rem;
+    min-height: 1.25rem;
     cursor: pointer;
     accent-color: var(--primary-light);
+    flex-shrink: 0;
 }
 
 /* ========================================
@@ -677,16 +835,22 @@ input[type="checkbox"] {
 }
 
 .file-action-btn {
-    padding: 0.5rem 1rem;
+    padding: 0;
     background: var(--background-light);
     box-shadow: 3px 3px 6px var(--shadow-dark), -3px -3px 6px var(--shadow-light);
     border: 1px solid var(--border-light);
     color: var(--text-dark);
     border-radius: 0.5rem;
     cursor: pointer;
-    font-size: 0.75rem;
+    font-size: 1.125rem;
     font-weight: 600;
     transition: all 0.2s;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2rem;
+    height: 2rem;
+    flex-shrink: 0;
 }
 
 .file-action-btn:hover {

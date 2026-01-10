@@ -28,7 +28,10 @@ const LOCAL_SETTINGS = [
     'lastTargetLanguage',
     'lastApiEndpoint',
     'lastOpenaiEndpoint',
-    'ttsEnabled'
+    'ttsEnabled',
+    'preserveTechnicalContent',
+    'textCleanup',
+    'refineTranslation'
 ];
 
 /**
@@ -127,6 +130,39 @@ export const SettingsManager = {
                 }
             }
         }
+
+        // Apply Prompt Options settings
+        if (prefs.preserveTechnicalContent !== undefined) {
+            const preserveCheckbox = DomHelpers.getElement('preserveTechnicalContent');
+            if (preserveCheckbox) {
+                preserveCheckbox.checked = prefs.preserveTechnicalContent;
+            }
+        }
+        if (prefs.textCleanup !== undefined) {
+            const cleanupCheckbox = DomHelpers.getElement('textCleanup');
+            if (cleanupCheckbox) {
+                cleanupCheckbox.checked = prefs.textCleanup;
+            }
+        }
+        if (prefs.refineTranslation !== undefined) {
+            const refineCheckbox = DomHelpers.getElement('refineTranslation');
+            if (refineCheckbox) {
+                refineCheckbox.checked = prefs.refineTranslation;
+            }
+        }
+
+        // Keep Prompt Options section open if any option is checked
+        const hasAnyPromptOption = prefs.preserveTechnicalContent || prefs.textCleanup || prefs.refineTranslation;
+        if (hasAnyPromptOption) {
+            const promptOptionsSection = DomHelpers.getElement('promptOptionsSection');
+            const promptOptionsIcon = DomHelpers.getElement('promptOptionsIcon');
+            if (promptOptionsSection) {
+                promptOptionsSection.classList.remove('hidden');
+            }
+            if (promptOptionsIcon) {
+                promptOptionsIcon.style.transform = 'rotate(180deg)';
+            }
+        }
     },
 
     /**
@@ -168,6 +204,9 @@ export const SettingsManager = {
      */
     saveCurrentState() {
         const ttsEnabledCheckbox = DomHelpers.getElement('ttsEnabled');
+        const preserveTechnicalCheckbox = DomHelpers.getElement('preserveTechnicalContent');
+        const textCleanupCheckbox = DomHelpers.getElement('textCleanup');
+        const refineTranslationCheckbox = DomHelpers.getElement('refineTranslation');
 
         const prefs = {
             lastProvider: DomHelpers.getValue('llmProvider'),
@@ -176,7 +215,10 @@ export const SettingsManager = {
             lastTargetLanguage: this._getLanguageValue('targetLang', 'customTargetLang'),
             lastApiEndpoint: DomHelpers.getValue('apiEndpoint'),
             lastOpenaiEndpoint: DomHelpers.getValue('openaiEndpoint'),
-            ttsEnabled: ttsEnabledCheckbox ? ttsEnabledCheckbox.checked : false
+            ttsEnabled: ttsEnabledCheckbox ? ttsEnabledCheckbox.checked : false,
+            preserveTechnicalContent: preserveTechnicalCheckbox ? preserveTechnicalCheckbox.checked : false,
+            textCleanup: textCleanupCheckbox ? textCleanupCheckbox.checked : false,
+            refineTranslation: refineTranslationCheckbox ? refineTranslationCheckbox.checked : false
         };
 
         this.saveLocalPreferences(prefs);

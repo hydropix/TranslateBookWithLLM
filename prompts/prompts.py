@@ -1,7 +1,6 @@
 from typing import List, NamedTuple, Tuple, Optional
 
-from prompts.examples import (build_image_placeholder_section,
-                              build_placeholder_section,
+from prompts.examples import (build_placeholder_section,
                               get_output_format_example, get_subtitle_example,
                               TAG0)
 from src.config import (INPUT_TAG_IN, INPUT_TAG_OUT, TRANSLATE_TAG_IN,
@@ -141,7 +140,6 @@ def generate_translation_prompt(
     translate_tag_in: str = TRANSLATE_TAG_IN,
     translate_tag_out: str = TRANSLATE_TAG_OUT,
     has_placeholders: bool = True,
-    has_images: bool = False,
     prompt_options: dict = None,
     placeholder_format: Optional[Tuple[str, str]] = None
 ) -> PromptPair:
@@ -158,7 +156,6 @@ def generate_translation_prompt(
         translate_tag_in: Opening tag for translation output
         translate_tag_out: Closing tag for translation output
         has_placeholders: If True, includes placeholder preservation instructions (for EPUB HTML tags)
-        has_images: If True, includes image marker preservation instructions (e.g., [IMG001])
         prompt_options: Optional dict with prompt customization options:
             - preserve_technical_content: If True, includes instructions to NOT translate
               code, paths, URLs, etc. (for technical documents)
@@ -205,12 +202,6 @@ def generate_translation_prompt(
     else:
         placeholder_section = ""
 
-    # Build image marker preservation section (for fast mode with images)
-    if has_images:
-        image_section = build_image_placeholder_section(source_language, target_language)
-    else:
-        image_section = ""
-
     # Build optional prompt sections based on prompt_options
     optional_sections = _build_optional_prompt_sections(prompt_options)
 
@@ -240,7 +231,6 @@ If unsure between literal and natural phrasing: **choose natural**.
 - **WRITE YOUR TRANSLATION IN {target_language.upper()} - THIS IS MANDATORY**
 {optional_sections}
 {placeholder_section}
-{image_section}
 
 # FINAL REMINDER: YOUR OUTPUT LANGUAGE
 
@@ -288,7 +278,6 @@ def generate_refinement_prompt(
     translate_tag_in: str = TRANSLATE_TAG_IN,
     translate_tag_out: str = TRANSLATE_TAG_OUT,
     has_placeholders: bool = True,
-    has_images: bool = False,
     prompt_options: dict = None,
     placeholder_format: Optional[Tuple[str, str]] = None,
     additional_instructions: str = ""
@@ -308,7 +297,6 @@ def generate_refinement_prompt(
         translate_tag_in: Opening tag for translation output
         translate_tag_out: Closing tag for translation output
         has_placeholders: If True, includes placeholder preservation instructions
-        has_images: If True, includes image marker preservation instructions
         prompt_options: Optional dict with prompt customization options
         placeholder_format: Optional tuple of (prefix, suffix) for placeholders.
             e.g., ('[', ']') for [0] format or ('[[', ']]') for [[0]] format.
@@ -352,12 +340,6 @@ def generate_refinement_prompt(
     else:
         placeholder_section = ""
 
-    # Build image marker preservation section
-    if has_images:
-        image_section = build_image_placeholder_section(target_language, target_language)
-    else:
-        image_section = ""
-
     # Build optional prompt sections
     optional_sections = _build_optional_prompt_sections(prompt_options)
 
@@ -384,8 +366,7 @@ Your job is to REWRITE it with perfect literary {target_language} style.
 - Consider it a "bad" first draft that probably needs substantial reworking
 
 **YOUR OUTPUT MUST BE:**
-- Elegant, natural {target_language} prose
-- Fluent and pleasant to read for native speakers
+- Fluent, natural {target_language} prose
 - Stylistically excellent - as if written by a skilled {target_language} author
 
 # REFINEMENT PRINCIPLES
@@ -399,10 +380,8 @@ Your job is to REWRITE it with perfect literary {target_language} style.
 
 **WHAT TO FIX:**
 - Awkward literal translations → Natural {target_language} expressions
-- Stilted sentence structures → Fluid, elegant sentences
 - Repetitive or dull vocabulary → Rich, varied word choices
 - Unnatural word order → Proper {target_language} syntax
-- Foreign-sounding phrases → Native {target_language} phrasings
 - **Lexical repetitions and cacophony** → Use synonyms to avoid same-root word repetition
   (e.g., "the singer sang a song" → "the singer performed a song" or "the vocalist sang a melody")
 
@@ -410,11 +389,8 @@ Your job is to REWRITE it with perfect literary {target_language} style.
 - All factual content and meaning
 - Character names and proper nouns
 - Technical terms (if any)
-- The original tone (formal/informal, serious/humorous)
-- Paragraph structure and layout
 {optional_sections}
 {placeholder_section}
-{image_section}
 {additional_instructions_section}
 
 # CRITICAL REMINDER
@@ -723,7 +699,6 @@ def generate_post_processing_prompt(
     context_after: str = "",
     additional_instructions: str = "",
     has_placeholders: bool = True,
-    has_images: bool = False,
     prompt_options: dict = None,
     placeholder_format: Optional[Tuple[str, str]] = None
 ) -> PromptPair:
@@ -740,7 +715,6 @@ def generate_post_processing_prompt(
         context_after: Text appearing after for context
         additional_instructions: Additional refinement instructions
         has_placeholders: If True, includes placeholder preservation instructions
-        has_images: If True, includes image marker preservation instructions
         prompt_options: Optional dict with prompt customization options
         placeholder_format: Optional tuple of (prefix, suffix) for placeholders
 
@@ -754,7 +728,6 @@ def generate_post_processing_prompt(
         previous_refined_context="",  # Not used in post-processing calls
         target_language=target_language,
         has_placeholders=has_placeholders,
-        has_images=has_images,
         prompt_options=prompt_options,
         placeholder_format=placeholder_format,
         additional_instructions=additional_instructions

@@ -155,16 +155,8 @@ export const FileManager = {
             <td>${file.file_type.toUpperCase()}</td>
             <td>${file.size_mb} MB</td>
             <td>${formattedDate}</td>
-            <td style="text-align: center;">
-                ${supportsTTS ? `<button class="file-action-btn audiobook" data-filename="${DomHelpers.escapeHtml(file.filename)}" data-filepath="${DomHelpers.escapeHtml(file.file_path)}" data-action="audiobook" title="Generate Audiobook (TTS)">
-                    🎧
-                </button>` : ''}
-                <button class="file-action-btn download" data-filename="${DomHelpers.escapeHtml(file.filename)}" data-action="download" title="Download">
-                    📥
-                </button>
-                <button class="file-action-btn delete" data-filename="${DomHelpers.escapeHtml(file.filename)}" data-action="delete" title="Delete">
-                    🗑️
-                </button>
+            <td style="text-align: center; white-space: nowrap;">
+                <div style="display: inline-flex; gap: 0.25rem; align-items: center;">${supportsTTS ? `<button class="file-action-btn audiobook" data-filename="${DomHelpers.escapeHtml(file.filename)}" data-filepath="${DomHelpers.escapeHtml(file.file_path)}" data-action="audiobook" title="Generate Audiobook (TTS)">🎧</button>` : ''}<button class="file-action-btn download" data-filename="${DomHelpers.escapeHtml(file.filename)}" data-action="download" title="Download">📥</button><button class="file-action-btn delete" data-filename="${DomHelpers.escapeHtml(file.filename)}" data-action="delete" title="Delete">🗑️</button></div>
             </td>
         `;
 

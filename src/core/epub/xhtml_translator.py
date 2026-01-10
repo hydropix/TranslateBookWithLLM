@@ -66,6 +66,20 @@ from src.config import (
     ADAPTIVE_CONTEXT_INITIAL_THINKING,
 )
 from prompts.prompts import generate_placeholder_correction_prompt, CORRECTED_TAG_IN, CORRECTED_TAG_OUT
+from src.utils.unified_logger import LogLevel, LogType
+
+
+def _log_error(log_callback: Optional[Callable], event_name: str, message: str):
+    """Helper to log error messages in red color"""
+    if log_callback:
+        # Check if this is a new-style logger with LogLevel support
+        try:
+            from src.utils.unified_logger import get_logger
+            logger = get_logger()
+            logger.error(message)
+        except Exception:
+            # Fallback to legacy callback
+            log_callback(event_name, message)
 
 
 class PlaceholderManager:
@@ -341,8 +355,7 @@ async def attempt_placeholder_correction(
             # Extract corrected text from response content
             corrected = extract_corrected_text(llm_response.content)
             if corrected is None:
-                if log_callback:
-                    log_callback("correction_extract_failed", "Failed to extract corrected text from response")
+                _log_error(log_callback, "correction_extract_failed", "Failed to extract corrected text from response")
                 return translated_text, False
 
             # Validate corrected text
@@ -363,8 +376,7 @@ async def attempt_placeholder_correction(
                             f"Context overflow in correction - retrying with {context_manager.get_context_size()} tokens")
                     continue  # Retry with larger context
 
-            if log_callback:
-                log_callback("correction_error", f"Correction attempt failed: {str(e)}")
+            _log_error(log_callback, "correction_error", f"Correction attempt failed: {str(e)}")
             return translated_text, False
 
     # Max retries exceeded
@@ -443,8 +455,7 @@ async def translate_chunk_with_fallback(
         )
 
         if translated is None:
-            if log_callback:
-                log_callback("chunk_translation_failed", f"Attempt {attempt + 1}/{max_retries}: Translation returned None")
+            _log_error(log_callback, "chunk_translation_failed", f"Attempt {attempt + 1}/{max_retries}: Translation returned None")
             stats.retry_attempts += 1
             continue  # Try again
 
@@ -463,8 +474,7 @@ async def translate_chunk_with_fallback(
             result = placeholder_mgr.restore_to_global(translated, global_indices)
             return result
         else:
-            if log_callback:
-                log_callback("placeholder_mismatch", f"Attempt {attempt + 1}/{max_retries}: Placeholder validation failed")
+            _log_error(log_callback, "placeholder_mismatch", f"Attempt {attempt + 1}/{max_retries}: Placeholder validation failed")
             stats.retry_attempts += 1
             # Continue to next retry attempt
 
@@ -540,22 +550,20 @@ async def translate_chunk_with_fallback(
                 result = placeholder_mgr.restore_to_global(result_with_placeholders, global_indices)
                 return result
             else:
+                _log_error(log_callback, "phase2_validation_failed", "✗ Phase 2 validation failed (unexpected)")
                 if log_callback:
-                    log_callback("phase2_validation_failed", "✗ Phase 2 validation failed (unexpected)")
                     log_callback("phase2_validation_failed", "=" * 70)
 
         except Exception as e:
-            if log_callback:
-                log_callback("phase2_error", f"Phase 2 error: {str(e)}")
+            _log_error(log_callback, "phase2_error", f"Phase 2 error: {str(e)}")
 
     # ==========================================================================
     # PHASE 3: UNTRANSLATED FALLBACK
     # ==========================================================================
     stats.fallback_used += 1
 
-    if log_callback:
-        log_callback("fallback_untranslated",
-            "All translation attempts failed - returning original untranslated text")
+    _log_error(log_callback, "fallback_untranslated",
+        "All translation attempts failed - returning original untranslated text")
 
     # Return the original chunk_text with global indices restored
     result_final = placeholder_mgr.restore_to_global(chunk_text, global_indices)
@@ -758,8 +766,8 @@ def _replace_body(
         if matches:
             remaining_placeholders.extend(matches)
 
-    if remaining_placeholders and log_callback:
-        log_callback("unreplaced_placeholders_warning",
+    if remaining_placeholders:
+        _log_error(log_callback, "unreplaced_placeholders_warning",
                      f"⚠️ WARNING: {len(remaining_placeholders)} unreplaced placeholders found in reconstructed HTML: {remaining_placeholders[:10]}")
 
     # Capture XML parsing errors if they occur
@@ -769,8 +777,8 @@ def _replace_body(
     except (XmlParsingError, BodyExtractionError) as e:
         # Expected XML/parsing errors - handle gracefully
         xml_success = False
+        _log_error(log_callback, "replace_body_error", f"Failed to replace body content: {str(e)}")
         if log_callback:
-            log_callback("replace_body_error", f"Failed to replace body content: {str(e)}")
             # Show preview of problematic HTML
             preview = new_html[:500] if len(new_html) > 500 else new_html
             log_callback("replace_body_html_preview", f"HTML preview: {preview}")
@@ -779,9 +787,9 @@ def _replace_body(
         import traceback
         xml_success = False
 
+        _log_error(log_callback, "replace_body_unexpected_error",
+                    f"⚠️ UNEXPECTED ERROR in replace_body_content: {type(e).__name__}: {str(e)}")
         if log_callback:
-            log_callback("replace_body_unexpected_error",
-                        f"⚠️ UNEXPECTED ERROR in replace_body_content: {type(e).__name__}: {str(e)}")
             # Log full traceback
             full_traceback = traceback.format_exc()
             log_callback("replace_body_traceback", f"Full traceback:\n{full_traceback}")
@@ -863,9 +871,8 @@ async def _refine_epub_chunks(
 
     # Ensure we have matching lengths
     if len(translated_chunks) != len(chunks):
-        if log_callback:
-            log_callback("epub_refinement_warning",
-                        f"Warning: Length mismatch - translated_chunks: {len(translated_chunks)}, chunks: {len(chunks)}")
+        _log_error(log_callback, "epub_refinement_warning",
+                    f"Warning: Length mismatch - translated_chunks: {len(translated_chunks)}, chunks: {len(chunks)}")
 
     for idx, (translated_text, chunk_dict) in enumerate(zip(translated_chunks, chunks)):
         # Build context from surrounding chunks
@@ -937,9 +944,8 @@ async def _refine_epub_chunks(
                     # CRITICAL: Validate placeholders before accepting refinement
                     # If placeholders are corrupted, fall back to original translation
                     if local_tag_map and not validate_placeholders(refined_text, local_tag_map):
-                        if log_callback:
-                            log_callback("epub_refinement_placeholder_corruption",
-                                        f"Chunk {idx + 1}/{total_chunks}: refinement corrupted placeholders, using original translation")
+                        _log_error(log_callback, "epub_refinement_placeholder_corruption",
+                                    f"Chunk {idx + 1}/{total_chunks}: refinement corrupted placeholders, using original translation")
                         refined_chunks.append(translated_text)
                     else:
                         refined_chunks.append(refined_text)
@@ -953,14 +959,12 @@ async def _refine_epub_chunks(
             else:
                 # Fallback to original translation if request fails
                 refined_chunks.append(translated_text)
-                if log_callback:
-                    log_callback("epub_refinement_failed", f"Chunk {idx + 1}/{total_chunks}: refinement failed, using original")
+                _log_error(log_callback, "epub_refinement_failed", f"Chunk {idx + 1}/{total_chunks}: refinement failed, using original")
 
         except Exception as e:
             # Fallback to original translation on error
             refined_chunks.append(translated_text)
-            if log_callback:
-                log_callback("epub_refinement_error", f"Chunk {idx + 1}/{total_chunks}: error during refinement: {e}")
+            _log_error(log_callback, "epub_refinement_error", f"Chunk {idx + 1}/{total_chunks}: error during refinement: {e}")
 
         # Update progress
         if progress_callback:
@@ -1093,8 +1097,7 @@ async def translate_xhtml_simplified(
             if log_callback:
                 log_callback("epub_refinement_applied", f"Applied refinement to {len(refined_result)} chunks")
         else:
-            if log_callback:
-                log_callback("epub_refinement_empty", "Warning: Refinement returned empty result, using original translation")
+            _log_error(log_callback, "epub_refinement_empty", "Warning: Refinement returned empty result, using original translation")
     elif enable_refinement and not translated_chunks:
         if log_callback:
             log_callback("epub_refinement_skipped", "Refinement skipped: no translated chunks available")

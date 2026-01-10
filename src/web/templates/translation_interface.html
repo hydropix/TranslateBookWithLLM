@@ -34,6 +34,9 @@
                     <div class="status-dot"></div>
                     <span id="providerStatusText">LLM: Checking...</span>
                 </div>
+                <button class="btn btn-secondary" id="themeToggleBtn" onclick="toggleTheme()" title="Toggle dark/light mode" style="padding: 0.75rem; margin-left: 1rem;">
+                    <span class="material-symbols-outlined" id="themeIcon">dark_mode</span>
+                </button>
             </div>
         </header>
 
@@ -292,7 +295,7 @@
                         <label style="display: flex; align-items: flex-start; gap: 10px; cursor: pointer;">
                             <input type="checkbox" id="preserveTechnicalContent">
                             <div>
-                                <span style="font-weight: 600; color: var(--text-dark);">Preserve Technical Content</span>
+                                <span style="font-weight: 600; color: var(--text-dark);">Preserve Technical Content (beta)</span>
                                 <p style="margin: 5px 0 0 0; font-size: 0.8125rem; color: var(--text-muted-light);">
                                     For technical documents. Instructs the LLM to NOT translate: code snippets, command lines, file paths, URLs, and programming terms.
                                 </p>
@@ -519,7 +522,7 @@
                         <span class="material-symbols-outlined">cloud_upload</span>
                     </div>
                     <h3>Drop files to translate</h3>
-                    <p>Support for TXT, EPUB, and SRT (Max 25MB per file)</p>
+                    <p>Support for TXT, EPUB, and SRT</p>
                     <div class="browse-btn">Browse Files</div>
                     <input type="file" id="fileInput" accept=".txt,.epub,.srt" style="display: none;" onchange="handleFileSelect(event)" multiple>
                 </div>
