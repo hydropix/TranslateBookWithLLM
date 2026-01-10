@@ -43,7 +43,7 @@ def apply_boundary_restoration(chunk_text: str, global_indices: list, local_tag_
     """
     Apply the boundary restoration logic from Phase 3 fallback.
 
-    This replicates the exact logic from simplified_translator.py lines 482-492.
+    This replicates the exact logic from xhtml_translator.py lines 482-492.
     """
     # Restore global indices for internal placeholders
     result_with_globals = restore_to_global(chunk_text, global_indices)

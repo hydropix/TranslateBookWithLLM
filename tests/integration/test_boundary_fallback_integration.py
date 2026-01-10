@@ -33,7 +33,7 @@ def test_boundary_restoration_logic():
 
     global_indices = [42, 43]  # These are the global indices
 
-    # Simulate the fallback restoration (from simplified_translator.py:482-492)
+    # Simulate the fallback restoration (from xhtml_translator.py:482-492)
     def restore_to_global_mock(text, indices):
         """Mock of PlaceholderManager.restore_to_global"""
         import re

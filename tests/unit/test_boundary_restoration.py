@@ -21,14 +21,14 @@ from typing import Dict, List
 # Import directly to avoid circular imports
 import importlib.util
 spec = importlib.util.spec_from_file_location(
-    "simplified_translator",
-    project_root / "src" / "core" / "epub" / "simplified_translator.py"
+    "xhtml_translator",
+    project_root / "src" / "core" / "epub" / "xhtml_translator.py"
 )
-simplified_translator = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(simplified_translator)
+xhtml_translator = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(xhtml_translator)
 
-translate_chunk_with_fallback = simplified_translator.translate_chunk_with_fallback
-TranslationStats = simplified_translator.TranslationStats
+translate_chunk_with_fallback = xhtml_translator.translate_chunk_with_fallback
+TranslationStats = xhtml_translator.TranslationStats
 
 
 class MockLLMClient:

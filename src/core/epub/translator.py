@@ -21,7 +21,7 @@ from src.config import (
     MAX_TOKENS_PER_CHUNK, THINKING_MODELS, ADAPTIVE_CONTEXT_INITIAL_THINKING,
     MAX_TRANSLATION_ATTEMPTS
 )
-from .simplified_translator import translate_xhtml_simplified
+from .xhtml_translator import translate_xhtml_simplified
 from ..post_processor import clean_residual_tag_placeholders
 from ..context_optimizer import AdaptiveContextManager, INITIAL_CONTEXT_SIZE, CONTEXT_STEP, MAX_CONTEXT_SIZE
 

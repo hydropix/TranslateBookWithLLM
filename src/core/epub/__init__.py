@@ -10,7 +10,7 @@ Main entry points:
 
 Components:
     - translator: Main translation orchestration
-    - simplified_translator: Body-based translation with smart chunking
+    - xhtml_translator: Body-based translation with smart chunking
     - tag_preservation: HTML/XML tag preservation during translation
     - html_chunker: HTML-aware text chunking with placeholder management
     - body_serializer: Body extraction and replacement for XHTML documents
@@ -20,7 +20,7 @@ Components:
 
 from .translator import translate_epub_file
 from .tag_preservation import TagPreserver
-from .simplified_translator import translate_xhtml_simplified
+from .xhtml_translator import translate_xhtml_simplified
 from .html_chunker import HtmlChunker, TranslationStats
 from .body_serializer import extract_body_html, replace_body_content
 from .constants import (
