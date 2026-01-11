@@ -699,34 +699,117 @@ class TranslationStats:
 
     Translation flow:
     1. Phase 1: Normal translation (with retry attempts)
-    2. Phase 2: Untranslated fallback (if all retries fail, returns original text)
+    2. Phase 2: Token alignment fallback (translate without placeholders, reinsert proportionally)
+    3. Phase 3: Untranslated fallback (if all retries fail, returns original text)
     """
 
     def __init__(self):
         self.total_chunks = 0
         self.successful_first_try = 0
-        self.successful_after_retry = 0  # Success on 2nd+ retry attempt
+        self.successful_after_retry = 0  # Success on 2nd+ retry attempt (Phase 1)
         self.retry_attempts = 0  # Total number of retry attempts made
-        self.fallback_used = 0  # Chunks returned untranslated after all retries failed
+        self.token_alignment_used = 0  # Phase 2: Token alignment fallback used
+        self.token_alignment_success = 0  # Phase 2: Token alignment succeeded
+        self.fallback_used = 0  # Phase 3: Chunks returned untranslated after all phases failed
+        self.placeholder_errors = 0  # Total placeholder validation errors encountered
+        self.correction_attempts = 0  # Total LLM correction attempts made
+        self.correction_success = 0  # Successful LLM corrections
 
     def log_summary(self, log_callback=None):
         """Log a summary of translation statistics."""
-        summary = (
-            f"=== Translation Summary ===\n"
-            f"Total chunks: {self.total_chunks}\n"
-            f"Success 1st try: {self.successful_first_try} ({self._pct(self.successful_first_try)}%)\n"
-            f"Success after retry: {self.successful_after_retry} ({self._pct(self.successful_after_retry)}%)\n"
-            f"Total retry attempts: {self.retry_attempts}\n"
-            f"Untranslated chunks (fallback): {self.fallback_used} ({self._pct(self.fallback_used)}%)"
-        )
+        summary_lines = [
+            "=== Translation Summary ===",
+            f"Total chunks: {self.total_chunks}",
+            f"Success 1st try: {self.successful_first_try} ({self._pct(self.successful_first_try)}%)",
+            f"Success after retry: {self.successful_after_retry} ({self._pct(self.successful_after_retry)}%)",
+            f"Total retry attempts: {self.retry_attempts}",
+        ]
+
+        # Phase 2 stats (token alignment)
+        if self.token_alignment_used > 0:
+            summary_lines.extend([
+                f"Token alignment fallback used: {self.token_alignment_used} ({self._pct(self.token_alignment_used)}%)",
+                f"Token alignment success: {self.token_alignment_success}/{self.token_alignment_used} ({self._pct_of(self.token_alignment_success, self.token_alignment_used)}%)",
+            ])
+
+        # Phase 3 stats (untranslated fallback)
+        if self.fallback_used > 0:
+            summary_lines.append(f"Untranslated chunks (Phase 3 fallback): {self.fallback_used} ({self._pct(self.fallback_used)}%)")
+
+        # Placeholder error tracking
+        if self.placeholder_errors > 0:
+            summary_lines.extend([
+                "",
+                "=== Placeholder Issues ===",
+                f"Placeholder validation errors: {self.placeholder_errors}",
+            ])
+            if self.correction_attempts > 0:
+                summary_lines.append(f"LLM correction attempts: {self.correction_attempts} (success: {self.correction_success})")
+
+        # Recommendations
+        if self.token_alignment_used > 0 or self.fallback_used > 0:
+            summary_lines.extend([
+                "",
+                "=== Recommendations ===",
+            ])
+
+            if self.token_alignment_used > 0:
+                summary_lines.append(
+                    f"⚠️ {self.token_alignment_used} chunks used token alignment fallback (Phase 2)."
+                )
+                summary_lines.append(
+                    "   This can cause minor layout imperfections due to proportional tag repositioning."
+                )
+
+            if self.fallback_used > 0:
+                summary_lines.append(
+                    f"⚠️ {self.fallback_used} chunks could not be translated (Phase 3 fallback)."
+                )
+                summary_lines.append(
+                    "   These chunks remain in the source language."
+                )
+
+            summary_lines.extend([
+                "",
+                "To improve translation quality, consider:",
+                "  • Using a more capable LLM model",
+                "  • Reducing MAX_TOKENS_PER_CHUNK in .env (e.g., from 400 to 150)",
+            ])
+
+        summary = "\n".join(summary_lines)
+
         if log_callback:
             log_callback("translation_stats", summary)
         return summary
 
     def _pct(self, value):
+        """Calculate percentage of total chunks."""
         if self.total_chunks == 0:
             return 0
         return round(value / self.total_chunks * 100, 1)
+
+    def _pct_of(self, value, total):
+        """Calculate percentage of a specific total."""
+        if total == 0:
+            return 0
+        return round(value / total * 100, 1)
+
+    def merge(self, other: 'TranslationStats') -> None:
+        """Merge statistics from another TranslationStats instance.
+
+        Args:
+            other: Another TranslationStats instance to merge
+        """
+        self.total_chunks += other.total_chunks
+        self.successful_first_try += other.successful_first_try
+        self.successful_after_retry += other.successful_after_retry
+        self.retry_attempts += other.retry_attempts
+        self.token_alignment_used += other.token_alignment_used
+        self.token_alignment_success += other.token_alignment_success
+        self.fallback_used += other.fallback_used
+        self.placeholder_errors += other.placeholder_errors
+        self.correction_attempts += other.correction_attempts
+        self.correction_success += other.correction_success
 
 
 # === Enhanced Metrics (Phase 3) ===

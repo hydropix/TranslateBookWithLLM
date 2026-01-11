@@ -186,10 +186,20 @@ async def translate_epub_file(
                 progress_callback=progress_callback
             )
 
-            # 7. Final summary - consolidated message
+            # 7. Final summary - consolidated message with detailed statistics
             if log_callback:
+                # First message: basic completion status
                 log_callback("epub_save_success",
                              f"✅ EPUB translation complete: {results['completed_files']} files translated, {results['failed_files']} failed")
+
+                # Second message: detailed translation statistics (if available)
+                if 'translation_stats' in results and results['translation_stats']:
+                    translation_stats = results['translation_stats']
+                    # Only log detailed stats if there were actual chunks processed
+                    if translation_stats.total_chunks > 0:
+                        stats_summary = translation_stats.log_summary(log_callback=None)
+                        if stats_summary:
+                            log_callback("epub_translation_stats", stats_summary)
             else:
                 print(f"Translated EPUB saved: '{output_filepath}'")
 
@@ -388,7 +398,7 @@ async def _translate_single_file(
     log_callback: Optional[Callable] = None,
     progress_callback: Optional[Callable] = None,
     prompt_options: Optional[Dict] = None
-) -> Tuple[Optional[etree._Element], str, bool]:
+) -> Tuple[Optional[etree._Element], str, bool, Optional['TranslationStats']]:
     """Translate a single XHTML file.
 
     Args:
@@ -431,7 +441,7 @@ async def _translate_single_file(
 
         # Translate using simplified mode
         # Note: progress_callback is now token-aware wrapper from _process_all_content_files
-        success = await translate_xhtml_simplified(
+        success, file_stats = await translate_xhtml_simplified(
             doc_root=doc_root,
             source_language=source_language,
             target_language=target_language,
@@ -454,20 +464,22 @@ async def _translate_single_file(
                 _log_error(log_callback, "epub_file_translate_failed",
                              f"Failed to translate file {file_idx + 1}/{total_files}: {content_href}")
 
-        return doc_root, file_path_abs, success
+        return doc_root, file_path_abs, success, file_stats
 
     except etree.XMLSyntaxError as e_xml:
         if log_callback:
             from .xhtml_translator import _log_error
             _log_error(log_callback, "epub_xml_error",
                          f"XML error in '{content_href}': {e_xml}")
-        return None, file_path_abs, False
+        from .html_chunker import TranslationStats
+        return None, file_path_abs, False, TranslationStats()
     except Exception as e_file:
         if log_callback:
             from .xhtml_translator import _log_error
             _log_error(log_callback, "epub_file_error",
                          f"Error processing '{content_href}': {e_file}")
-        return None, file_path_abs, False
+        from .html_chunker import TranslationStats
+        return None, file_path_abs, False, TranslationStats()
 
 
 async def _count_all_chunks(
@@ -637,6 +649,10 @@ async def _process_all_content_files(
     failed_files = 0
     global_chunk_index = 0  # Track global chunk index across all files
 
+    # Accumulate translation statistics across all files
+    from .html_chunker import TranslationStats
+    accumulated_stats = TranslationStats()
+
     iterator = tqdm(
         enumerate(content_files),
         total=total_files,
@@ -722,7 +738,7 @@ async def _process_all_content_files(
                 stats_callback(progress_tracker.get_stats().to_dict())
 
         # Translate the file (reuse existing function)
-        doc_root, file_path_abs, success = await _translate_single_file(
+        doc_root, file_path_abs, success, file_stats = await _translate_single_file(
             file_idx=file_idx,
             content_href=content_href,
             opf_dir=opf_dir,
@@ -739,6 +755,10 @@ async def _process_all_content_files(
             progress_callback=file_progress_wrapper,  # Use our wrapper
             prompt_options=prompt_options
         )
+
+        # Accumulate translation statistics
+        if file_stats:
+            accumulated_stats.merge(file_stats)
 
         # Ensure all chunks in this file are marked complete after translation finishes
         # (includes both translation and refinement chunks if enabled)
@@ -786,10 +806,17 @@ async def _process_all_content_files(
                 failed_chunks=stats.failed_chunks
             )
 
+    # Final statistics aggregation
+    final_stats = progress_tracker.get_stats()
+
     return {
         'parsed_docs': parsed_xhtml_docs,
         'completed_files': completed_files,
-        'failed_files': failed_files
+        'failed_files': failed_files,
+        'total_chunks': final_stats.total_chunks,
+        'completed_chunks': final_stats.completed_chunks,
+        'failed_chunks': final_stats.failed_chunks,
+        'translation_stats': accumulated_stats  # Detailed translation statistics
     }
 
 

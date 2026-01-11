@@ -115,6 +115,12 @@ html.dark #ttsOptions {
     border-color: rgba(52, 211, 153, 0.4);
 }
 
+html.dark .log-entry.log-summary-detailed {
+    background: #151923;
+    border-color: rgba(90, 142, 232, 0.3);
+    border-left-color: var(--primary-light);
+}
+
 * {
     margin: 0;
     padding: 0;
@@ -703,6 +709,20 @@ select.form-control {
     display: block;
     margin: 1rem 0;
     line-height: 1.6;
+}
+
+/* Detailed summary with statistics and recommendations */
+.log-entry.log-summary-detailed {
+    background: var(--bg-light);
+    border: 1px solid var(--border-color);
+    border-left: 4px solid var(--primary);
+    padding: 1rem;
+    border-radius: 6px;
+    display: block;
+    margin: 1rem 0;
+    line-height: 1.8;
+    font-family: 'Courier New', monospace;
+    font-size: 0.9rem;
 }
 
 .log-content {

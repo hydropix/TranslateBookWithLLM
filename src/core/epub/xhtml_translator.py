@@ -470,12 +470,14 @@ async def translate_chunk_with_fallback(
             else:
                 stats.successful_after_retry += 1
                 if log_callback:
-                    log_callback("retry_success", f"Translation succeeded after {attempt + 1} attempt(s)")
+                    log_callback("retry_success", f"✓ Translation succeeded after {attempt + 1} attempt(s)")
 
             result = placeholder_mgr.restore_to_global(translated, global_indices)
             return result
         else:
-            _log_error(log_callback, "placeholder_mismatch", f"Attempt {attempt + 1}/{max_retries}: Placeholder validation failed")
+            # Track placeholder error
+            stats.placeholder_errors += 1
+            _log_error(log_callback, "placeholder_mismatch", f"✗ Attempt {attempt + 1}/{max_retries}: Placeholder validation failed")
             stats.retry_attempts += 1
             # Continue to next retry attempt
 
@@ -486,10 +488,9 @@ async def translate_chunk_with_fallback(
 
     if EPUB_TOKEN_ALIGNMENT_ENABLED:
         try:
+            stats.token_alignment_used += 1  # Track Phase 2 usage
             if log_callback:
-                log_callback("phase2_start", "=" * 70)
-                log_callback("phase2_start", "PHASE 2: Token Alignment Fallback - Translating without placeholder constraints...")
-                log_callback("phase2_start", "=" * 70)
+                log_callback("phase2_start", "⚙️ Phase 2: Using token alignment fallback (proportional tag repositioning)...")
 
             # 1. Extract clean text (without placeholders)
             from src.common.placeholder_format import PlaceholderFormat
@@ -516,15 +517,6 @@ async def translate_chunk_with_fallback(
             if translated_clean is None:
                 raise Exception("LLM returned None for clean translation")
 
-            # Show comparison AFTER translation is complete
-            if log_callback:
-                log_callback("phase2_complete", "-" * 70)
-                log_callback("phase2_complete", "Phase 2 translation complete - now aligning placeholders")
-                log_callback("phase2_complete", "-" * 70)
-                log_callback("phase2_comparison", f"Original (with placeholders):\n{chunk_text}\n")
-                log_callback("phase2_comparison", f"Clean text sent to LLM:\n{clean_text}\n")
-                log_callback("phase2_comparison", f"LLM translation (no placeholders):\n{translated_clean}")
-
             # 3. Initialize aligner (lazy loading, cached on function)
             if not hasattr(translate_chunk_with_fallback, '_aligner'):
                 from .token_alignment_fallback import TokenAlignmentFallback
@@ -541,22 +533,19 @@ async def translate_chunk_with_fallback(
 
             # 5. Validate (should always pass, but check anyway)
             if validate_placeholders(result_with_placeholders, local_tag_map):
-                stats.successful_after_retry += 1  # Count as success
+                stats.token_alignment_success += 1  # Track Phase 2 success
                 if log_callback:
-                    log_callback("phase2_result", f"\nFinal result (with {len(placeholders_list)} placeholders aligned):\n{result_with_placeholders}")
-                    log_callback("phase2_success", "\n✓ Phase 2 SUCCESS - Placeholders correctly aligned and validated!")
-                    log_callback("phase2_success", "=" * 70)
+                    log_callback("phase2_success", f"✓ Phase 2 successful: Token alignment repositioned {len(placeholders_list)} tags")
+                    log_callback("phase2_warning", "⚠️ Note: Proportional repositioning may cause minor layout imperfections")
 
                 # 6. Restore global indices and return
                 result = placeholder_mgr.restore_to_global(result_with_placeholders, global_indices)
                 return result
             else:
-                _log_error(log_callback, "phase2_validation_failed", "✗ Phase 2 validation failed (unexpected)")
-                if log_callback:
-                    log_callback("phase2_validation_failed", "=" * 70)
+                _log_error(log_callback, "phase2_validation_failed", "✗ Phase 2 validation failed")
 
         except Exception as e:
-            _log_error(log_callback, "phase2_error", f"Phase 2 error: {str(e)}")
+            _log_error(log_callback, "phase2_error", f"✗ Phase 2 error: {str(e)}")
 
     # ==========================================================================
     # PHASE 3: UNTRANSLATED FALLBACK
@@ -564,7 +553,10 @@ async def translate_chunk_with_fallback(
     stats.fallback_used += 1
 
     _log_error(log_callback, "fallback_untranslated",
-        "All translation attempts failed - returning original untranslated text")
+        "✗ Phase 3: All translation attempts failed - returning original untranslated text")
+
+    if log_callback:
+        log_callback("phase3_warning", "⚠️ This chunk will remain in the source language")
 
     # Return the original chunk_text with global indices restored
     result_final = placeholder_mgr.restore_to_global(chunk_text, global_indices)
@@ -989,7 +981,7 @@ async def translate_xhtml_simplified(
     max_retries: int = 1,
     container: Optional[TranslationContainer] = None,
     prompt_options: Optional[Dict] = None
-) -> bool:
+) -> Tuple[bool, 'TranslationStats']:
     """
     Translate an XHTML document using the simplified approach.
 
@@ -1018,7 +1010,7 @@ async def translate_xhtml_simplified(
         prompt_options: Optional dict with prompt customization options (e.g., refine=True)
 
     Returns:
-        True if successful, False otherwise
+        Tuple of (success: bool, stats: TranslationStats)
     """
     # 1. Setup
     body_html, body_element, tag_preserver = _setup_translation(
@@ -1030,7 +1022,8 @@ async def translate_xhtml_simplified(
     if not body_html or body_element is None:
         if log_callback:
             log_callback("no_body", "No <body> element found")
-        return False
+        from .html_chunker import TranslationStats
+        return False, TranslationStats()
 
     # 2. Tag Preservation
     text_with_placeholders, global_tag_map, placeholder_format = _preserve_tags(
@@ -1113,4 +1106,4 @@ async def translate_xhtml_simplified(
     # 7. Report stats
     _report_statistics(stats, log_callback, progress_callback)
 
-    return xml_success
+    return xml_success, stats

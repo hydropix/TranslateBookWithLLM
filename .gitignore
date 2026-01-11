@@ -17,3 +17,4 @@ build/
 .watermark/
 tests/.placeholder_tests/
 .telemetry/
+/plan/

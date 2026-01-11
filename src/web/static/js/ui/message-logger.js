@@ -68,13 +68,6 @@ const LOG_FILTERS = [
     'Translation task started',
     'Starting translation loop',
     'Translation loop',
-    // Translation summary (too verbose, shown in consolidated completion)
-    '=== Translation Summary ===',
-    'Total chunks:',
-    'Success 1st try:',
-    'Success after retry:',
-    'Total retry attempts:',
-    'Untranslated chunks (fallback):',
 ];
 
 export const MessageLogger = {
@@ -158,9 +151,29 @@ export const MessageLogger = {
         if (!logContainer) return;
 
         const timestamp = new Date().toLocaleTimeString();
+
+        // Check if this is a multi-line summary (contains "=== Translation Summary ===" or "=== Recommendations ===")
+        const isMultiLineSummary = message.includes('=== Translation Summary ===') ||
+                                   message.includes('=== Placeholder Issues ===') ||
+                                   message.includes('=== Recommendations ===');
+
+        let formattedMessage;
+        if (isMultiLineSummary) {
+            // Format multi-line summary with proper line breaks and styling
+            formattedMessage = DomHelpers.escapeHtml(message)
+                .replace(/\n/g, '<br>')
+                .replace(/=== (.*?) ===/g, '<strong style="color: #3b82f6;">$1</strong>')
+                .replace(/⚠️/g, '<span style="color: #f59e0b;">⚠️</span>')
+                .replace(/✓/g, '<span style="color: #22c55e;">✓</span>')
+                .replace(/✗/g, '<span style="color: #ef4444;">✗</span>')
+                .replace(/•/g, '<span style="margin-left: 10px;">•</span>');
+        } else {
+            formattedMessage = DomHelpers.escapeHtml(message);
+        }
+
         const logEntry = DomHelpers.createElement('div', {
-            className: 'log-entry',
-            innerHTML: `<span class="log-timestamp">[${timestamp}]</span> ${DomHelpers.escapeHtml(message)}`
+            className: 'log-entry' + (isMultiLineSummary ? ' log-summary-detailed' : ''),
+            innerHTML: `<span class="log-timestamp">[${timestamp}]</span> ${formattedMessage}`
         });
 
         logContainer.appendChild(logEntry);
