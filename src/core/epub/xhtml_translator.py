@@ -41,10 +41,8 @@ from typing import List, Dict, Any, Optional, Callable, Tuple
 from lxml import etree
 
 from .body_serializer import extract_body_html, replace_body_content
-from .html_chunker import (
-    HtmlChunker,
-    TranslationStats
-)
+from .html_chunker import HtmlChunker
+from .translation_metrics import TranslationStats
 from .tag_preservation import TagPreserver
 from .exceptions import (
     PlaceholderValidationError,
@@ -1022,7 +1020,7 @@ async def translate_xhtml_simplified(
     if not body_html or body_element is None:
         if log_callback:
             log_callback("no_body", "No <body> element found")
-        from .html_chunker import TranslationStats
+        from .translation_metrics import TranslationStats
         return False, TranslationStats()
 
     # 2. Tag Preservation

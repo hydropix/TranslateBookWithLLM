@@ -21,7 +21,8 @@ Components:
 from .translator import translate_epub_file
 from .tag_preservation import TagPreserver
 from .xhtml_translator import translate_xhtml_simplified
-from .html_chunker import HtmlChunker, TranslationStats
+from .html_chunker import HtmlChunker
+from .translation_metrics import TranslationStats, TranslationMetrics
 from .body_serializer import extract_body_html, replace_body_content
 from .constants import (
     MIN_CONTEXT_LINES,
@@ -41,7 +42,10 @@ __all__ = [
 
     # HTML chunking
     'HtmlChunker',
+
+    # Translation metrics
     'TranslationStats',
+    'TranslationMetrics',
 
     # Body serialization
     'extract_body_html',

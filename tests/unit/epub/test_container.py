@@ -149,7 +149,7 @@ class TestTranslationContainer:
 
         chunker = container.chunker
 
-        assert chunker.max_tokens_per_chunk == 700
+        assert chunker.max_tokens == 700
 
     def test_validator_creation(self):
         """Container should create PlaceholderValidator on first access."""
@@ -184,8 +184,8 @@ class TestTranslationContainer:
         # Different instances
         assert chunker1 is not chunker2
         # Different configurations
-        assert chunker1.max_tokens_per_chunk == 400
-        assert chunker2.max_tokens_per_chunk == 600
+        assert chunker1.max_tokens == 400
+        assert chunker2.max_tokens == 600
 
     def test_create_translator_not_implemented(self):
         """create_translator should raise NotImplementedError (Phase 3)."""
@@ -236,7 +236,7 @@ class TestContainerIntegration:
 
         # Chunker should respect the config
         chunker = container.chunker
-        assert chunker.max_tokens_per_chunk == 800
+        assert chunker.max_tokens == 800
 
         # Config should be accessible
         assert container.config.max_retries == 5

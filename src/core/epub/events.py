@@ -124,7 +124,7 @@ class EventBus:
                 # Don't let listener errors crash the pipeline
                 import traceback
                 from src.utils.unified_logger import log, LogType
-                log(LogType.ERROR, "event_listener_error", f"Event listener failed: {e}")
+                log(LogType.GENERAL, "event_listener_error", f"Event listener failed: {e}")
                 traceback.print_exc()
 
     def enable_history(self) -> None:

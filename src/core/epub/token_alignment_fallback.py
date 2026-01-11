@@ -327,7 +327,7 @@ class TokenAlignmentFallback:
             Translated text with placeholders reinserted proportionally
         """
         try:
-            from .html_chunker import (
+            from .html_utils import (
                 extract_text_and_positions,
                 reinsert_placeholders
             )

@@ -66,7 +66,7 @@ class TranslationContainer:
         """Get or create HtmlChunker instance."""
         if self._chunker is None:
             self._chunker = HtmlChunker(
-                max_tokens_per_chunk=self.config.max_tokens_per_chunk
+                max_tokens=self.config.max_tokens_per_chunk
             )
         return self._chunker
 
