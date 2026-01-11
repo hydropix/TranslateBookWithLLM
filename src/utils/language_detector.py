@@ -1,0 +1,305 @@
+"""
+Language detection utility for automatic source language identification
+
+Uses langdetect library (based on Google's language-detection library)
+for fast and accurate language identification from text content.
+"""
+import re
+from pathlib import Path
+from typing import Optional, Tuple
+from langdetect import detect, detect_langs, LangDetectException
+from lxml import etree
+
+
+# Mapping from ISO 639-1 codes (langdetect output) to full language names
+LANGUAGE_CODE_MAP = {
+    'en': 'English',
+    'zh-cn': 'Chinese',
+    'zh-tw': 'Chinese',
+    'es': 'Spanish',
+    'fr': 'French',
+    'de': 'German',
+    'ja': 'Japanese',
+    'ko': 'Korean',
+    'pt': 'Portuguese',
+    'it': 'Italian',
+    'ru': 'Russian',
+    'ar': 'Arabic',
+    'hi': 'Hindi',
+    'nl': 'Dutch',
+    'pl': 'Polish',
+    'tr': 'Turkish',
+    'sv': 'Swedish',
+    'no': 'Norwegian',
+    'da': 'Danish',
+    'fi': 'Finnish',
+    'cs': 'Czech',
+    'el': 'Greek',
+    'he': 'Hebrew',
+    'th': 'Thai',
+    'vi': 'Vietnamese',
+    'id': 'Indonesian',
+    'ms': 'Malay',
+    'uk': 'Ukrainian',
+    'ro': 'Romanian',
+    'bg': 'Bulgarian',
+    'hr': 'Croatian',
+    'sr': 'Serbian',
+    'sk': 'Slovak',
+    'sl': 'Slovenian',
+    'et': 'Estonian',
+    'lv': 'Latvian',
+    'lt': 'Lithuanian',
+}
+
+
+class LanguageDetector:
+    """Detects language from file content"""
+
+    # Minimum text length for reliable detection (characters)
+    MIN_TEXT_LENGTH = 50
+
+    # Maximum text to analyze (to avoid performance issues with large files)
+    MAX_SAMPLE_LENGTH = 10000
+
+    @staticmethod
+    def _extract_text_from_epub(file_data: bytes) -> str:
+        """
+        Extract readable text from EPUB file
+
+        Args:
+            file_data: Raw EPUB file bytes
+
+        Returns:
+            Extracted text content
+        """
+        import zipfile
+        import io
+
+        try:
+            with zipfile.ZipFile(io.BytesIO(file_data)) as epub_zip:
+                text_parts = []
+
+                # Find all XHTML/HTML files in EPUB
+                for file_name in epub_zip.namelist():
+                    if file_name.endswith(('.xhtml', '.html', '.htm')):
+                        try:
+                            content = epub_zip.read(file_name)
+                            # Parse HTML and extract text
+                            parser = etree.HTMLParser()
+                            tree = etree.fromstring(content, parser)
+
+                            # Extract text from body only (ignore metadata)
+                            body = tree.find('.//body')
+                            if body is not None:
+                                text = etree.tostring(body, method='text', encoding='unicode')
+                                text_parts.append(text)
+
+                            # Stop if we have enough text
+                            combined = ' '.join(text_parts)
+                            if len(combined) >= LanguageDetector.MAX_SAMPLE_LENGTH:
+                                break
+
+                        except Exception:
+                            continue
+
+                return ' '.join(text_parts)
+
+        except Exception:
+            return ""
+
+    @staticmethod
+    def _extract_text_from_srt(file_data: bytes) -> str:
+        """
+        Extract readable text from SRT subtitle file
+
+        Args:
+            file_data: Raw SRT file bytes
+
+        Returns:
+            Extracted subtitle text
+        """
+        try:
+            # Try common encodings
+            for encoding in ['utf-8', 'utf-8-sig', 'latin-1', 'cp1252']:
+                try:
+                    text = file_data.decode(encoding)
+                    break
+                except UnicodeDecodeError:
+                    continue
+            else:
+                return ""
+
+            # Remove subtitle numbers and timestamps
+            # SRT format: number -> timestamp -> text -> blank line
+            lines = text.split('\n')
+            text_lines = []
+
+            for line in lines:
+                line = line.strip()
+                # Skip empty lines, numbers, and timestamps
+                if not line:
+                    continue
+                if line.isdigit():
+                    continue
+                if '-->' in line:
+                    continue
+                # This is actual subtitle text
+                text_lines.append(line)
+
+            return ' '.join(text_lines)
+
+        except Exception:
+            return ""
+
+    @staticmethod
+    def _clean_text_for_detection(text: str) -> str:
+        """
+        Clean text to improve detection accuracy
+
+        Args:
+            text: Raw text
+
+        Returns:
+            Cleaned text
+        """
+        # Remove excessive whitespace
+        text = re.sub(r'\s+', ' ', text)
+
+        # Remove common markup artifacts
+        text = re.sub(r'<[^>]+>', '', text)
+
+        # Remove URLs
+        text = re.sub(r'http[s]?://\S+', '', text)
+
+        # Remove email addresses
+        text = re.sub(r'\S+@\S+', '', text)
+
+        return text.strip()
+
+    @staticmethod
+    def detect_language_from_file(
+        file_data: bytes,
+        filename: str,
+        confidence_threshold: float = 0.7
+    ) -> Tuple[Optional[str], float]:
+        """
+        Detect language from file content
+
+        Args:
+            file_data: Raw file bytes
+            filename: Original filename (used to determine file type)
+            confidence_threshold: Minimum confidence level (0.0-1.0)
+
+        Returns:
+            Tuple of (language_name, confidence) or (None, 0.0) if detection fails
+        """
+        try:
+            # Extract text based on file type
+            filename_lower = filename.lower()
+
+            if filename_lower.endswith('.epub'):
+                text = LanguageDetector._extract_text_from_epub(file_data)
+            elif filename_lower.endswith('.srt'):
+                text = LanguageDetector._extract_text_from_srt(file_data)
+            else:
+                # Plain text file
+                # Try common encodings
+                for encoding in ['utf-8', 'utf-8-sig', 'latin-1', 'cp1252']:
+                    try:
+                        text = file_data.decode(encoding)
+                        break
+                    except UnicodeDecodeError:
+                        continue
+                else:
+                    return None, 0.0
+
+            # Clean and prepare text
+            text = LanguageDetector._clean_text_for_detection(text)
+
+            # Check if we have enough text
+            if len(text) < LanguageDetector.MIN_TEXT_LENGTH:
+                return None, 0.0
+
+            # Sample text if too long (for performance)
+            if len(text) > LanguageDetector.MAX_SAMPLE_LENGTH:
+                # Take samples from beginning, middle, and end
+                chunk_size = LanguageDetector.MAX_SAMPLE_LENGTH // 3
+                text = (
+                    text[:chunk_size] + ' ' +
+                    text[len(text)//2 - chunk_size//2:len(text)//2 + chunk_size//2] + ' ' +
+                    text[-chunk_size:]
+                )
+
+            # Detect language with confidence scores
+            detected_langs = detect_langs(text)
+
+            if not detected_langs:
+                return None, 0.0
+
+            # Get most probable language
+            best_match = detected_langs[0]
+            lang_code = best_match.lang
+            confidence = best_match.prob
+
+            # Map to full language name
+            language_name = LANGUAGE_CODE_MAP.get(lang_code)
+
+            # Return result only if confidence is high enough
+            if language_name and confidence >= confidence_threshold:
+                return language_name, confidence
+
+            return None, 0.0
+
+        except LangDetectException:
+            # Language detection library couldn't determine language
+            return None, 0.0
+        except Exception as e:
+            # Log error but don't fail
+            print(f"Language detection error: {str(e)}")
+            return None, 0.0
+
+    @staticmethod
+    def detect_language_from_text(
+        text: str,
+        confidence_threshold: float = 0.7
+    ) -> Tuple[Optional[str], float]:
+        """
+        Detect language from plain text
+
+        Args:
+            text: Text to analyze
+            confidence_threshold: Minimum confidence level (0.0-1.0)
+
+        Returns:
+            Tuple of (language_name, confidence) or (None, 0.0) if detection fails
+        """
+        try:
+            # Clean text
+            text = LanguageDetector._clean_text_for_detection(text)
+
+            # Check if we have enough text
+            if len(text) < LanguageDetector.MIN_TEXT_LENGTH:
+                return None, 0.0
+
+            # Detect with confidence
+            detected_langs = detect_langs(text)
+
+            if not detected_langs:
+                return None, 0.0
+
+            best_match = detected_langs[0]
+            lang_code = best_match.lang
+            confidence = best_match.prob
+
+            language_name = LANGUAGE_CODE_MAP.get(lang_code)
+
+            if language_name and confidence >= confidence_threshold:
+                return language_name, confidence
+
+            return None, 0.0
+
+        except LangDetectException:
+            return None, 0.0
+        except Exception:
+            return None, 0.0

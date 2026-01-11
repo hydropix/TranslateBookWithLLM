@@ -119,7 +119,6 @@ CONTROLLABLE_THINKING_MODELS = [
 # Legacy alias for backward compatibility
 THINKING_MODELS = UNCONTROLLABLE_THINKING_MODELS + CONTROLLABLE_THINKING_MODELS
 MAX_TRANSLATION_ATTEMPTS = int(os.getenv('MAX_TRANSLATION_ATTEMPTS', '2'))
-RETRY_DELAY_SECONDS = int(os.getenv('RETRY_DELAY_SECONDS', '2'))
 
 # Adaptive context optimization settings
 # The new strategy starts at a small context and grows as needed based on actual token usage
@@ -143,8 +142,7 @@ MIN_CHUNK_SIZE = int(os.getenv("MIN_CHUNK_SIZE", "5"))
 MAX_CHUNK_SIZE = int(os.getenv("MAX_CHUNK_SIZE", "100"))
 
 # Token-based chunking configuration
-# When enabled, uses tiktoken to count tokens instead of lines for more consistent chunk sizes
-USE_TOKEN_CHUNKING = os.getenv('USE_TOKEN_CHUNKING', 'true').lower() == 'true'
+# All file types use token-based chunking with tiktoken for consistent chunk sizes
 MAX_TOKENS_PER_CHUNK = int(os.getenv('MAX_TOKENS_PER_CHUNK', '450'))
 SOFT_LIMIT_RATIO = float(os.getenv('SOFT_LIMIT_RATIO', '0.8'))
 
@@ -412,7 +410,7 @@ class TranslationConfig:
     # LLM parameters
     timeout: int = REQUEST_TIMEOUT
     max_attempts: int = MAX_TRANSLATION_ATTEMPTS
-    retry_delay: int = RETRY_DELAY_SECONDS
+    retry_delay: int = 2  # Fixed retry delay in seconds
     context_window: int = OLLAMA_NUM_CTX
 
     # Context optimization
@@ -421,7 +419,6 @@ class TranslationConfig:
     max_chunk_size: int = MAX_CHUNK_SIZE
 
     # Token-based chunking
-    use_token_chunking: bool = USE_TOKEN_CHUNKING
     max_tokens_per_chunk: int = MAX_TOKENS_PER_CHUNK
     soft_limit_ratio: float = SOFT_LIMIT_RATIO
 
@@ -445,7 +442,6 @@ class TranslationConfig:
             gemini_api_key=getattr(args, 'gemini_api_key', GEMINI_API_KEY),
             openai_api_key=getattr(args, 'openai_api_key', OPENAI_API_KEY),
             openrouter_api_key=getattr(args, 'openrouter_api_key', OPENROUTER_API_KEY),
-            use_token_chunking=getattr(args, 'use_token_chunking', USE_TOKEN_CHUNKING),
             max_tokens_per_chunk=getattr(args, 'max_tokens_per_chunk', MAX_TOKENS_PER_CHUNK),
             soft_limit_ratio=getattr(args, 'soft_limit_ratio', SOFT_LIMIT_RATIO)
         )
@@ -461,7 +457,7 @@ class TranslationConfig:
             chunk_size=request_data.get('chunk_size', MAIN_LINES_PER_CHUNK),
             timeout=request_data.get('timeout', REQUEST_TIMEOUT),
             max_attempts=request_data.get('max_attempts', MAX_TRANSLATION_ATTEMPTS),
-            retry_delay=request_data.get('retry_delay', RETRY_DELAY_SECONDS),
+            retry_delay=request_data.get('retry_delay', 2),
             context_window=request_data.get('context_window', OLLAMA_NUM_CTX),
             auto_adjust_context=request_data.get('auto_adjust_context', AUTO_ADJUST_CONTEXT),
             min_chunk_size=request_data.get('min_chunk_size', MIN_CHUNK_SIZE),
@@ -472,7 +468,6 @@ class TranslationConfig:
             gemini_api_key=request_data.get('gemini_api_key', GEMINI_API_KEY),
             openai_api_key=request_data.get('openai_api_key', OPENAI_API_KEY),
             openrouter_api_key=request_data.get('openrouter_api_key', OPENROUTER_API_KEY),
-            use_token_chunking=request_data.get('use_token_chunking', USE_TOKEN_CHUNKING),
             max_tokens_per_chunk=request_data.get('max_tokens_per_chunk', MAX_TOKENS_PER_CHUNK),
             soft_limit_ratio=request_data.get('soft_limit_ratio', SOFT_LIMIT_RATIO)
         )
@@ -493,7 +488,6 @@ class TranslationConfig:
             'gemini_api_key': self.gemini_api_key,
             'openai_api_key': self.openai_api_key,
             'openrouter_api_key': self.openrouter_api_key,
-            'use_token_chunking': self.use_token_chunking,
             'max_tokens_per_chunk': self.max_tokens_per_chunk,
             'soft_limit_ratio': self.soft_limit_ratio
         }

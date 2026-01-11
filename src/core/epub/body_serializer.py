@@ -132,8 +132,6 @@ def replace_body_content(body_element: etree._Element, new_html: str) -> None:
         body_element: The <body> element to modify
         new_html: New translated HTML content
     """
-    info(f"replace_body_content: Input HTML length = {len(new_html)} chars")
-
     # Parse the new content FIRST before clearing the body
     # This prevents data loss if parsing fails
     # Wrap in a temp element to handle multiple root elements
@@ -148,29 +146,27 @@ def replace_body_content(body_element: etree._Element, new_html: str) -> None:
         remove_blank_text=False # Preserve whitespace exactly as-is
     )
 
+    parse_method = "XML"
+    parse_warnings = []
+
     try:
         temp = etree.fromstring(wrapped.encode('utf-8'), parser)
-        info("replace_body_content: XML parse succeeded")
         if parser.error_log:
-            info(f"replace_body_content: Parser recovered from {len(parser.error_log)} errors")
-            for error in list(parser.error_log)[:5]:
-                info(f"replace_body_content:   {str(error)}")
+            parse_warnings.append(f"recovered from {len(parser.error_log)} errors")
     except etree.XMLSyntaxError as e:
-        info(f"replace_body_content: XML parse failed: {e}")
         # Fallback: try without namespace
         wrapped_no_ns = f"<temp>{new_html}</temp>"
         try:
             temp = etree.fromstring(wrapped_no_ns.encode('utf-8'), parser)
-            info("replace_body_content: XML parse (no namespace) succeeded")
+            parse_method = "XML (no namespace)"
         except Exception as e2:
-            info(f"replace_body_content: All XML parsing failed: {e2}")
             # Last resort: HTML parser (but this may alter structure!)
             temp = etree.HTML(wrapped_no_ns)
+            parse_method = "HTML fallback"
             if temp is not None:
                 temp_elem = temp.find('.//temp')
                 if temp_elem is not None:
                     temp = temp_elem
-                    info("replace_body_content: HTML parse succeeded")
                 else:
                     raise XmlParsingError(
                         "Could not find <temp> element after HTML parsing",
@@ -196,5 +192,6 @@ def replace_body_content(body_element: etree._Element, new_html: str) -> None:
         body_element.append(child)
         child_count += 1
 
-    info(f"replace_body_content: Copied {child_count} children to body")
-    info(f"replace_body_content: Body now has {len(list(body_element))} children")
+    # Single consolidated log message
+    warnings_str = f" ({', '.join(parse_warnings)})" if parse_warnings else ""
+    info(f"📄 Body reconstructed: {len(new_html)} chars → {child_count} elements [{parse_method}{warnings_str}]")

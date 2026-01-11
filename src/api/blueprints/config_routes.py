@@ -26,7 +26,6 @@ from src.config import (
     REQUEST_TIMEOUT,
     OLLAMA_NUM_CTX,
     MAX_TRANSLATION_ATTEMPTS,
-    RETRY_DELAY_SECONDS,
     DEFAULT_SOURCE_LANGUAGE,
     DEFAULT_TARGET_LANGUAGE,
     DEBUG_MODE,
@@ -34,7 +33,8 @@ from src.config import (
     GEMINI_MODEL,
     OPENAI_API_KEY,
     OPENROUTER_API_KEY,
-    OPENROUTER_MODEL
+    OPENROUTER_MODEL,
+    MAX_TOKENS_PER_CHUNK
 )
 
 # Setup logger for this module
@@ -117,7 +117,7 @@ def create_config_blueprint():
             "timeout": REQUEST_TIMEOUT,
             "context_window": OLLAMA_NUM_CTX,
             "max_attempts": MAX_TRANSLATION_ATTEMPTS,
-            "retry_delay": RETRY_DELAY_SECONDS,
+            "retry_delay": 2,
             "supported_formats": ["txt", "epub", "srt"],
             "gemini_api_key": mask_api_key(GEMINI_API_KEY),
             "openai_api_key": mask_api_key(OPENAI_API_KEY),
@@ -137,6 +137,13 @@ def create_config_blueprint():
             logger.debug(f"   default_model: {DEFAULT_MODEL}")
 
         return jsonify(config_response)
+
+    @bp.route('/api/config/max-tokens', methods=['GET'])
+    def get_max_tokens():
+        """Get MAX_TOKENS_PER_CHUNK configuration value for UI preview height adjustment"""
+        return jsonify({
+            "max_tokens_per_chunk": MAX_TOKENS_PER_CHUNK
+        })
 
     def _resolve_api_key(provided_key, env_var_name, config_default):
         """Resolve API key from provided value, .env marker, or config default

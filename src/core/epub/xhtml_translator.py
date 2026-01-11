@@ -435,8 +435,9 @@ async def translate_chunk_with_fallback(
     translated = None
 
     for attempt in range(max_retries):
-        if log_callback and max_retries > 1:
-            log_callback("translation_attempt", f"Translation attempt {attempt + 1}/{max_retries}")
+        # Only log retry attempts (not the first attempt)
+        if log_callback and attempt > 0:
+            log_callback("translation_attempt", f"🔄 Translation retry attempt {attempt + 1}/{max_retries}")
 
         # Send chunk as-is to LLM (already has local indices 0, 1, 2...)
         translated = await generate_translation_request(
@@ -752,19 +753,16 @@ def _replace_body(
     """
     # Check for unreplaced placeholders in the HTML before attempting to replace body
     import re
-    placeholder_patterns = [
-        r'\[id\d+\]',
-        r'\[\[\d+\]\]',
-        r'/\d+(?!/)',
-        r'\$\d+\$',
-        r'\[\d+\]'
-    ]
+    # Only check for the actual placeholder format used by the system
+    # Use PlaceholderFormat to get the correct pattern
+    from src.common.placeholder_format import PlaceholderFormat
+    fmt = PlaceholderFormat.from_config()
 
     remaining_placeholders = []
-    for pattern in placeholder_patterns:
-        matches = re.findall(pattern, new_html)
-        if matches:
-            remaining_placeholders.extend(matches)
+    matches = re.findall(fmt.pattern, new_html)
+    if matches:
+        # Reconstruct full placeholder strings (pattern captures just the number)
+        remaining_placeholders = [fmt.create(int(num)) for num in matches]
 
     if remaining_placeholders:
         _log_error(log_callback, "unreplaced_placeholders_warning",

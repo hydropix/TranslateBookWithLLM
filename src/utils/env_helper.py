@@ -210,7 +210,6 @@ def interactive_env_setup():
 
             f.write("\n# Advanced\n")
             f.write("MAX_TRANSLATION_ATTEMPTS=3\n")
-            f.write("RETRY_DELAY_SECONDS=5\n")
 
             f.write("\n# SRT-specific configuration\n")
             f.write("SRT_LINES_PER_BLOCK=5\n")

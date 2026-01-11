@@ -10,7 +10,7 @@ import asyncio
 
 from src.config import (
     API_ENDPOINT, DEFAULT_MODEL, REQUEST_TIMEOUT, OLLAMA_NUM_CTX,
-    MAX_TRANSLATION_ATTEMPTS, RETRY_DELAY_SECONDS,
+    MAX_TRANSLATION_ATTEMPTS,
     TRANSLATE_TAG_IN, TRANSLATE_TAG_OUT,
     OPENROUTER_API_KEY, OPENROUTER_MODEL, OPENROUTER_API_ENDPOINT,
     THINKING_MODELS, UNCONTROLLABLE_THINKING_MODELS, CONTROLLABLE_THINKING_MODELS,
@@ -912,7 +912,7 @@ class OllamaProvider(LLMProvider):
 
             except httpx.TimeoutException:
                 if attempt < MAX_TRANSLATION_ATTEMPTS - 1:
-                    await asyncio.sleep(RETRY_DELAY_SECONDS)
+                    await asyncio.sleep(2)
                     continue
                 return None
             except httpx.HTTPStatusError as e:
@@ -934,7 +934,7 @@ class OllamaProvider(LLMProvider):
                     raise ContextOverflowError(error_message)
 
                 if attempt < MAX_TRANSLATION_ATTEMPTS - 1:
-                    await asyncio.sleep(RETRY_DELAY_SECONDS)
+                    await asyncio.sleep(2)
                     continue
                 return None
             except (RepetitionLoopError, ContextOverflowError):
@@ -942,7 +942,7 @@ class OllamaProvider(LLMProvider):
                 raise
             except (json.JSONDecodeError, Exception) as e:
                 if attempt < MAX_TRANSLATION_ATTEMPTS - 1:
-                    await asyncio.sleep(RETRY_DELAY_SECONDS)
+                    await asyncio.sleep(2)
                     continue
                 return None
 
@@ -1085,7 +1085,7 @@ class OpenAICompatibleProvider(LLMProvider):
             except httpx.TimeoutException as e:
                     print(f"OpenAI-compatible API Timeout (attempt {attempt + 1}/{MAX_TRANSLATION_ATTEMPTS}): {e}")
                     if attempt < MAX_TRANSLATION_ATTEMPTS - 1:
-                        await asyncio.sleep(RETRY_DELAY_SECONDS)
+                        await asyncio.sleep(2)
                         continue
                     return None
             except httpx.HTTPStatusError as e:
@@ -1106,19 +1106,19 @@ class OpenAICompatibleProvider(LLMProvider):
                         raise ContextOverflowError(f"Context overflow: {error_message}")
 
                     if attempt < MAX_TRANSLATION_ATTEMPTS - 1:
-                        await asyncio.sleep(RETRY_DELAY_SECONDS)
+                        await asyncio.sleep(2)
                         continue
                     return None
             except json.JSONDecodeError as e:
                     print(f"OpenAI-compatible API JSON Decode Error (attempt {attempt + 1}/{MAX_TRANSLATION_ATTEMPTS}): {e}")
                     if attempt < MAX_TRANSLATION_ATTEMPTS - 1:
-                        await asyncio.sleep(RETRY_DELAY_SECONDS)
+                        await asyncio.sleep(2)
                         continue
                     return None
             except Exception as e:
                     print(f"OpenAI-compatible API Unknown Error (attempt {attempt + 1}/{MAX_TRANSLATION_ATTEMPTS}): {e}")
                     if attempt < MAX_TRANSLATION_ATTEMPTS - 1:
-                        await asyncio.sleep(RETRY_DELAY_SECONDS)
+                        await asyncio.sleep(2)
                         continue
                     return None
 
@@ -1462,7 +1462,7 @@ class OpenRouterProvider(LLMProvider):
             except httpx.TimeoutException as e:
                 print(f"OpenRouter API Timeout (attempt {attempt + 1}/{MAX_TRANSLATION_ATTEMPTS}): {e}")
                 if attempt < MAX_TRANSLATION_ATTEMPTS - 1:
-                    await asyncio.sleep(RETRY_DELAY_SECONDS)
+                    await asyncio.sleep(2)
                     continue
                 return None
             except httpx.HTTPStatusError as e:
@@ -1493,19 +1493,19 @@ class OpenRouterProvider(LLMProvider):
                     raise ContextOverflowError(f"OpenRouter context overflow: {error_message}")
 
                 if attempt < MAX_TRANSLATION_ATTEMPTS - 1:
-                    await asyncio.sleep(RETRY_DELAY_SECONDS)
+                    await asyncio.sleep(2)
                     continue
                 return None
             except json.JSONDecodeError as e:
                 print(f"OpenRouter API JSON Decode Error (attempt {attempt + 1}/{MAX_TRANSLATION_ATTEMPTS}): {e}")
                 if attempt < MAX_TRANSLATION_ATTEMPTS - 1:
-                    await asyncio.sleep(RETRY_DELAY_SECONDS)
+                    await asyncio.sleep(2)
                     continue
                 return None
             except Exception as e:
                 print(f"OpenRouter API Unknown Error (attempt {attempt + 1}/{MAX_TRANSLATION_ATTEMPTS}): {e}")
                 if attempt < MAX_TRANSLATION_ATTEMPTS - 1:
-                    await asyncio.sleep(RETRY_DELAY_SECONDS)
+                    await asyncio.sleep(2)
                     continue
                 return None
 
@@ -1643,7 +1643,7 @@ class GeminiProvider(LLMProvider):
             except httpx.TimeoutException as e:
                     print(f"Gemini API Timeout (attempt {attempt + 1}/{MAX_TRANSLATION_ATTEMPTS}): {e}")
                     if attempt < MAX_TRANSLATION_ATTEMPTS - 1:
-                        await asyncio.sleep(RETRY_DELAY_SECONDS)
+                        await asyncio.sleep(2)
                         continue
                     return None
             except httpx.HTTPStatusError as e:
@@ -1664,19 +1664,19 @@ class GeminiProvider(LLMProvider):
                         raise ContextOverflowError(f"Gemini context overflow: {error_message}")
 
                     if attempt < MAX_TRANSLATION_ATTEMPTS - 1:
-                        await asyncio.sleep(RETRY_DELAY_SECONDS)
+                        await asyncio.sleep(2)
                         continue
                     return None
             except json.JSONDecodeError as e:
                     print(f"Gemini API JSON Decode Error (attempt {attempt + 1}/{MAX_TRANSLATION_ATTEMPTS}): {e}")
                     if attempt < MAX_TRANSLATION_ATTEMPTS - 1:
-                        await asyncio.sleep(RETRY_DELAY_SECONDS)
+                        await asyncio.sleep(2)
                         continue
                     return None
             except Exception as e:
                     print(f"Gemini API Unknown Error (attempt {attempt + 1}/{MAX_TRANSLATION_ATTEMPTS}): {e}")
                     if attempt < MAX_TRANSLATION_ATTEMPTS - 1:
-                        await asyncio.sleep(RETRY_DELAY_SECONDS)
+                        await asyncio.sleep(2)
                         continue
                     return None
 

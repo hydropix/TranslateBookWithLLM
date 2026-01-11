@@ -81,6 +81,7 @@ export const TranslationTracker = {
 
         // Handle status changes
         if (data.status === 'completed') {
+            MessageLogger.resetProgressTracking(); // Reset before showing completion message
             this.finishCurrentFileTranslation(
                 `✅ ${currentFile.name}: Translation completed!`,
                 'success',
@@ -88,6 +89,7 @@ export const TranslationTracker = {
             );
             this.updateActiveTranslationsState();
         } else if (data.status === 'interrupted') {
+            MessageLogger.resetProgressTracking(); // Reset before showing interruption message
             this.finishCurrentFileTranslation(
                 `ℹ️ ${currentFile.name}: Translation interrupted.`,
                 'info',
@@ -95,6 +97,7 @@ export const TranslationTracker = {
             );
             this.updateActiveTranslationsState();
         } else if (data.status === 'error') {
+            MessageLogger.resetProgressTracking(); // Reset before showing error message
             this.finishCurrentFileTranslation(
                 `❌ ${currentFile.name}: Error - ${data.error || 'Unknown error.'}`,
                 'error',
@@ -102,6 +105,7 @@ export const TranslationTracker = {
             );
             this.updateActiveTranslationsState();
         } else if (data.status === 'running') {
+            MessageLogger.resetProgressTracking(); // Reset when starting new translation
             DomHelpers.show('progressSection');
             DomHelpers.setText('currentFileProgressTitle', `📊 Translating: ${currentFile.name}`);
 

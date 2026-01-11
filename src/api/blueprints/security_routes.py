@@ -5,6 +5,7 @@ from pathlib import Path
 from flask import Blueprint, request, jsonify, current_app
 
 from src.utils.security import SecureFileHandler, rate_limiter, get_client_ip, SecurityError
+from src.utils.language_detector import LanguageDetector
 
 
 def create_security_blueprint(output_dir):
@@ -76,6 +77,11 @@ def create_security_blueprint(output_dir):
             file_size = len(file_data)
             secure_path = validation_result.file_path
 
+            # Detect source language from file content
+            detected_language, confidence = LanguageDetector.detect_language_from_file(
+                file_data, file.filename
+            )
+
             # Return success response
             response_data = {
                 "success": True,
@@ -86,6 +92,15 @@ def create_security_blueprint(output_dir):
                 "size": file_size,
                 "size_mb": round(file_size / (1024 * 1024), 2)
             }
+
+            # Add detected language if available
+            if detected_language:
+                response_data["detected_language"] = detected_language
+                response_data["language_confidence"] = round(confidence, 2)
+                current_app.logger.info(
+                    f"Language detected: {detected_language} "
+                    f"(confidence: {confidence:.2f}) for {file.filename}"
+                )
 
             # Add warnings if any
             if validation_result.warnings:

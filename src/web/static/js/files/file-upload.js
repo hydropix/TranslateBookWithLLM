@@ -38,6 +38,45 @@ function detectFileType(filename) {
     return 'txt';
 }
 
+/**
+ * Set language in select dropdown (case-insensitive match)
+ * @param {string} selectId - Select element ID
+ * @param {string} languageValue - Language value to set
+ * @returns {boolean} True if language was set successfully
+ */
+function setLanguageInSelect(selectId, languageValue) {
+    const select = DomHelpers.getElement(selectId);
+    if (!select) {
+        console.error(`Select element '${selectId}' not found`);
+        return false;
+    }
+
+    // Try to find matching option (case-insensitive)
+    let matchedOption = null;
+    for (let i = 0; i < select.options.length; i++) {
+        const option = select.options[i];
+        if (option.value && option.value.toLowerCase() === languageValue.toLowerCase()) {
+            matchedOption = option;
+            break;
+        }
+    }
+
+    if (matchedOption) {
+        // Set the value and trigger change events
+        select.value = matchedOption.value;
+        select.selectedIndex = Array.from(select.options).indexOf(matchedOption);
+
+        // Trigger events to ensure reactivity
+        select.dispatchEvent(new Event('input', { bubbles: true }));
+        select.dispatchEvent(new Event('change', { bubbles: true }));
+
+        return true;
+    }
+
+    console.warn(`Language "${languageValue}" not found in select options`);
+    return false;
+}
+
 export const FileUpload = {
     /**
      * Initialize file upload handlers
@@ -152,17 +191,57 @@ export const FileUpload = {
                 size: file.size,
                 translationId: null,
                 result: null,
-                content: null
+                content: null,
+                detectedLanguage: uploadResult.detected_language || null,
+                languageConfidence: uploadResult.language_confidence || null
             };
 
             // Add to state
             const updatedFiles = [...filesToProcess, fileObject];
             StateManager.setState('files.toProcess', updatedFiles);
 
-            MessageLogger.showMessage(
-                `File '${file.name}' (${uploadResult.file_type}) uploaded. Path: ${uploadResult.file_path}`,
-                'success'
-            );
+            // Auto-update source language field if detected with good confidence
+            if (uploadResult.detected_language && uploadResult.language_confidence >= 0.7) {
+                const sourceLangInput = DomHelpers.getElement('sourceLang');
+
+                // Auto-fill if field is empty, on placeholder, or still on default "English"
+                // We replace "English" because it's just the default, not a user choice
+                const shouldAutoFill = sourceLangInput && (
+                    !sourceLangInput.value ||
+                    sourceLangInput.value === '' ||
+                    sourceLangInput.value === 'English'
+                );
+
+                if (shouldAutoFill) {
+                    // Set the detected language in the select
+                    const success = setLanguageInSelect('sourceLang', uploadResult.detected_language);
+
+                    if (success) {
+                        MessageLogger.showMessage(
+                            `File '${file.name}' (${uploadResult.file_type}) uploaded. ` +
+                            `Detected language: ${uploadResult.detected_language} ` +
+                            `(${(uploadResult.language_confidence * 100).toFixed(0)}% confidence)`,
+                            'success'
+                        );
+                    } else {
+                        MessageLogger.showMessage(
+                            `File '${file.name}' (${uploadResult.file_type}) uploaded. ` +
+                            `Language detected but not in list: ${uploadResult.detected_language}`,
+                            'info'
+                        );
+                    }
+                } else {
+                    MessageLogger.showMessage(
+                        `File '${file.name}' (${uploadResult.file_type}) uploaded. Path: ${uploadResult.file_path}`,
+                        'success'
+                    );
+                }
+            } else {
+                MessageLogger.showMessage(
+                    `File '${file.name}' (${uploadResult.file_type}) uploaded. Path: ${uploadResult.file_path}`,
+                    'success'
+                );
+            }
 
         } catch (error) {
             MessageLogger.showMessage(

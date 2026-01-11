@@ -322,7 +322,6 @@ async def perform_actual_translation(translation_id, config, state_manager, outp
             _log_message_callback("unknown_file_type", f"❌ Unknown file type: {config['file_type']}")
             raise Exception(f"Unsupported file type: {config['file_type']}")
 
-        _log_message_callback("save_process_info", f"💾 Translation process ended. File saved (or partially saved) at: {output_filepath_on_server}")
         state_manager.set_translation_field(translation_id, 'output_filepath', output_filepath_on_server)
 
         stats = state_manager.get_translation_field(translation_id, 'stats') or {}
@@ -334,16 +333,15 @@ async def perform_actual_translation(translation_id, config, state_manager, outp
             'output_filename': config['output_filename'],
             'file_type': config['file_type']
         }
-        
+
         if state_manager.get_translation_field(translation_id, 'interrupted'):
             state_manager.set_translation_field(translation_id, 'status', 'interrupted')
-            _log_message_callback("summary_interrupted", f"🛑 Translation interrupted by user. Partial result saved. Time: {elapsed_time:.2f}s.")
+            _log_message_callback("summary_interrupted", f"🛑 Translation interrupted - partial result saved ({elapsed_time:.2f}s)")
             final_status_payload['status'] = 'interrupted'
             final_status_payload['progress'] = state_manager.get_translation_field(translation_id, 'progress') or 0
 
             # Mark checkpoint as interrupted in database
             checkpoint_manager.mark_interrupted(translation_id)
-            _log_message_callback("checkpoint_interrupted", "⏸️ Checkpoint marked as interrupted")
 
             # Emit checkpoint_created event to trigger UI update
             socketio.emit('checkpoint_created', {
@@ -383,20 +381,38 @@ async def perform_actual_translation(translation_id, config, state_manager, outp
 
         elif state_manager.get_translation_field(translation_id, 'status') != 'error':
             state_manager.set_translation_field(translation_id, 'status', 'completed')
-            _log_message_callback("summary_completed", f"✅ Translation completed. Time: {elapsed_time:.2f}s.")
+
+            # Get stats for consolidated message
+            final_stats = stats
+            stats_summary = ""
+            if config['file_type'] == 'txt' or (config['file_type'] == 'epub' and stats.get('total_chunks', 0) > 0):
+                completed = final_stats.get('completed_chunks', 0)
+                failed = final_stats.get('failed_chunks', 0)
+                total = final_stats.get('total_chunks', 0)
+                stats_summary = f" | {completed}/{total} chunks"
+                if failed > 0:
+                    stats_summary += f" ({failed} failed)"
+            elif config['file_type'] == 'srt' and stats.get('total_subtitles', 0) > 0:
+                completed = final_stats.get('completed_subtitles', 0)
+                failed = final_stats.get('failed_subtitles', 0)
+                total = final_stats.get('total_subtitles', 0)
+                stats_summary = f" | {completed}/{total} subtitles"
+                if failed > 0:
+                    stats_summary += f" ({failed} failed)"
+
+            # Single consolidated completion message
+            _log_message_callback("summary_completed", f"✅ Translation completed in {elapsed_time:.2f}s{stats_summary}")
+
             final_status_payload['status'] = 'completed'
             _update_translation_progress_callback(100)
             final_status_payload['progress'] = 100
 
             # Cleanup completed job checkpoint (automatic immediate cleanup)
             checkpoint_manager.cleanup_completed_job(translation_id)
-            _log_message_callback("checkpoint_cleanup", "🗑️ Checkpoint cleaned up automatically")
-            
+
             # Clean up uploaded file if it exists and is in the uploads directory
             # On completion, we can safely delete the original upload file
-            _log_message_callback("cleanup_start", f"🧹 Starting cleanup check...")
             if 'file_path' in config and config['file_path']:
-                _log_message_callback("cleanup_filepath", f"📁 File path in config: {config['file_path']}")
                 uploaded_file_path = config['file_path']
                 # Convert to Path object for reliable path operations
                 upload_path = Path(uploaded_file_path)
@@ -411,26 +427,16 @@ async def perform_actual_translation(translation_id, config, state_manager, outp
                         # Check if file is directly in uploads/ (not in a job subdirectory)
                         if resolved_path.parent.resolve() == uploads_dir.resolve():
                             upload_path.unlink()
-                            _log_message_callback("cleanup_uploaded_file", f"🗑️ Cleaned up uploaded source file: {upload_path.name}")
-                        else:
-                            _log_message_callback("cleanup_skipped", f"ℹ️ Skipped cleanup - file is not in uploads root directory")
+                            # Removed verbose cleanup message - file cleanup is automatic
                     except Exception as e:
                         _log_message_callback("cleanup_error", f"⚠️ Could not delete uploaded file {upload_path.name}: {str(e)}")
-            else:
-                _log_message_callback("cleanup_no_filepath", f"📂 No file_path in config for cleanup")
         else:
-            _log_message_callback("summary_error_final", f"❌ Translation finished with errors. Time: {elapsed_time:.2f}s.")
+            _log_message_callback("summary_error_final", f"❌ Translation finished with errors ({elapsed_time:.2f}s)")
             final_status_payload['status'] = 'error'
             final_status_payload['error'] = state_manager.get_translation_field(translation_id, 'error') or 'Unknown error during finalization.'
             final_status_payload['progress'] = state_manager.get_translation_field(translation_id, 'progress') or 0
-        
-        stats = state_manager.get_translation_field(translation_id, 'stats') or {}
-        if config['file_type'] == 'txt' or (config['file_type'] == 'epub' and stats.get('total_chunks', 0) > 0):
-            final_stats = stats
-            _log_message_callback("summary_stats_final", f"📊 Stats: {final_stats.get('completed_chunks', 0)} processed, {final_stats.get('failed_chunks', 0)} failed out of {final_stats.get('total_chunks', 0)} total segments/chunks.")
-        elif config['file_type'] == 'srt' and stats.get('total_subtitles', 0) > 0:
-            final_stats = stats
-            _log_message_callback("summary_stats_final", f"📊 Stats: {final_stats.get('completed_subtitles', 0)} processed, {final_stats.get('failed_subtitles', 0)} failed out of {final_stats.get('total_subtitles', 0)} total subtitles.")
+
+        # Stats are now included in the consolidated completion message above
 
         # Log OpenRouter cost summary if applicable
         if config.get('llm_provider') == 'openrouter':

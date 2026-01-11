@@ -159,6 +159,43 @@ function initializeState() {
     StateManager.setState('models.availableModels', []);
 }
 
+/**
+ * Calculate and apply preview height based on MAX_TOKENS_PER_CHUNK
+ * Formula: Fixed 300px height regardless of token count
+ * @param {number} maxTokens - MAX_TOKENS_PER_CHUNK value (not used, kept for API compatibility)
+ */
+function updatePreviewHeight(maxTokens = 450) {
+    // Fixed height of 300px
+    const fixedHeight = 300;
+
+    // Apply to CSS variable
+    document.documentElement.style.setProperty('--preview-height', `${fixedHeight}px`);
+
+    console.log(`📐 Preview height set: ${fixedHeight}px (fixed height)`);
+}
+
+/**
+ * Fetch and apply MAX_TOKENS_PER_CHUNK from server
+ */
+async function initializePreviewHeight() {
+    try {
+        // Fetch config from server
+        const response = await fetch('/api/config/max-tokens');
+        if (response.ok) {
+            const data = await response.json();
+            const maxTokens = data.max_tokens_per_chunk || 450;
+            updatePreviewHeight(maxTokens);
+        } else {
+            // Fallback to default
+            console.warn('Could not fetch MAX_TOKENS_PER_CHUNK, using default (450)');
+            updatePreviewHeight(450);
+        }
+    } catch (error) {
+        console.warn('Error fetching MAX_TOKENS_PER_CHUNK:', error);
+        updatePreviewHeight(450);
+    }
+}
+
 // ========================================
 // Event Wiring
 // ========================================
@@ -271,6 +308,7 @@ function initializeModules() {
     initializeThemeManager();
     FormManager.initialize();
     StatusManager.initialize();
+    initializePreviewHeight(); // Load and apply preview height
 
     // 3. Provider modules
     ProviderManager.initialize();

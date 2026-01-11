@@ -186,11 +186,10 @@ async def translate_epub_file(
                 progress_callback=progress_callback
             )
 
-            # 7. Final summary
+            # 7. Final summary - consolidated message
             if log_callback:
                 log_callback("epub_save_success",
-                             f"Translated EPUB saved: '{output_filepath}' "
-                             f"({results['completed_files']} files translated, {results['failed_files']} failed)")
+                             f"✅ EPUB translation complete: {results['completed_files']} files translated, {results['failed_files']} failed")
             else:
                 print(f"Translated EPUB saved: '{output_filepath}'")
 
@@ -447,9 +446,8 @@ async def _translate_single_file(
         )
 
         if success:
-            if log_callback:
-                log_callback("epub_file_translate_complete",
-                             f"Completed file {file_idx + 1}/{total_files}: {content_href}")
+            # Only log progress for files, not individual completion messages
+            pass
         else:
             if log_callback:
                 from .xhtml_translator import _log_error
@@ -805,8 +803,7 @@ async def _save_translated_files(
         parsed_xhtml_docs: Dictionary of file paths to parsed documents
         log_callback: Optional logging callback
     """
-    if log_callback:
-        log_callback("epub_save_start", "Saving translated files...")
+    # Removed verbose "Saving translated files..." message
 
     for file_path_abs, doc_root in parsed_xhtml_docs.items():
         try:
@@ -846,8 +843,7 @@ def _repackage_epub(
     if progress_callback:
         progress_callback(95)
 
-    if log_callback:
-        log_callback("epub_zip_start", "Creating translated EPUB file...")
+    # Removed verbose "Creating translated EPUB file..." message
 
     with zipfile.ZipFile(output_filepath, 'w', zipfile.ZIP_DEFLATED) as epub_zip:
         # Add mimetype first (uncompressed)

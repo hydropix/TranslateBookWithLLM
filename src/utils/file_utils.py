@@ -9,7 +9,7 @@ import zipfile
 from pathlib import Path
 from typing import Optional, Callable, Tuple
 
-from src.core.text_processor import split_text_into_chunks_with_context, split_text_into_chunks
+from src.core.text_processor import split_text_into_chunks
 from src.core.translator import translate_chunks, refine_chunks
 from src.core.subtitle_translator import translate_subtitles, translate_subtitles_in_blocks
 from src.core.epub import translate_epub_file
@@ -70,7 +70,7 @@ async def translate_text_file_with_callbacks(input_filepath, output_filepath,
                                              context_window=2048, auto_adjust_context=True, min_chunk_size=5,
                                              checkpoint_manager=None, translation_id=None,
                                              resume_from_index=0,
-                                             use_token_chunking=None, max_tokens_per_chunk=None,
+                                             max_tokens_per_chunk=None,
                                              soft_limit_ratio=None, prompt_options=None):
     """
     Translate a text file with callback support
@@ -87,8 +87,7 @@ async def translate_text_file_with_callbacks(input_filepath, output_filepath,
         log_callback (callable): Logging callback
         stats_callback (callable): Statistics callback
         check_interruption_callback (callable): Interruption check callback
-        use_token_chunking (bool): If True, use token-based chunking instead of line-based
-        max_tokens_per_chunk (int): Maximum tokens per chunk (token mode)
+        max_tokens_per_chunk (int): Maximum tokens per chunk
         soft_limit_ratio (float): Soft limit ratio for token chunking (default 0.8)
         prompt_options (dict): Optional dict with prompt customization options
     """
@@ -114,13 +113,11 @@ async def translate_text_file_with_callbacks(input_filepath, output_filepath,
     if log_callback:
         log_callback("txt_split_start", f"Splitting text from '{source_language}'...")
 
-    # Use the new unified chunking function (token-based or line-based)
+    # Use token-based chunking
     structured_chunks = split_text_into_chunks(
         original_text,
-        use_token_chunking=use_token_chunking,
         max_tokens_per_chunk=max_tokens_per_chunk,
-        soft_limit_ratio=soft_limit_ratio,
-        chunk_size=chunk_target_lines_cli
+        soft_limit_ratio=soft_limit_ratio
     )
     total_chunks = len(structured_chunks)
 
@@ -155,14 +152,10 @@ async def translate_text_file_with_callbacks(input_filepath, output_filepath,
     if log_callback:
         log_callback("txt_translation_info_lang", f"Translating from {source_language} to {target_language}.")
         log_callback("txt_translation_info_chunks1", f"{total_chunks} main segments in memory.")
-        # Show appropriate info based on chunking mode
-        from src.config import USE_TOKEN_CHUNKING, MAX_TOKENS_PER_CHUNK
-        _use_tokens = use_token_chunking if use_token_chunking is not None else USE_TOKEN_CHUNKING
-        if _use_tokens:
-            _max_tokens = max_tokens_per_chunk if max_tokens_per_chunk is not None else MAX_TOKENS_PER_CHUNK
-            log_callback("txt_translation_info_chunks2", f"Target size per segment: ~{_max_tokens} tokens.")
-        else:
-            log_callback("txt_translation_info_chunks2", f"Target size per segment: ~{chunk_target_lines_cli} lines.")
+        # Show token-based chunking info
+        from src.config import MAX_TOKENS_PER_CHUNK
+        _max_tokens = max_tokens_per_chunk if max_tokens_per_chunk is not None else MAX_TOKENS_PER_CHUNK
+        log_callback("txt_translation_info_chunks2", f"Target size per segment: ~{_max_tokens} tokens.")
 
     # Check if refinement is enabled
     enable_refinement = prompt_options.get('refine', False) if prompt_options else False

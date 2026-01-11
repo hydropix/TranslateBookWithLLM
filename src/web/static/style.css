@@ -18,6 +18,11 @@
     /* Neumorphic shadows */
     --shadow-dark: #d8dbdf;
     --shadow-light: #ffffff;
+
+    /* Translation preview height (based on MAX_TOKENS_PER_CHUNK) */
+    /* Default: 300px for 450 tokens. Formula: (tokens / 450) * 300 */
+    /* Min: 120px, Max: 400px */
+    --preview-height: 300px;
 }
 
 /* ========================================
@@ -638,6 +643,13 @@ select.form-control {
     margin-top: 1rem;
 }
 
+/* Last Translation Preview - Dynamic height based on MAX_TOKENS_PER_CHUNK */
+#lastTranslationPreview {
+    height: var(--preview-height) !important;
+    min-height: var(--preview-height) !important;
+    max-height: var(--preview-height) !important;
+}
+
 /* Scrollbar visible uniquement pour log-container */
 .log-container::-webkit-scrollbar {
     width: 8px;
@@ -674,6 +686,23 @@ select.form-control {
     color: var(--text-muted-light);
     font-weight: 700;
     flex-shrink: 0;
+}
+
+/* Progress log entry (updated in-place) */
+.log-entry.log-progress {
+    opacity: 0.8;
+    font-style: italic;
+}
+
+/* Summary log entry (consolidated completion messages) */
+.log-entry.log-summary {
+    background: var(--success-light-bg);
+    border-left: 3px solid var(--success-light);
+    padding: 0.75rem;
+    border-radius: 6px;
+    display: block;
+    margin: 1rem 0;
+    line-height: 1.6;
 }
 
 .log-content {
