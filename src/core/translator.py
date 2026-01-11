@@ -13,7 +13,7 @@ from src.config import (
 from prompts.prompts import generate_translation_prompt, generate_subtitle_block_prompt, generate_refinement_prompt
 from prompts.examples import ensure_example_ready, has_example_for_pair, PLACEHOLDER_EXAMPLES
 from .llm_client import default_client, LLMClient, create_llm_client, LLMResponse
-from .llm_providers import ContextOverflowError, RepetitionLoopError
+from .llm import ContextOverflowError, RepetitionLoopError
 from .post_processor import clean_translated_text
 from .context_optimizer import (
     AdaptiveContextManager,

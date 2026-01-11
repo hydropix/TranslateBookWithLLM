@@ -463,7 +463,7 @@ async def test_with_actual_provider():
     print("TESTING ACTUAL PROVIDER DETECTION")
     print("=" * 70)
 
-    from src.core.llm_providers import OllamaProvider, ThinkingBehavior
+    from src.core.llm import OllamaProvider, ThinkingBehavior
 
     # Test a few key models
     test_models = ["qwen3:14b", "qwen3:30b", "gemma3:12b"]

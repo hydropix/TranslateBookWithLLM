@@ -4,6 +4,10 @@ Command-line interface for text translation
 import os
 import argparse
 import asyncio
+import logging
+
+# Reduce verbosity of httpx (avoid showing 400 errors during model detection)
+logging.getLogger('httpx').setLevel(logging.WARNING)
 
 from src.config import DEFAULT_MODEL, MAIN_LINES_PER_CHUNK, API_ENDPOINT, LLM_PROVIDER, GEMINI_API_KEY, OPENAI_API_KEY, OPENROUTER_API_KEY, DEFAULT_SOURCE_LANGUAGE, DEFAULT_TARGET_LANGUAGE
 from src.utils.file_utils import translate_file, get_unique_output_path, generate_tts_for_translation

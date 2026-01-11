@@ -21,6 +21,9 @@ logger = logging.getLogger(__name__)
 # Reduce verbosity of werkzeug (Flask HTTP server logs)
 logging.getLogger('werkzeug').setLevel(logging.WARNING)
 
+# Reduce verbosity of httpx (avoid showing 400 errors during model detection)
+logging.getLogger('httpx').setLevel(logging.WARNING)
+
 # Fix Windows console encoding for emojis
 if sys.platform == 'win32':
     import codecs

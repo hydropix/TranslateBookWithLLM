@@ -12,7 +12,7 @@ from typing import Optional, Callable, Union
 
 from benchmark.config import BenchmarkConfig
 from benchmark.models import ReferenceText, TranslationResult
-from src.core.llm_providers import OllamaProvider, OpenRouterProvider, LLMProvider
+from src.core.llm import OllamaProvider, OpenRouterProvider, LLMProvider
 from src.config import TRANSLATE_TAG_IN, TRANSLATE_TAG_OUT
 
 

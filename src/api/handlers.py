@@ -12,7 +12,7 @@ from pathlib import Path
 from src.core.epub import translate_epub_file
 from src.utils.unified_logger import setup_web_logger, LogType
 from src.utils.file_utils import get_unique_output_path, generate_tts_for_translation
-from src.core.llm_providers import OpenRouterProvider
+from src.core.llm import OpenRouterProvider
 from src.tts.tts_config import TTSConfig
 from .websocket import emit_update
 

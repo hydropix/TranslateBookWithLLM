@@ -179,7 +179,7 @@ def create_config_blueprint():
             })
 
         try:
-            from src.core.llm_providers import OpenRouterProvider
+            from src.core.llm import OpenRouterProvider
 
             openrouter_provider = OpenRouterProvider(api_key=api_key)
             models = asyncio.run(openrouter_provider.get_available_models(text_only=True))
@@ -388,7 +388,7 @@ def create_config_blueprint():
             })
 
         try:
-            from src.core.llm_providers import GeminiProvider
+            from src.core.llm import GeminiProvider
 
             gemini_provider = GeminiProvider(api_key=api_key)
             models = asyncio.run(gemini_provider.get_available_models())
@@ -513,7 +513,7 @@ def create_config_blueprint():
             return jsonify({"warning": None, "behavior": None})
 
         try:
-            from src.core.llm_providers import (
+            from src.core.llm import (
                 get_model_warning_message,
                 get_thinking_behavior_sync,
                 ThinkingBehavior

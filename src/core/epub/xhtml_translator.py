@@ -364,7 +364,7 @@ async def attempt_placeholder_correction(
 
         except Exception as e:
             # Try to increase context if we have a manager and hit overflow/repetition errors
-            from ..llm_providers import ContextOverflowError, RepetitionLoopError
+            from ..llm import ContextOverflowError, RepetitionLoopError
 
             if context_manager and isinstance(e, (ContextOverflowError, RepetitionLoopError)):
                 if context_manager.should_retry_with_larger_context(True, 0):

@@ -1299,35 +1299,85 @@ input[type="range"]::-moz-range-thumb {
    File List Container
    ======================================== */
 
+/* Styles moved to EPUB Thumbnail Styles section below */
+
+/* ========================================
+   EPUB Thumbnail Styles
+   ======================================== */
+
 #fileListContainer {
-    margin-top: 1rem;
-    max-height: 200px;
-    overflow-y: auto;
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.file-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px;
+    margin-bottom: 8px;
     background: var(--background-light);
-    box-shadow: inset 3px 3px 6px var(--shadow-dark), inset -3px -3px 6px var(--shadow-light);
     border: 1px solid var(--border-light);
-    padding: 1rem;
-    border-radius: 1rem;
+    border-radius: 0.75rem;
+    transition: all 0.2s ease;
 }
 
-#fileListContainer li {
-    list-style-type: none;
-    padding: 0.75rem;
-    border-bottom: 1px solid var(--border-light);
+.file-item:hover {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    transform: translateY(-1px);
+}
+
+.file-icon {
+    flex-shrink: 0;
+    width: 48px;
+    height: 64px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    border-radius: 4px;
+    background: rgba(54, 118, 216, 0.05);
+    font-size: 2rem;
+}
+
+.epub-thumbnail {
+    width: 48px;
+    height: 64px;
+    object-fit: cover;
+    border-radius: 4px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
+}
+
+.generic-epub-icon {
+    width: 48px;
+    height: 64px;
+}
+
+.file-info {
+    flex: 1;
+    font-size: 0.95rem;
     color: var(--text-dark);
-    font-size: 0.875rem;
-}
-
-#fileListContainer li:last-child {
-    border-bottom: none;
 }
 
 .file-status {
+    font-size: 0.875rem;
+    color: var(--text-muted-light);
     font-style: italic;
-    color: var(--primary-light);
-    font-size: 0.75rem;
-    margin-left: 0.75rem;
-    font-weight: 600;
+}
+
+/* Dark mode support */
+html.dark .file-item {
+    background: rgba(26, 31, 46, 0.5);
+    border-color: rgba(255, 255, 255, 0.1);
+}
+
+html.dark .file-icon {
+    background: rgba(90, 142, 232, 0.1);
+}
+
+html.dark .file-info {
+    color: var(--text-light);
 }
 
 /* ========================================

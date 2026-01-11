@@ -13,6 +13,7 @@ edge-tts>=6.1.9
 pyyaml>=6.0
 jinja2>=3.0
 langdetect>=1.0.9
+Pillow>=10.0.0
 
 # Chatterbox TTS (GPU-accelerated local TTS) - OPTIONAL
 # These dependencies have strict numpy version requirements that may conflict.

@@ -193,7 +193,8 @@ export const FileUpload = {
                 result: null,
                 content: null,
                 detectedLanguage: uploadResult.detected_language || null,
-                languageConfidence: uploadResult.language_confidence || null
+                languageConfidence: uploadResult.language_confidence || null,
+                thumbnail: uploadResult.thumbnail || null  // EPUB cover thumbnail
             };
 
             // Add to state
@@ -270,16 +271,43 @@ export const FileUpload = {
             filesToProcess.forEach(file => {
                 const li = document.createElement('li');
                 li.setAttribute('data-filename', file.name);
+                li.className = 'file-item';
 
-                const fileIcon = file.fileType === 'epub' ? '📚' :
-                                (file.fileType === 'srt' ? '🎬' : '📄');
+                // Icon/thumbnail container
+                const iconContainer = document.createElement('span');
+                iconContainer.className = 'file-icon';
 
-                li.textContent = `${fileIcon} ${file.name} (${(file.size / 1024).toFixed(2)} KB) `;
+                if (file.fileType === 'epub' && file.thumbnail) {
+                    // Show thumbnail
+                    const img = document.createElement('img');
+                    img.src = `/api/thumbnails/${encodeURIComponent(file.thumbnail)}`;
+                    img.alt = 'Cover';
+                    img.className = 'epub-thumbnail';
+
+                    // Fallback to generic SVG on error
+                    img.onerror = () => {
+                        iconContainer.innerHTML = this._createGenericEPUBIcon();
+                    };
+
+                    iconContainer.appendChild(img);
+                } else {
+                    // Generic icons
+                    iconContainer.innerHTML = this._getFileIcon(file.fileType);
+                }
+
+                li.appendChild(iconContainer);
+
+                // File info
+                const infoSpan = document.createElement('span');
+                infoSpan.className = 'file-info';
+                infoSpan.textContent = `${file.name} (${(file.size / 1024).toFixed(2)} KB) `;
 
                 const statusSpan = document.createElement('span');
                 statusSpan.className = 'file-status';
                 statusSpan.textContent = `(${file.status})`;
-                li.appendChild(statusSpan);
+
+                infoSpan.appendChild(statusSpan);
+                li.appendChild(infoSpan);
 
                 fileListContainer.appendChild(li);
             });
@@ -332,5 +360,42 @@ export const FileUpload = {
     clearAll() {
         StateManager.setState('files.toProcess', []);
         this.notifyFileListChanged();
+    },
+
+    /**
+     * Get file icon based on file type
+     * @param {string} fileType - File type ('txt', 'epub', 'srt')
+     * @returns {string} HTML string for icon
+     */
+    _getFileIcon(fileType) {
+        if (fileType === 'epub') {
+            return this._createGenericEPUBIcon();
+        } else if (fileType === 'srt') {
+            return '🎬';
+        }
+        return '📄';
+    },
+
+    /**
+     * Create generic EPUB icon as SVG
+     * @returns {string} SVG HTML string
+     */
+    _createGenericEPUBIcon() {
+        return `
+            <svg class="generic-epub-icon" viewBox="0 0 48 64" xmlns="http://www.w3.org/2000/svg">
+                <!-- Book cover -->
+                <rect x="8" y="4" width="32" height="56" rx="2"
+                      fill="#5a8ee8" stroke="#3676d8" stroke-width="2"/>
+                <!-- Book spine line -->
+                <path d="M8 12 L40 12" stroke="#3676d8" stroke-width="1.5"/>
+                <!-- Text lines -->
+                <path d="M12 20 L36 20 M12 28 L36 28 M12 36 L30 36"
+                      stroke="white" stroke-width="2" stroke-linecap="round" opacity="0.8"/>
+                <!-- EPUB badge -->
+                <circle cx="24" cy="48" r="4" fill="white" opacity="0.9"/>
+                <text x="24" y="51" text-anchor="middle" font-size="5"
+                      fill="#3676d8" font-weight="bold">E</text>
+            </svg>
+        `;
     }
 };
