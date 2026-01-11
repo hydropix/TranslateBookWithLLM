@@ -220,8 +220,8 @@ def create_config_blueprint():
     def _get_openai_models(provided_api_key=None, api_endpoint=None):
         """Get available models from OpenAI-compatible API
 
-        For local servers (llama.cpp, LM Studio, vLLM, etc.), fetches models dynamically.
-        For official OpenAI API, returns a static list of common models.
+        Always tries to fetch models dynamically from any OpenAI-compatible endpoint.
+        Falls back to static list if dynamic fetch fails.
         """
         api_key = _resolve_api_key(provided_api_key, 'OPENAI_API_KEY', OPENAI_API_KEY)
 
@@ -232,10 +232,7 @@ def create_config_blueprint():
         else:
             base_url = 'https://api.openai.com/v1'
 
-        # Check if this is a local server (llama.cpp, LM Studio, vLLM, etc.)
-        is_local = 'localhost' in base_url or '127.0.0.1' in base_url
-
-        # Static list of OpenAI models (fallback for official API)
+        # Static list of OpenAI models (fallback)
         openai_static_models = [
             {'id': 'gpt-4o', 'name': 'GPT-4o (Latest)'},
             {'id': 'gpt-4o-mini', 'name': 'GPT-4o Mini'},
@@ -251,7 +248,7 @@ def create_config_blueprint():
                 headers['Authorization'] = f'Bearer {api_key}'
 
             if DEBUG_MODE:
-                logger.debug(f"📥 Fetching models from OpenAI-compatible server: {models_url}")
+                logger.debug(f"📥 Fetching models from OpenAI-compatible endpoint: {models_url}")
 
             response = requests.get(models_url, headers=headers, timeout=10)
 
@@ -285,91 +282,32 @@ def create_config_blueprint():
                             "model_names": model_ids,
                             "default": default_model,
                             "status": "openai_connected",
-                            "count": len(models),
-                            "is_local": is_local
+                            "count": len(models)
                         })
 
             # If we get here, either request failed or no models returned
-            # For local servers, return error; for OpenAI, return static list
-            if is_local:
-                error_msg = f"Could not connect to local server at {base_url}. Make sure your OpenAI-compatible server (llama.cpp, LM Studio, vLLM, etc.) is running."
-                return jsonify({
-                    "models": [],
-                    "model_names": [],
-                    "default": "",
-                    "status": "openai_error",
-                    "count": 0,
-                    "error": error_msg,
-                    "is_local": True
-                })
-            else:
-                # Return static OpenAI models
-                model_ids = [m['id'] for m in openai_static_models]
-                return jsonify({
-                    "models": openai_static_models,
-                    "model_names": model_ids,
-                    "default": "gpt-4o",
-                    "status": "openai_static",
-                    "count": len(openai_static_models),
-                    "is_local": False
-                })
-
-        except requests.exceptions.ConnectionError:
-            if is_local:
-                error_msg = f"Connection refused to {base_url}. Is your OpenAI-compatible server running?"
-            else:
-                error_msg = f"Connection error to OpenAI API"
-
+            # Fall back to static list
             if DEBUG_MODE:
-                logger.debug(f"❌ OpenAI-compatible server connection error: {error_msg}")
+                logger.debug(f"⚠️ No models returned from {base_url}, using fallback list")
 
-            # For official OpenAI, return static list even on error
-            if not is_local:
-                model_ids = [m['id'] for m in openai_static_models]
-                return jsonify({
-                    "models": openai_static_models,
-                    "model_names": model_ids,
-                    "default": "gpt-4o",
-                    "status": "openai_static",
-                    "count": len(openai_static_models),
-                    "is_local": False
-                })
-
-            return jsonify({
-                "models": [],
-                "model_names": [],
-                "default": "",
-                "status": "openai_error",
-                "count": 0,
-                "error": error_msg,
-                "is_local": True
-            })
+        except requests.exceptions.ConnectionError as e:
+            error_msg = f"Connection error to {base_url}"
+            if DEBUG_MODE:
+                logger.debug(f"❌ OpenAI-compatible endpoint connection error: {error_msg}")
 
         except Exception as e:
             if DEBUG_MODE:
-                logger.debug(f"❌ OpenAI-compatible server error: {e}")
+                logger.debug(f"❌ OpenAI-compatible endpoint error: {e}")
 
-            # For official OpenAI, return static list even on error
-            if not is_local:
-                model_ids = [m['id'] for m in openai_static_models]
-                return jsonify({
-                    "models": openai_static_models,
-                    "model_names": model_ids,
-                    "default": "gpt-4o",
-                    "status": "openai_static",
-                    "count": len(openai_static_models),
-                    "is_local": False
-                })
-
-            return jsonify({
-                "models": [],
-                "model_names": [],
-                "default": "",
-                "status": "openai_error",
-                "count": 0,
-                "error": str(e),
-                "is_local": True
-            })
+        # Fallback: return static OpenAI models
+        model_ids = [m['id'] for m in openai_static_models]
+        return jsonify({
+            "models": openai_static_models,
+            "model_names": model_ids,
+            "default": "gpt-4o",
+            "status": "openai_static",
+            "count": len(openai_static_models)
+        })
 
     def _get_gemini_models(provided_api_key=None):
         """Get available models from Gemini API"""

@@ -427,59 +427,53 @@ export const ProviderManager = {
 
     /**
      * Load OpenAI-compatible models dynamically
-     * For local servers (llama.cpp, LM Studio, vLLM, etc.): fetches models from the local server
-     * For OpenAI: uses static list (dynamic fetch requires valid API key)
+     * Always tries to fetch models dynamically from any OpenAI-compatible endpoint.
+     * Falls back to static list if dynamic fetch fails.
      */
     async loadOpenAIModels() {
         const modelSelect = DomHelpers.getElement('model');
         if (!modelSelect) return;
 
-        // Get API endpoint to determine if it's a local server or OpenAI cloud
         const apiEndpoint = DomHelpers.getValue('openaiEndpoint') || 'https://api.openai.com/v1/chat/completions';
-        const isLocal = apiEndpoint.includes('localhost') || apiEndpoint.includes('127.0.0.1');
 
+        modelSelect.innerHTML = '<option value="">Loading models...</option>';
         StatusManager.setChecking();
 
-        if (isLocal) {
-            // Local server (llama.cpp, LM Studio, vLLM, etc.): try to fetch models dynamically
-            modelSelect.innerHTML = '<option value="">Loading models from local server...</option>';
+        try {
+            const apiKey = ApiKeyUtils.getValue('openaiApiKey');
+            const data = await ApiClient.getModels('openai', { apiKey, apiEndpoint });
 
-            try {
-                const apiKey = ApiKeyUtils.getValue('openaiApiKey');
-                const data = await ApiClient.getModels('openai', { apiKey, apiEndpoint });
+            if (data.models && data.models.length > 0) {
+                MessageLogger.showMessage('', '');
 
-                if (data.models && data.models.length > 0) {
-                    MessageLogger.showMessage('', '');
+                // Format models for the dropdown
+                const formattedModels = data.models.map(m => ({
+                    value: m.id,
+                    label: m.name || m.id
+                }));
 
-                    // Format models for the dropdown
-                    const formattedModels = data.models.map(m => ({
-                        value: m.id,
-                        label: m.name || m.id
-                    }));
+                const envModelApplied = populateModelSelect(formattedModels, data.default, 'openai');
+                MessageLogger.addLog(`✅ ${data.count} model(s) loaded from OpenAI-compatible endpoint`);
 
-                    const envModelApplied = populateModelSelect(formattedModels, data.default, 'openai');
-                    MessageLogger.addLog(`✅ ${data.count} model(s) loaded from local server`);
-
-                    if (envModelApplied && data.default) {
-                        SettingsManager.markEnvModelApplied();
-                    }
-
-                    SettingsManager.applyPendingModelSelection();
-                    ModelDetector.checkAndShowRecommendation();
-
-                    StateManager.setState('models.availableModels', formattedModels.map(m => m.value));
-                    StatusManager.setConnected('openai', data.count);
-                    return;
-                } else {
-                    // Local server not running or no models
-                    const errorMsg = data.error || 'Local server not accessible';
-                    MessageLogger.showMessage(`⚠️ ${errorMsg}`, 'warning');
-                    MessageLogger.addLog(`⚠️ ${errorMsg}. Using fallback OpenAI models.`);
+                if (envModelApplied && data.default) {
+                    SettingsManager.markEnvModelApplied();
                 }
-            } catch (error) {
-                MessageLogger.showMessage(`⚠️ Could not connect to local server. Using fallback models.`, 'warning');
-                MessageLogger.addLog(`⚠️ Local server connection error: ${error.message}`);
+
+                SettingsManager.applyPendingModelSelection();
+                ModelDetector.checkAndShowRecommendation();
+
+                StateManager.setState('models.availableModels', formattedModels.map(m => m.value));
+                StatusManager.setConnected('openai', data.count);
+                return;
+            } else {
+                // No models returned from endpoint
+                const errorMsg = data.error || 'No models available from endpoint';
+                MessageLogger.showMessage(`⚠️ ${errorMsg}. Using fallback OpenAI models.`, 'warning');
+                MessageLogger.addLog(`⚠️ ${errorMsg}. Using fallback list.`);
             }
+        } catch (error) {
+            MessageLogger.showMessage(`⚠️ Could not connect to endpoint. Using fallback OpenAI models.`, 'warning');
+            MessageLogger.addLog(`⚠️ Connection error: ${error.message}. Using fallback list.`);
         }
 
         // Fallback: use static OpenAI models list
