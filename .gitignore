@@ -18,3 +18,4 @@ build/
 tests/.placeholder_tests/
 .telemetry/
 /plan/
+/experiments
