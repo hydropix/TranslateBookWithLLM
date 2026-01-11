@@ -140,9 +140,6 @@ See [DOCKER.md](DOCKER.md) for more options.
 |---------|----------|
 | Ollama won't connect | Check Ollama is running, test `curl http://localhost:11434/api/tags` |
 | Model not found | Run `ollama list`, then `ollama pull model-name` |
-| Timeouts | Increase `REQUEST_TIMEOUT` or reduce `MAIN_LINES_PER_CHUNK` |
-| EPUB won't open | Try a larger model |
-| Placeholders in output (⟦TAG0⟧) | Try a larger model |
 
 See [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) for more solutions.
 
