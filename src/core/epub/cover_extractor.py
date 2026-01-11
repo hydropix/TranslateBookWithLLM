@@ -177,7 +177,7 @@ class EPUBCoverExtractor:
             'Cover.jpg', 'Cover.jpeg', 'Cover.png', 'Cover.gif',
         ]
 
-        common_dirs = ['', 'images/', 'Images/', 'OEBPS/', 'OEBPS/Images/', 'OPS/images/']
+        common_dirs = ['', 'images/', 'Images/', 'OEBPS/', 'OEBPS/images/', 'OEBPS/Images/', 'OPS/', 'OPS/images/', 'OPS/Images/']
 
         for directory in common_dirs:
             for name in common_names:
