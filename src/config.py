@@ -199,9 +199,10 @@ DEFAULT_TARGET_LANGUAGE = os.getenv('DEFAULT_TARGET_LANGUAGE', 'Chinese')
 # These options control which optional sections are included in the system prompt.
 # Each option can be enabled/disabled via the web interface or CLI.
 
-# Technical Content Preservation (for technical documents)
-# When enabled, instructs the LLM to NOT translate code, paths, URLs, etc.
-PROMPT_PRESERVE_TECHNICAL_CONTENT = os.getenv('PROMPT_PRESERVE_TECHNICAL_CONTENT', 'false').lower() == 'true'
+# Technical Content Preservation (always enabled)
+# Automatically detects and preserves code, paths, URLs, formulas, etc.
+# This is always active as it has no negative impact on literary texts.
+PROMPT_PRESERVE_TECHNICAL_CONTENT = True
 
 # Server configuration
 HOST = os.getenv('HOST', '127.0.0.1')

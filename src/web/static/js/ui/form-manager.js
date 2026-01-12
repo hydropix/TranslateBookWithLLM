@@ -86,11 +86,10 @@ export const FormManager = {
         }
 
         // Prompt options checkboxes - keep section open if any is checked
-        const preserveTechnical = DomHelpers.getElement('preserveTechnicalContent');
         const textCleanup = DomHelpers.getElement('textCleanup');
         const refineTranslation = DomHelpers.getElement('refineTranslation');
 
-        [preserveTechnical, textCleanup, refineTranslation].forEach(checkbox => {
+        [textCleanup, refineTranslation].forEach(checkbox => {
             if (checkbox) {
                 checkbox.addEventListener('change', () => {
                     this.handlePromptOptionChange();
@@ -164,11 +163,10 @@ export const FormManager = {
      * Handle prompt option checkbox change - keep section open if any option is checked
      */
     handlePromptOptionChange() {
-        const preserveTechnical = DomHelpers.getElement('preserveTechnicalContent');
         const textCleanup = DomHelpers.getElement('textCleanup');
         const refineTranslation = DomHelpers.getElement('refineTranslation');
 
-        const anyChecked = (preserveTechnical?.checked || textCleanup?.checked || refineTranslation?.checked);
+        const anyChecked = (textCleanup?.checked || refineTranslation?.checked);
 
         if (anyChecked) {
             const section = DomHelpers.getElement('promptOptionsSection');
@@ -369,8 +367,9 @@ export const FormManager = {
             openai_api_key: openaiApiKey,
             openrouter_api_key: openrouterApiKey,
             // Prompt options (optional system prompt instructions)
+            // Technical content protection is always enabled
             prompt_options: {
-                preserve_technical_content: DomHelpers.getElement('preserveTechnicalContent')?.checked || false,
+                preserve_technical_content: true,
                 text_cleanup: DomHelpers.getElement('textCleanup')?.checked || false,
                 refine: DomHelpers.getElement('refineTranslation')?.checked || false
             },

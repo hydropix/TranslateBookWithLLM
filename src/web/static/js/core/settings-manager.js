@@ -29,7 +29,6 @@ const LOCAL_SETTINGS = [
     'lastApiEndpoint',
     'lastOpenaiEndpoint',
     'ttsEnabled',
-    'preserveTechnicalContent',
     'textCleanup',
     'refineTranslation'
 ];
@@ -132,12 +131,6 @@ export const SettingsManager = {
         }
 
         // Apply Prompt Options settings
-        if (prefs.preserveTechnicalContent !== undefined) {
-            const preserveCheckbox = DomHelpers.getElement('preserveTechnicalContent');
-            if (preserveCheckbox) {
-                preserveCheckbox.checked = prefs.preserveTechnicalContent;
-            }
-        }
         if (prefs.textCleanup !== undefined) {
             const cleanupCheckbox = DomHelpers.getElement('textCleanup');
             if (cleanupCheckbox) {
@@ -152,7 +145,7 @@ export const SettingsManager = {
         }
 
         // Keep Prompt Options section open if any option is checked
-        const hasAnyPromptOption = prefs.preserveTechnicalContent || prefs.textCleanup || prefs.refineTranslation;
+        const hasAnyPromptOption = prefs.textCleanup || prefs.refineTranslation;
         if (hasAnyPromptOption) {
             const promptOptionsSection = DomHelpers.getElement('promptOptionsSection');
             const promptOptionsIcon = DomHelpers.getElement('promptOptionsIcon');
@@ -204,7 +197,6 @@ export const SettingsManager = {
      */
     saveCurrentState() {
         const ttsEnabledCheckbox = DomHelpers.getElement('ttsEnabled');
-        const preserveTechnicalCheckbox = DomHelpers.getElement('preserveTechnicalContent');
         const textCleanupCheckbox = DomHelpers.getElement('textCleanup');
         const refineTranslationCheckbox = DomHelpers.getElement('refineTranslation');
 
@@ -216,7 +208,6 @@ export const SettingsManager = {
             lastApiEndpoint: DomHelpers.getValue('apiEndpoint'),
             lastOpenaiEndpoint: DomHelpers.getValue('openaiEndpoint'),
             ttsEnabled: ttsEnabledCheckbox ? ttsEnabledCheckbox.checked : false,
-            preserveTechnicalContent: preserveTechnicalCheckbox ? preserveTechnicalCheckbox.checked : false,
             textCleanup: textCleanupCheckbox ? textCleanupCheckbox.checked : false,
             refineTranslation: refineTranslationCheckbox ? refineTranslationCheckbox.checked : false
         };

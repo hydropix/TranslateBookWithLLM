@@ -291,18 +291,9 @@
                         Optional instructions to include in the translation prompt. Enable these for specific document types.
                     </p>
 
-                    <!-- Technical Content Preservation -->
-                    <div class="form-group" style="margin-bottom: 15px;">
-                        <label style="display: flex; align-items: flex-start; gap: 10px; cursor: pointer;">
-                            <input type="checkbox" id="preserveTechnicalContent">
-                            <div>
-                                <span style="font-weight: 600; color: var(--text-dark);">Preserve Technical Content (beta)</span>
-                                <p style="margin: 5px 0 0 0; font-size: 0.8125rem; color: var(--text-muted-light);">
-                                    For technical documents. Instructs the LLM to NOT translate: code snippets, command lines, file paths, URLs, and programming terms.
-                                </p>
-                            </div>
-                        </label>
-                    </div>
+                    <p style="margin: 0 0 15px 0; font-size: 0.875rem; padding: 10px; background: var(--bg-secondary); border-radius: 8px; color: var(--text-muted-light);">
+                        ℹ️ <strong>Note:</strong> Technical content protection (code, formulas, measurements) is always active and will be automatically detected.
+                    </p>
 
                     <!-- Text Cleanup (OCR Correction) -->
                     <div class="form-group" style="margin-bottom: 15px;">

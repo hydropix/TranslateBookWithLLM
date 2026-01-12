@@ -43,8 +43,9 @@ function getTranslationConfig(file) {
     const provider = DomHelpers.getValue('llmProvider');
 
     // Build prompt options object
+    // Technical content protection is always enabled
     const promptOptions = {
-        preserve_technical_content: DomHelpers.getElement('preserveTechnicalContent')?.checked || false,
+        preserve_technical_content: true,
         text_cleanup: DomHelpers.getElement('textCleanup')?.checked || false,
         refine: DomHelpers.getElement('refineTranslation')?.checked || false
     };

@@ -593,7 +593,8 @@ def _setup_translation(
 def _preserve_tags(
     body_html: str,
     tag_preserver: TagPreserver,
-    log_callback: Optional[Callable] = None
+    log_callback: Optional[Callable] = None,
+    protect_technical: bool = False
 ) -> Tuple[str, Dict[str, str], Tuple[str, str]]:
     """Replace HTML tags with placeholders.
 
@@ -601,18 +602,27 @@ def _preserve_tags(
         body_html: HTML content to process
         tag_preserver: TagPreserver instance
         log_callback: Optional logging callback
+        protect_technical: If True, protect technical content (code, formulas, etc.)
 
     Returns:
         Tuple of (text_with_placeholders, global_tag_map, placeholder_format)
     """
-    text_with_placeholders, global_tag_map = tag_preserver.preserve_tags(body_html)
+    # Set protection mode
+    tag_preserver.protect_technical = protect_technical
+
+    # Use the enhanced method if technical protection is enabled
+    if protect_technical:
+        text_with_placeholders, global_tag_map = tag_preserver.preserve_tags_and_technical_content(body_html)
+    else:
+        text_with_placeholders, global_tag_map = tag_preserver.preserve_tags(body_html)
 
     # Extract placeholder format for prompt generation
     placeholder_format = (tag_preserver.placeholder_format.prefix, tag_preserver.placeholder_format.suffix)
 
     if log_callback:
         format_info = f" using format {placeholder_format[0]}N{placeholder_format[1]}"
-        log_callback("tags_preserved", f"Preserved {len(global_tag_map)} tag groups{format_info}")
+        protection_info = " (with technical content protection)" if protect_technical else ""
+        log_callback("tags_preserved", f"Preserved {len(global_tag_map)} tag groups{format_info}{protection_info}")
 
     return text_with_placeholders, global_tag_map, placeholder_format
 
@@ -1024,10 +1034,18 @@ async def translate_xhtml_simplified(
         return False, TranslationStats()
 
     # 2. Tag Preservation
+    # Technical protection is now always enabled
+    protect_technical = True
+
+    if log_callback:
+        log_callback("technical_protection_auto",
+                     "🔒 Technical content protection active (code, formulas, measurements will be auto-detected and preserved)")
+
     text_with_placeholders, global_tag_map, placeholder_format = _preserve_tags(
         body_html,
         tag_preserver,
-        log_callback
+        log_callback,
+        protect_technical
     )
 
     # 3. Chunking

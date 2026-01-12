@@ -103,7 +103,8 @@ def _build_optional_prompt_sections(prompt_options: dict) -> str:
 
     Args:
         prompt_options: Dictionary containing prompt customization flags:
-            - preserve_technical_content: Include technical content preservation instructions
+            - preserve_technical_content: DEPRECATED - Technical content is now protected
+              via placeholder system (no prompt section needed)
             - text_cleanup: Include OCR/typographic defect correction instructions
 
     Returns:
@@ -114,9 +115,12 @@ def _build_optional_prompt_sections(prompt_options: dict) -> str:
 
     sections = []
 
-    # Technical content preservation (for technical documents)
-    if prompt_options.get('preserve_technical_content', False):
-        sections.append(TECHNICAL_CONTENT_SECTION)
+    # Technical content preservation is now handled by the placeholder system
+    # (TagPreserver with protect_technical=True), so no prompt instructions are needed.
+    # The LLM never sees technical content - it's hidden in placeholders like [id0], [id1].
+    # Leaving this commented for reference:
+    # if prompt_options.get('preserve_technical_content', False):
+    #     sections.append(TECHNICAL_CONTENT_SECTION)
 
     # Text cleanup for OCR or poorly formatted sources
     if prompt_options.get('text_cleanup', False):
