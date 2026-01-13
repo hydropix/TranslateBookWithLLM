@@ -1035,7 +1035,7 @@ async def translate_xhtml_simplified(
 
     # 2. Tag Preservation
     # Technical protection is now always enabled
-    protect_technical = True
+    protect_technical = False
 
     if log_callback:
         log_callback("technical_protection_auto",
