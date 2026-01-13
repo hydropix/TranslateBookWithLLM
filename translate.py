@@ -9,7 +9,7 @@ import logging
 # Reduce verbosity of httpx (avoid showing 400 errors during model detection)
 logging.getLogger('httpx').setLevel(logging.WARNING)
 
-from src.config import DEFAULT_MODEL, MAIN_LINES_PER_CHUNK, API_ENDPOINT, LLM_PROVIDER, GEMINI_API_KEY, OPENAI_API_KEY, OPENROUTER_API_KEY, DEFAULT_SOURCE_LANGUAGE, DEFAULT_TARGET_LANGUAGE
+from src.config import DEFAULT_MODEL, API_ENDPOINT, LLM_PROVIDER, GEMINI_API_KEY, OPENAI_API_KEY, OPENROUTER_API_KEY, DEFAULT_SOURCE_LANGUAGE, DEFAULT_TARGET_LANGUAGE
 from src.utils.file_utils import translate_file, get_unique_output_path, generate_tts_for_translation
 from src.utils.unified_logger import setup_cli_logger, LogType
 from src.tts.tts_config import TTSConfig, TTS_ENABLED, TTS_VOICE, TTS_RATE, TTS_BITRATE, TTS_OUTPUT_FORMAT
@@ -22,7 +22,6 @@ if __name__ == "__main__":
     parser.add_argument("-sl", "--source_lang", default=DEFAULT_SOURCE_LANGUAGE, help=f"Source language (default: {DEFAULT_SOURCE_LANGUAGE}).")
     parser.add_argument("-tl", "--target_lang", default=DEFAULT_TARGET_LANGUAGE, help=f"Target language (default: {DEFAULT_TARGET_LANGUAGE}).")
     parser.add_argument("-m", "--model", default=DEFAULT_MODEL, help=f"LLM model (default: {DEFAULT_MODEL}).")
-    parser.add_argument("-cs", "--chunksize", type=int, default=MAIN_LINES_PER_CHUNK, help=f"Target lines per chunk (default: {MAIN_LINES_PER_CHUNK}).")
     parser.add_argument("--api_endpoint", default=API_ENDPOINT, help=f"API endpoint for Ollama or OpenAI-compatible servers (llama.cpp, LM Studio, vLLM, etc.) (default: {API_ENDPOINT}).")
     parser.add_argument("--provider", default=LLM_PROVIDER, choices=["ollama", "gemini", "openai", "openrouter"], help=f"LLM provider (default: {LLM_PROVIDER}). Use 'openai' for any OpenAI-compatible server.")
     parser.add_argument("--gemini_api_key", default=GEMINI_API_KEY, help="Google Gemini API key (required if using gemini provider).")
@@ -52,7 +51,8 @@ if __name__ == "__main__":
             output_ext = '.epub'
         elif args.input.lower().endswith('.srt'):
             output_ext = '.srt'
-        args.output = f"{base}_translated_{args.target_lang.lower()}{output_ext}"
+        # Use parentheses format: {originalName} ({target_lang}).{ext}
+        args.output = f"{base} ({args.target_lang}){output_ext}"
 
     # Ensure output path is unique (add number suffix if file exists)
     args.output = get_unique_output_path(args.output)
@@ -76,29 +76,6 @@ if __name__ == "__main__":
     if args.provider == "openrouter" and not args.openrouter_api_key:
         parser.error("--openrouter_api_key is required when using openrouter provider")
 
-    # PHASE 2: Validation of configuration at startup
-    if args.provider == "ollama":
-        from src.core.context_optimizer import validate_configuration
-        from src.config import OLLAMA_NUM_CTX, AUTO_ADJUST_CONTEXT
-
-        warnings = validate_configuration(
-            chunk_size=args.chunksize,
-            num_ctx=OLLAMA_NUM_CTX,
-            model_name=args.model
-        )
-
-        for warning in warnings:
-            logger.warning(warning)
-
-        # Optional: Ask for confirmation if configuration is suboptimal
-        if warnings and not AUTO_ADJUST_CONTEXT:
-            print("\n⚠️  Configuration warnings detected (see above)")
-            print("Consider enabling AUTO_ADJUST_CONTEXT=true in .env file")
-            response = input("Continue anyway? (y/n): ")
-            if response.lower() != 'y':
-                print("Aborted. Please adjust configuration and try again.")
-                exit(1)
-
     # Log translation start
     logger.info("Translation Started", LogType.TRANSLATION_START, {
         'source_lang': args.source_lang,
@@ -107,7 +84,6 @@ if __name__ == "__main__":
         'model': args.model,
         'input_file': args.input,
         'output_file': args.output,
-        'chunk_size': args.chunksize,
         'api_endpoint': args.api_endpoint,
         'llm_provider': args.provider
     })
@@ -130,7 +106,6 @@ if __name__ == "__main__":
             args.source_lang,
             args.target_lang,
             args.model,
-            chunk_target_size_cli=args.chunksize,
             cli_api_endpoint=args.api_endpoint,
             progress_callback=None,
             log_callback=log_callback,

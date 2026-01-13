@@ -7,7 +7,6 @@ import copy
 from flask import Blueprint, request, jsonify
 
 from src.config import (
-    MAIN_LINES_PER_CHUNK,
     REQUEST_TIMEOUT,
     OLLAMA_NUM_CTX
 )
@@ -64,15 +63,11 @@ def create_translation_blueprint(state_manager, start_translation_job):
         # Generate unique translation ID
         translation_id = f"trans_{int(time.time() * 1000)}"
 
-        # Debug: Log received prompt_options
-        print(f"[DEBUG] Received prompt_options: {data.get('prompt_options', {})}")
-
         # Build configuration
         config = {
             'source_language': data['source_language'],
             'target_language': data['target_language'],
             'model': data['model'],
-            'chunk_size': int(data.get('chunk_size', MAIN_LINES_PER_CHUNK)),
             'llm_api_endpoint': data['llm_api_endpoint'],
             'request_timeout': int(data.get('timeout', REQUEST_TIMEOUT)),
             'context_window': int(data.get('context_window', OLLAMA_NUM_CTX)),

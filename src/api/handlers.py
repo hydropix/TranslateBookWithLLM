@@ -176,23 +176,7 @@ async def perform_actual_translation(translation_id, config, state_manager, outp
                 input_file_path
             )
 
-        # PHASE 2: Validation and warnings at startup
-        if config.get('llm_provider', 'ollama') == 'ollama':
-            from src.core.context_optimizer import validate_configuration
-
-            warnings = validate_configuration(
-                chunk_size=config.get('chunk_size', 25),
-                num_ctx=config.get('context_window', 2048),
-                model_name=config['model']
-            )
-
-            # Send warnings to client via WebSocket
-            for warning in warnings:
-                emit_update(socketio, translation_id, {
-                    'type': 'warning',
-                    'message': warning
-                }, state_manager)
-                _log_message_callback("context_validation_warning", warning)
+        # PHASE 2: Configuration validation is now handled by AdaptiveContextManager during translation
 
         # Generate unique output filename to avoid overwriting
         tentative_output_path = os.path.join(output_dir, config['output_filename'])
@@ -229,7 +213,6 @@ async def perform_actual_translation(translation_id, config, state_manager, outp
                 config['source_language'],
                 config['target_language'],
                 config['model'],
-                config['chunk_size'],
                 config['llm_api_endpoint'],
                 progress_callback=_update_translation_progress_callback,
                 log_callback=_log_message_callback,
@@ -266,7 +249,6 @@ async def perform_actual_translation(translation_id, config, state_manager, outp
                 config['source_language'],
                 config['target_language'],
                 config['model'],
-                config['chunk_size'],
                 config['llm_api_endpoint'],
                 progress_callback=_update_translation_progress_callback,
                 log_callback=_log_message_callback,
@@ -303,7 +285,6 @@ async def perform_actual_translation(translation_id, config, state_manager, outp
                 config['source_language'],
                 config['target_language'],
                 config['model'],
-                config['chunk_size'],
                 config['llm_api_endpoint'],
                 progress_callback=_update_translation_progress_callback,
                 log_callback=_log_message_callback,

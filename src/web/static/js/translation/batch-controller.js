@@ -30,15 +30,10 @@ function earlyValidationFail(message) {
  * @returns {Object} Translation configuration
  */
 function getTranslationConfig(file) {
-    let sourceLanguageVal = DomHelpers.getValue('sourceLang');
-    if (sourceLanguageVal === 'Other') {
-        sourceLanguageVal = DomHelpers.getValue('customSourceLang').trim();
-    }
-
-    let targetLanguageVal = DomHelpers.getValue('targetLang');
-    if (targetLanguageVal === 'Other') {
-        targetLanguageVal = DomHelpers.getValue('customTargetLang').trim();
-    }
+    // Use languages stored in the file object (captured when added to queue)
+    // This ensures each file can have different source/target languages in batch
+    const sourceLanguageVal = file.sourceLanguage;
+    const targetLanguageVal = file.targetLanguage;
 
     const provider = DomHelpers.getValue('llmProvider');
 

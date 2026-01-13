@@ -14,7 +14,7 @@ from src.core.translator import translate_chunks, refine_chunks
 from src.core.subtitle_translator import translate_subtitles, translate_subtitles_in_blocks
 from src.core.epub import translate_epub_file
 from src.core.srt_processor import SRTProcessor
-from src.config import DEFAULT_MODEL, MAIN_LINES_PER_CHUNK, API_ENDPOINT, SRT_LINES_PER_BLOCK, SRT_MAX_CHARS_PER_BLOCK
+from src.config import DEFAULT_MODEL, API_ENDPOINT, SRT_LINES_PER_BLOCK, SRT_MAX_CHARS_PER_BLOCK
 
 
 def get_unique_output_path(output_path):
@@ -61,7 +61,7 @@ def get_unique_output_path(output_path):
 
 async def translate_text_file_with_callbacks(input_filepath, output_filepath,
                                              source_language="English", target_language="Chinese",
-                                             model_name=DEFAULT_MODEL, chunk_target_lines_cli=MAIN_LINES_PER_CHUNK,
+                                             model_name=DEFAULT_MODEL,
                                              cli_api_endpoint=API_ENDPOINT,
                                              progress_callback=None, log_callback=None, stats_callback=None,
                                              check_interruption_callback=None,
@@ -81,7 +81,6 @@ async def translate_text_file_with_callbacks(input_filepath, output_filepath,
         source_language (str): Source language
         target_language (str): Target language
         model_name (str): LLM model name
-        chunk_target_lines_cli (int): Target lines per chunk (legacy mode)
         cli_api_endpoint (str): API endpoint
         progress_callback (callable): Progress callback
         log_callback (callable): Logging callback
@@ -113,12 +112,47 @@ async def translate_text_file_with_callbacks(input_filepath, output_filepath,
     if log_callback:
         log_callback("txt_split_start", f"Splitting text from '{source_language}'...")
 
-    # Use token-based chunking
-    structured_chunks = split_text_into_chunks(
-        original_text,
-        max_tokens_per_chunk=max_tokens_per_chunk,
-        soft_limit_ratio=soft_limit_ratio
-    )
+    # Check if we're resuming and have saved chunks structure
+    is_resume = checkpoint_manager and translation_id and resume_from_index > 0
+
+    if is_resume:
+        # Load checkpoint data to get the original chunks structure
+        checkpoint_data = checkpoint_manager.load_checkpoint(translation_id)
+        if checkpoint_data and checkpoint_data['job'].get('config', {}).get('saved_chunks_structure'):
+            # Use the saved chunks structure from original translation
+            import json
+            structured_chunks = json.loads(checkpoint_data['job']['config']['saved_chunks_structure'])
+            if log_callback:
+                log_callback("txt_resume_chunks", f"✅ Resuming with original chunk structure ({len(structured_chunks)} chunks)")
+        else:
+            # Fallback: re-chunk (this was the old buggy behavior)
+            if log_callback:
+                log_callback("txt_resume_warning", "⚠️ Warning: No saved chunk structure found, re-chunking (may cause alignment issues)")
+            structured_chunks = split_text_into_chunks(
+                original_text,
+                max_tokens_per_chunk=max_tokens_per_chunk,
+                soft_limit_ratio=soft_limit_ratio
+            )
+    else:
+        # New translation: chunk normally
+        structured_chunks = split_text_into_chunks(
+            original_text,
+            max_tokens_per_chunk=max_tokens_per_chunk,
+            soft_limit_ratio=soft_limit_ratio
+        )
+
+    # Save the chunks structure for potential resume (for both new and resumed translations)
+    # This ensures the structure is always available for future resumes
+    if checkpoint_manager and translation_id and not is_resume:
+        import json
+        job = checkpoint_manager.get_job(translation_id)
+        if job:
+            config = job['config']
+            config['saved_chunks_structure'] = json.dumps(structured_chunks)
+            checkpoint_manager.update_job_config(translation_id, config)
+            if log_callback:
+                log_callback("txt_save_chunks_structure", f"💾 Saved chunk structure for resume capability")
+
     total_chunks = len(structured_chunks)
 
     if stats_callback and total_chunks > 0:
@@ -255,7 +289,7 @@ async def translate_text_file_with_callbacks(input_filepath, output_filepath,
 
 async def translate_srt_file_with_callbacks(input_filepath, output_filepath,
                                            source_language="English", target_language="Chinese",
-                                           model_name=DEFAULT_MODEL, chunk_target_lines_cli=MAIN_LINES_PER_CHUNK,
+                                           model_name=DEFAULT_MODEL,
                                            cli_api_endpoint=API_ENDPOINT,
                                            progress_callback=None, log_callback=None, stats_callback=None,
                                            check_interruption_callback=None,
@@ -272,7 +306,6 @@ async def translate_srt_file_with_callbacks(input_filepath, output_filepath,
         source_language (str): Source language
         target_language (str): Target language
         model_name (str): LLM model name
-        chunk_target_lines_cli (int): Not used for SRT (kept for consistency)
         cli_api_endpoint (str): API endpoint
         progress_callback (callable): Progress callback
         log_callback (callable): Logging callback
@@ -340,16 +373,50 @@ async def translate_srt_file_with_callbacks(input_filepath, output_filepath,
         })
     
     # Group subtitles into blocks for translation
-    if log_callback:
-        log_callback("srt_grouping", f"Grouping {len(subtitles)} subtitles into blocks...")
-    
-    # Use SRT-specific configuration for block sizes
-    lines_per_block = SRT_LINES_PER_BLOCK
-    subtitle_blocks = srt_processor.group_subtitles_for_translation(
-        subtitles, 
-        lines_per_block=lines_per_block,
-        max_chars_per_block=SRT_MAX_CHARS_PER_BLOCK
-    )
+    # Check if we're resuming and have saved blocks structure
+    is_resume = checkpoint_manager and translation_id and resume_from_block_index > 0
+
+    if is_resume:
+        # Load checkpoint data to get the original blocks structure
+        checkpoint_data = checkpoint_manager.load_checkpoint(translation_id)
+        if checkpoint_data and checkpoint_data['job'].get('config', {}).get('saved_subtitle_blocks'):
+            # Use the saved blocks structure from original translation
+            import json
+            subtitle_blocks = json.loads(checkpoint_data['job']['config']['saved_subtitle_blocks'])
+            if log_callback:
+                log_callback("srt_resume_blocks", f"✅ Resuming with original block structure ({len(subtitle_blocks)} blocks)")
+        else:
+            # Fallback: re-group (this was the old buggy behavior)
+            if log_callback:
+                log_callback("srt_resume_warning", "⚠️ Warning: No saved block structure found, re-grouping (may cause alignment issues)")
+                log_callback("srt_grouping", f"Grouping {len(subtitles)} subtitles into blocks...")
+            lines_per_block = SRT_LINES_PER_BLOCK
+            subtitle_blocks = srt_processor.group_subtitles_for_translation(
+                subtitles,
+                lines_per_block=lines_per_block,
+                max_chars_per_block=SRT_MAX_CHARS_PER_BLOCK
+            )
+    else:
+        # New translation: group normally
+        if log_callback:
+            log_callback("srt_grouping", f"Grouping {len(subtitles)} subtitles into blocks...")
+        lines_per_block = SRT_LINES_PER_BLOCK
+        subtitle_blocks = srt_processor.group_subtitles_for_translation(
+            subtitles,
+            lines_per_block=lines_per_block,
+            max_chars_per_block=SRT_MAX_CHARS_PER_BLOCK
+        )
+
+    # Save the blocks structure for potential resume (for new translations only)
+    if checkpoint_manager and translation_id and not is_resume:
+        import json
+        job = checkpoint_manager.get_job(translation_id)
+        if job:
+            config = job['config']
+            config['saved_subtitle_blocks'] = json.dumps(subtitle_blocks)
+            checkpoint_manager.update_job_config(translation_id, config)
+            if log_callback:
+                log_callback("srt_save_blocks_structure", f"💾 Saved block structure for resume capability")
     
     if log_callback:
         log_callback("srt_translation_start", 
@@ -412,7 +479,7 @@ async def translate_srt_file_with_callbacks(input_filepath, output_filepath,
 
 async def translate_file(input_filepath, output_filepath,
                         source_language="English", target_language="Chinese",
-                        model_name=DEFAULT_MODEL, chunk_target_size_cli=MAIN_LINES_PER_CHUNK,
+                        model_name=DEFAULT_MODEL,
                         cli_api_endpoint=API_ENDPOINT,
                         progress_callback=None, log_callback=None, stats_callback=None,
                         check_interruption_callback=None,
@@ -429,7 +496,6 @@ async def translate_file(input_filepath, output_filepath,
         source_language (str): Source language
         target_language (str): Target language
         model_name (str): LLM model name
-        chunk_target_size_cli (int): Target chunk size
         cli_api_endpoint (str): API endpoint
         progress_callback (callable): Progress callback
         log_callback (callable): Logging callback
@@ -444,7 +510,7 @@ async def translate_file(input_filepath, output_filepath,
     if ext == '.epub':
         await translate_epub_file(input_filepath, output_filepath,
                                   source_language, target_language,
-                                  model_name, chunk_target_size_cli,
+                                  model_name,
                                   cli_api_endpoint,
                                   progress_callback, log_callback, stats_callback,
                                   check_interruption_callback=check_interruption_callback,
@@ -457,7 +523,7 @@ async def translate_file(input_filepath, output_filepath,
         await translate_srt_file_with_callbacks(
             input_filepath, output_filepath,
             source_language, target_language,
-            model_name, chunk_target_size_cli,
+            model_name,
             cli_api_endpoint,
             progress_callback, log_callback, stats_callback,
             check_interruption_callback=check_interruption_callback,
@@ -472,7 +538,7 @@ async def translate_file(input_filepath, output_filepath,
         await translate_text_file_with_callbacks(
             input_filepath, output_filepath,
             source_language, target_language,
-            model_name, chunk_target_size_cli,
+            model_name,
             cli_api_endpoint,
             progress_callback, log_callback, stats_callback,
             check_interruption_callback=check_interruption_callback,

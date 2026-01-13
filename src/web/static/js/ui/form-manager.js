@@ -202,19 +202,83 @@ export const FormManager = {
     },
 
     /**
+     * Detect browser language and map to full language name
+     * @returns {string} Full language name (e.g., "French", "English")
+     */
+    detectBrowserLanguage() {
+        // Get browser language (e.g., "fr-FR", "en-US", "zh-CN")
+        const browserLang = navigator.language || navigator.userLanguage || 'en';
+        const langCode = browserLang.split('-')[0].toLowerCase();
+
+        // Map language codes to full names used in the UI
+        const languageMap = {
+            'en': 'English',
+            'zh': 'Chinese',
+            'es': 'Spanish',
+            'fr': 'French',
+            'de': 'German',
+            'ja': 'Japanese',
+            'ko': 'Korean',
+            'pt': 'Portuguese',
+            'ru': 'Russian',
+            'ar': 'Arabic',
+            'it': 'Italian',
+            'nl': 'Dutch',
+            'pl': 'Polish',
+            'sv': 'Swedish',
+            'no': 'Norwegian',
+            'da': 'Danish',
+            'fi': 'Finnish',
+            'el': 'Greek',
+            'hu': 'Hungarian',
+            'cs': 'Czech',
+            'sk': 'Slovak',
+            'ro': 'Romanian',
+            'bg': 'Bulgarian',
+            'hr': 'Croatian',
+            'sr': 'Serbian',
+            'uk': 'Ukrainian',
+            'ca': 'Catalan',
+            'hi': 'Hindi',
+            'bn': 'Bengali',
+            'ur': 'Urdu',
+            'pa': 'Punjabi',
+            'ta': 'Tamil',
+            'te': 'Telugu',
+            'mr': 'Marathi',
+            'gu': 'Gujarati',
+            'vi': 'Vietnamese',
+            'th': 'Thai',
+            'id': 'Indonesian',
+            'ms': 'Malay',
+            'tl': 'Tagalog',
+            'my': 'Burmese',
+            'fa': 'Persian',
+            'tr': 'Turkish',
+            'he': 'Hebrew',
+            'sw': 'Swahili',
+            'am': 'Amharic'
+        };
+
+        return languageMap[langCode] || 'English'; // Default to English if not found
+    },
+
+    /**
      * Load default configuration from server
      */
     async loadDefaultConfig() {
         try {
             const config = await ApiClient.getConfig();
 
-            // Set default languages
-            if (config.default_source_language) {
-                setDefaultLanguage('sourceLang', 'customSourceLang', config.default_source_language);
-            }
-            if (config.default_target_language) {
-                setDefaultLanguage('targetLang', 'customTargetLang', config.default_target_language);
-            }
+            // Detect browser language for target language (no default from .env)
+            const browserLanguage = this.detectBrowserLanguage();
+            console.log(`🌍 Browser language detected: ${browserLanguage}`);
+
+            // Set target language from browser detection
+            setDefaultLanguage('targetLang', 'customTargetLang', browserLanguage);
+
+            // Source language is left empty (will be auto-detected from uploaded file)
+            // No need to set it from .env anymore
 
             // Set other configuration values
             if (config.api_endpoint) {

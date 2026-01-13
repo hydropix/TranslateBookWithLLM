@@ -13,15 +13,26 @@ import { DomHelpers } from '../ui/dom-helpers.js';
 /**
  * Generate output filename based on pattern
  * @param {File} file - Original file
- * @param {string} pattern - Output pattern (e.g., "translated_{originalName}.{ext}")
+ * @param {string} pattern - Output pattern (e.g., "{originalName} ({targetLang}).{ext}")
  * @returns {string} Generated filename
  */
 function generateOutputFilename(file, pattern) {
     const fileExtension = file.name.split('.').pop().toLowerCase();
     const originalNameWithoutExt = file.name.replace(/\.[^/.]+$/, "");
 
+    // Get target language from the form
+    const targetLangSelect = DomHelpers.getElement('targetLang');
+    const customTargetLang = DomHelpers.getElement('customTargetLang');
+    let targetLang = targetLangSelect?.value || 'Unknown';
+
+    // If "Other" is selected, use the custom input value
+    if (targetLang === 'Other' && customTargetLang?.value) {
+        targetLang = customTargetLang.value;
+    }
+
     return pattern
         .replace("{originalName}", originalNameWithoutExt)
+        .replace("{targetLang}", targetLang)
         .replace("{ext}", fileExtension);
 }
 
@@ -84,6 +95,30 @@ export const FileUpload = {
     initialize() {
         this.setupDragDrop();
         this.setupFileInput();
+    },
+
+    /**
+     * Get current source language from form
+     * @returns {string} Current source language
+     */
+    _getCurrentSourceLanguage() {
+        let sourceLanguageVal = DomHelpers.getValue('sourceLang');
+        if (sourceLanguageVal === 'Other') {
+            sourceLanguageVal = DomHelpers.getValue('customSourceLang').trim();
+        }
+        return sourceLanguageVal || 'Unknown';
+    },
+
+    /**
+     * Get current target language from form
+     * @returns {string} Current target language
+     */
+    _getCurrentTargetLanguage() {
+        let targetLanguageVal = DomHelpers.getValue('targetLang');
+        if (targetLanguageVal === 'Other') {
+            targetLanguageVal = DomHelpers.getValue('customTargetLang').trim();
+        }
+        return targetLanguageVal || 'Unknown';
     },
 
     /**
@@ -170,7 +205,7 @@ export const FileUpload = {
 
         // Get output filename pattern
         const outputPattern = DomHelpers.getValue('outputFilenamePattern') ||
-                             "translated_{originalName}.{ext}";
+                             "{originalName} ({targetLang}).{ext}";
         const outputFilename = generateOutputFilename(file, outputPattern);
         const fileExtension = file.name.split('.').pop().toLowerCase();
 
@@ -189,6 +224,9 @@ export const FileUpload = {
                 status: 'Queued',
                 outputFilename: outputFilename,
                 size: file.size,
+                // Capture source and target languages at the time of adding to queue
+                sourceLanguage: this._getCurrentSourceLanguage(),
+                targetLanguage: this._getCurrentTargetLanguage(),
                 translationId: null,
                 result: null,
                 content: null,
@@ -205,16 +243,9 @@ export const FileUpload = {
             if (uploadResult.detected_language && uploadResult.language_confidence >= 0.7) {
                 const sourceLangInput = DomHelpers.getElement('sourceLang');
 
-                // Auto-fill if field is empty, on placeholder, or still on default "English"
-                // We replace "English" because it's just the default, not a user choice
-                const shouldAutoFill = sourceLangInput && (
-                    !sourceLangInput.value ||
-                    sourceLangInput.value === '' ||
-                    sourceLangInput.value === 'English'
-                );
-
-                if (shouldAutoFill) {
-                    // Set the detected language in the select
+                if (sourceLangInput) {
+                    // Always update the source language when a new file is uploaded
+                    // This ensures the detected language replaces any previous value
                     const success = setLanguageInSelect('sourceLang', uploadResult.detected_language);
 
                     if (success) {
@@ -300,7 +331,20 @@ export const FileUpload = {
                 // File info
                 const infoSpan = document.createElement('span');
                 infoSpan.className = 'file-info';
-                infoSpan.textContent = `${file.name} (${(file.size / 1024).toFixed(2)} KB) `;
+
+                // Create file name and size
+                const fileNameText = document.createTextNode(`${file.name} (${(file.size / 1024).toFixed(2)} KB) `);
+                infoSpan.appendChild(fileNameText);
+
+                // Add language pair display (read-only)
+                if (file.sourceLanguage && file.targetLanguage) {
+                    const langSpan = document.createElement('span');
+                    langSpan.className = 'file-languages';
+                    langSpan.style.fontSize = '0.85em';
+                    langSpan.style.color = '#6b7280';
+                    langSpan.textContent = `[${file.sourceLanguage} → ${file.targetLanguage}] `;
+                    infoSpan.appendChild(langSpan);
+                }
 
                 const statusSpan = document.createElement('span');
                 statusSpan.className = 'file-status';

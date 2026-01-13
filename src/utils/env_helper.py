@@ -198,7 +198,6 @@ def interactive_env_setup():
             f.write("\n# Translation Settings\n")
             f.write(f"DEFAULT_SOURCE_LANGUAGE={config['DEFAULT_SOURCE_LANGUAGE']}\n")
             f.write(f"DEFAULT_TARGET_LANGUAGE={config['DEFAULT_TARGET_LANGUAGE']}\n")
-            f.write("MAIN_LINES_PER_CHUNK=25\n")
             f.write("MAIN_CHUNK_SIZE=1000\n")
             f.write("REQUEST_TIMEOUT=900\n")
 

@@ -43,7 +43,7 @@ Solutions to common problems with TBL.
 **Cause**: Chunk is too large for model's context window.
 
 **Solutions**:
-1. Reduce chunk size: `-cs 15` or `MAIN_LINES_PER_CHUNK=15`
+1. Reduce chunk size: `MAX_TOKENS_PER_CHUNK=200` (default: 400)
 2. Increase context window: `OLLAMA_NUM_CTX=8192`
 
 ---
@@ -56,7 +56,7 @@ Solutions to common problems with TBL.
 
 **Solutions**:
 1. Increase timeout: `REQUEST_TIMEOUT=1800` (30 min)
-2. Reduce chunk size: `MAIN_LINES_PER_CHUNK=15`
+2. Reduce chunk size: `MAX_TOKENS_PER_CHUNK=200` (default: 400)
 3. Try a smaller model
 4. Try a cloud provider
 

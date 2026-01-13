@@ -539,7 +539,7 @@ For larger chunks and better translations:
 
 ```env
 OLLAMA_NUM_CTX=16384
-MAIN_LINES_PER_CHUNK=50
+MAX_TOKENS_PER_CHUNK=800  # Larger token chunks for better context
 ```
 
 ### Adjust Timeouts

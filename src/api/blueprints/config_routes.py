@@ -22,7 +22,6 @@ def get_config_path():
 from src.config import (
     API_ENDPOINT as DEFAULT_OLLAMA_API_ENDPOINT,
     DEFAULT_MODEL,
-    MAIN_LINES_PER_CHUNK,
     REQUEST_TIMEOUT,
     OLLAMA_NUM_CTX,
     MAX_TRANSLATION_ATTEMPTS,
@@ -113,7 +112,6 @@ def create_config_blueprint():
         config_response = {
             "api_endpoint": DEFAULT_OLLAMA_API_ENDPOINT,
             "default_model": DEFAULT_MODEL,
-            "chunk_size": MAIN_LINES_PER_CHUNK,
             "timeout": REQUEST_TIMEOUT,
             "context_window": OLLAMA_NUM_CTX,
             "max_attempts": MAX_TRANSLATION_ATTEMPTS,
@@ -124,15 +122,12 @@ def create_config_blueprint():
             "openrouter_api_key": mask_api_key(OPENROUTER_API_KEY),
             "gemini_api_key_configured": bool(GEMINI_API_KEY),
             "openai_api_key_configured": bool(OPENAI_API_KEY),
-            "openrouter_api_key_configured": bool(OPENROUTER_API_KEY),
-            "default_source_language": DEFAULT_SOURCE_LANGUAGE,
-            "default_target_language": DEFAULT_TARGET_LANGUAGE
+            "openrouter_api_key_configured": bool(OPENROUTER_API_KEY)
+            # Languages are no longer sent from server - handled by browser detection
         }
 
         if DEBUG_MODE:
             logger.debug(f"📤 /api/config response:")
-            logger.debug(f"   default_source_language: {DEFAULT_SOURCE_LANGUAGE}")
-            logger.debug(f"   default_target_language: {DEFAULT_TARGET_LANGUAGE}")
             logger.debug(f"   api_endpoint: {DEFAULT_OLLAMA_API_ENDPOINT}")
             logger.debug(f"   default_model: {DEFAULT_MODEL}")
 
@@ -207,7 +202,6 @@ def create_config_blueprint():
                 })
 
         except Exception as e:
-            print(f"❌ Error retrieving OpenRouter models: {e}")
             return jsonify({
                 "models": [],
                 "model_names": [],
@@ -353,7 +347,6 @@ def create_config_blueprint():
                 })
 
         except Exception as e:
-            print(f"❌ Error retrieving Gemini models: {e}")
             return jsonify({
                 "models": [],
                 "default": default_model,
@@ -558,9 +551,9 @@ def create_config_blueprint():
             'OPENROUTER_MODEL',
             'DEFAULT_MODEL',
             'LLM_PROVIDER',
-            'DEFAULT_SOURCE_LANGUAGE',
-            'DEFAULT_TARGET_LANGUAGE',
             'API_ENDPOINT'
+            # DEFAULT_SOURCE_LANGUAGE and DEFAULT_TARGET_LANGUAGE removed
+            # Languages are now auto-detected (source) and browser-detected (target)
         }
 
         try:
@@ -607,9 +600,8 @@ def create_config_blueprint():
             "openrouter_api_key_configured": bool(OPENROUTER_API_KEY),
             "default_model": DEFAULT_MODEL or "",
             "llm_provider": os.getenv('LLM_PROVIDER', 'ollama'),
-            "default_source_language": DEFAULT_SOURCE_LANGUAGE or "English",
-            "default_target_language": DEFAULT_TARGET_LANGUAGE or "Chinese",
             "api_endpoint": DEFAULT_OLLAMA_API_ENDPOINT or ""
+            # Languages are no longer stored in .env - auto-detected per session
         })
 
     return bp

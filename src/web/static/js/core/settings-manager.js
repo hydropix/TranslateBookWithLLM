@@ -300,11 +300,9 @@ export const SettingsManager = {
                 }
             }
 
-            // Save languages
-            const srcLang = this._getLanguageValue('sourceLang', 'customSourceLang');
-            const tgtLang = this._getLanguageValue('targetLang', 'customTargetLang');
-            if (srcLang) envSettings['DEFAULT_SOURCE_LANGUAGE'] = srcLang;
-            if (tgtLang) envSettings['DEFAULT_TARGET_LANGUAGE'] = tgtLang;
+            // Languages are no longer saved to .env - they are:
+            // - Source: auto-detected from file content
+            // - Target: auto-detected from browser language per session
 
             if (Object.keys(envSettings).length > 0) {
                 try {

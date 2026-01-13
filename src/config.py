@@ -80,7 +80,6 @@ if _debug_mode:
 API_ENDPOINT = os.getenv('API_ENDPOINT', 'http://localhost:11434/api/generate')
 DEFAULT_MODEL = os.getenv('DEFAULT_MODEL', 'qwen3:14b')
 PORT = int(os.getenv('PORT', '5000'))
-MAIN_LINES_PER_CHUNK = int(os.getenv('MAIN_LINES_PER_CHUNK', '25'))
 REQUEST_TIMEOUT = int(os.getenv('REQUEST_TIMEOUT', '900'))
 OLLAMA_NUM_CTX = int(os.getenv('OLLAMA_NUM_CTX', '4096'))
 
@@ -189,9 +188,11 @@ GENERATOR_NAME = "TranslateBook with LLM (TBL)"
 GENERATOR_SOURCE = "https://github.com/hydropix/TranslateBookWithLLM"
 METADATA_VERSION = "1.0"
 
-# Default languages from environment
-DEFAULT_SOURCE_LANGUAGE = os.getenv('DEFAULT_SOURCE_LANGUAGE', 'English')
-DEFAULT_TARGET_LANGUAGE = os.getenv('DEFAULT_TARGET_LANGUAGE', 'Chinese')
+# Default languages from environment (optional)
+# Source language: Auto-detected from file content (langdetect)
+# Target language: Auto-detected from browser language in UI
+DEFAULT_SOURCE_LANGUAGE = os.getenv('DEFAULT_SOURCE_LANGUAGE', '')  # Empty = auto-detect
+DEFAULT_TARGET_LANGUAGE = os.getenv('DEFAULT_TARGET_LANGUAGE', '')  # Empty = use browser language
 
 # ============================================================================
 # PROMPT OPTIONS CONFIGURATION
@@ -404,10 +405,7 @@ class TranslationConfig:
     gemini_api_key: str = GEMINI_API_KEY
     openai_api_key: str = OPENAI_API_KEY
     openrouter_api_key: str = OPENROUTER_API_KEY
-    
-    # Translation parameters
-    chunk_size: int = MAIN_LINES_PER_CHUNK
-    
+
     # LLM parameters
     timeout: int = REQUEST_TIMEOUT
     max_attempts: int = MAX_TRANSLATION_ATTEMPTS
@@ -436,7 +434,6 @@ class TranslationConfig:
             target_language=args.target_lang,
             model=args.model,
             api_endpoint=args.api_endpoint,
-            chunk_size=args.chunksize,
             interface_type="cli",
             enable_colors=not args.no_color,
             llm_provider=getattr(args, 'provider', LLM_PROVIDER),
@@ -455,7 +452,6 @@ class TranslationConfig:
             target_language=request_data.get('target_language', DEFAULT_TARGET_LANGUAGE),
             model=request_data.get('model', DEFAULT_MODEL),
             api_endpoint=request_data.get('llm_api_endpoint', API_ENDPOINT),
-            chunk_size=request_data.get('chunk_size', MAIN_LINES_PER_CHUNK),
             timeout=request_data.get('timeout', REQUEST_TIMEOUT),
             max_attempts=request_data.get('max_attempts', MAX_TRANSLATION_ATTEMPTS),
             retry_delay=request_data.get('retry_delay', 2),
@@ -480,7 +476,6 @@ class TranslationConfig:
             'target_language': self.target_language,
             'model': self.model,
             'api_endpoint': self.api_endpoint,
-            'chunk_size': self.chunk_size,
             'timeout': self.timeout,
             'max_attempts': self.max_attempts,
             'retry_delay': self.retry_delay,

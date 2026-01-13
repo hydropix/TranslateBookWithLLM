@@ -102,7 +102,7 @@ Docker automatically pulls the correct architecture for your system.
 | `PORT` | Web server port | `5000` |
 | `OLLAMA_NUM_CTX` | Context window size | `2048` |
 | `REQUEST_TIMEOUT` | API timeout (seconds) | `900` |
-| `MAIN_LINES_PER_CHUNK` | Lines per translation chunk | `25` |
+| `MAX_TOKENS_PER_CHUNK` | Tokens per translation chunk | `400` |
 | `SIGNATURE_ENABLED` | Add signature to translations | `true` |
 
 ## Volume Mounts

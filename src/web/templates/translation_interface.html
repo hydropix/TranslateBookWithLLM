@@ -134,7 +134,7 @@
                         <label>Source Language</label>
                         <div class="neu-inset-light">
                             <select class="form-control" id="sourceLang">
-                                <option value="" disabled selected>Select language or upload file...</option>
+                                <option value="" selected>Auto-detect from file...</option>
                                 <optgroup label="Most Common">
                                     <option value="English">English</option>
                                     <option value="Chinese">Chinese</option>
@@ -272,9 +272,9 @@
                 <div class="form-group" style="margin-bottom: 15px;">
                     <label>Naming Convention</label>
                     <div class="neu-inset-light">
-                        <input type="text" class="form-control" id="outputFilenamePattern" value="translated_{originalName}.{ext}" title="Use {originalName} as placeholder for original filename">
+                        <input type="text" class="form-control" id="outputFilenamePattern" value="{originalName} ({targetLang}).{ext}" title="Use {originalName}, {targetLang} as placeholders">
                     </div>
-                    <small style="color: var(--text-muted-light); font-size: 0.75rem; margin-top: 0.5rem; display: block;">Example: translated_{originalName}_to_FR.{ext}</small>
+                    <small style="color: var(--text-muted-light); font-size: 0.75rem; margin-top: 0.5rem; display: block;">Placeholders: {originalName}, {targetLang}, {ext} — Example: Book (French).epub</small>
                 </div>
 
                 <!-- Prompt Options (Collapsible) -->

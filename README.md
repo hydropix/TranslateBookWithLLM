@@ -64,24 +64,24 @@ See [docs/PROVIDERS.md](docs/PROVIDERS.md) for detailed setup instructions.
 ## Command Line
 
 ```bash
-# Basic
-python translate.py -i book.epub -o book_zh.epub -sl English -tl Chinese
+# Basic (auto-generates "book (Chinese).epub")
+python translate.py -i book.epub -sl English -tl Chinese
 
 # With OpenRouter
-python translate.py -i book.txt -o book_fr.txt --provider openrouter \
-    --openrouter_api_key YOUR_KEY -m anthropic/claude-sonnet-4
+python translate.py -i book.txt --provider openrouter \
+    --openrouter_api_key YOUR_KEY -m anthropic/claude-sonnet-4 -tl French
 
 # With OpenAI
-python translate.py -i book.txt -o book_fr.txt --provider openai \
-    --openai_api_key YOUR_KEY -m gpt-4o
+python translate.py -i book.txt --provider openai \
+    --openai_api_key YOUR_KEY -m gpt-4o -tl French
 
 # With Gemini
-python translate.py -i book.txt -o book_fr.txt --provider gemini \
-    --gemini_api_key YOUR_KEY -m gemini-2.0-flash
+python translate.py -i book.txt --provider gemini \
+    --gemini_api_key YOUR_KEY -m gemini-2.0-flash -tl French
 
 # With local OpenAI-compatible server (llama.cpp, LM Studio, vLLM, etc.)
-python translate.py -i book.txt -o book_fr.txt --provider openai \
-    --api_endpoint http://localhost:8080/v1/chat/completions -m your-model
+python translate.py -i book.txt --provider openai \
+    --api_endpoint http://localhost:8080/v1/chat/completions -m your-model -tl French
 ```
 
 ### Main Options
@@ -89,7 +89,7 @@ python translate.py -i book.txt -o book_fr.txt --provider openai \
 | Option | Description | Default |
 |--------|-------------|---------|
 | `-i, --input` | Input file | Required |
-| `-o, --output` | Output file | Auto |
+| `-o, --output` | Output file | Auto: `{name} ({lang}).{ext}` |
 | `-sl, --source_lang` | Source language | English |
 | `-tl, --target_lang` | Target language | Chinese |
 | `-m, --model` | Model name | mistral-small:24b |
@@ -117,8 +117,8 @@ OPENAI_API_KEY=sk-...
 GEMINI_API_KEY=...
 
 # Performance
-MAIN_LINES_PER_CHUNK=25
 REQUEST_TIMEOUT=900
+MAX_TOKENS_PER_CHUNK=400  # Token-based chunking (default: 400 tokens)
 ```
 
 ---

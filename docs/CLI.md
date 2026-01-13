@@ -24,7 +24,7 @@ python translate.py -i input_file -o output_file
 
 | Option | Description | Default |
 |--------|-------------|---------|
-| `-o, --output` | Output file path | Auto-generated |
+| `-o, --output` | Output file path | Auto-generated as `{original} ({target_lang}).{ext}` |
 
 ### Languages
 
@@ -70,14 +70,17 @@ python translate.py -i input_file -o output_file
 ### Basic Translation
 
 ```bash
-# Text file
-python translate.py -i book.txt -o book_fr.txt -sl English -tl French
+# Text file (auto-generates "book (French).txt")
+python translate.py -i book.txt -sl English -tl French
 
-# Subtitles
-python translate.py -i movie.srt -o movie_fr.srt -tl French
+# Subtitles (auto-generates "movie (French).srt")
+python translate.py -i movie.srt -tl French
 
-# EPUB
-python translate.py -i novel.epub -o novel_fr.epub -tl French
+# EPUB (auto-generates "novel (French).epub")
+python translate.py -i novel.epub -tl French
+
+# Custom output filename
+python translate.py -i book.txt -o my_custom_name.txt -tl French
 ```
 
 ### With Different Providers
@@ -142,8 +145,8 @@ OPENAI_API_KEY=sk-...
 GEMINI_API_KEY=...
 
 # Performance
-MAIN_LINES_PER_CHUNK=25
 REQUEST_TIMEOUT=900
+MAX_TOKENS_PER_CHUNK=400  # Token-based chunking (default: 400 tokens)
 
 # Languages
 DEFAULT_SOURCE_LANGUAGE=English

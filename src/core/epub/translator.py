@@ -17,7 +17,7 @@ from lxml import etree
 from tqdm.auto import tqdm
 
 from src.config import (
-    NAMESPACES, DEFAULT_MODEL, MAIN_LINES_PER_CHUNK, API_ENDPOINT,
+    NAMESPACES, DEFAULT_MODEL, API_ENDPOINT,
     MAX_TOKENS_PER_CHUNK, THINKING_MODELS, ADAPTIVE_CONTEXT_INITIAL_THINKING,
     MAX_TRANSLATION_ATTEMPTS
 )
@@ -32,7 +32,6 @@ async def translate_epub_file(
     source_language: str = "English",
     target_language: str = "Chinese",
     model_name: str = DEFAULT_MODEL,
-    chunk_target_lines_arg: int = MAIN_LINES_PER_CHUNK,
     cli_api_endpoint: str = API_ENDPOINT,
     progress_callback: Optional[Callable] = None,
     log_callback: Optional[Callable] = None,
@@ -69,7 +68,6 @@ async def translate_epub_file(
         source_language: Source language
         target_language: Target language
         model_name: LLM model name
-        chunk_target_lines_arg: Target lines per chunk (ignored, uses max_tokens_per_chunk)
         cli_api_endpoint: API endpoint
         progress_callback: Progress callback (0-100)
         log_callback: Logging callback
