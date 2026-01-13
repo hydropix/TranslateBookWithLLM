@@ -173,6 +173,17 @@ class SRTProcessor:
         return blocks
 
     def extract_block_translations(self, translated_text: str, block_indices: List[int]) -> Dict[int, str]:
+        """
+        Extract translations from a block with GLOBAL indices.
+        This is the legacy method that expects global indices in the translated text.
+
+        Args:
+            translated_text: Translated text with [N] markers using global indices
+            block_indices: List of global indices
+
+        Returns:
+            Dictionary mapping global indices to translated text
+        """
         translations = {}
 
         preprocessed_text = self._fix_multiple_indices_on_same_line(translated_text)
@@ -206,6 +217,84 @@ class SRTProcessor:
         missing_indices = set(block_indices) - set(translations.keys())
         if missing_indices:
             logger.warning(f"Missing translations for indices: {missing_indices}")
+
+        return translations
+
+    def extract_block_translations_with_remapping(
+        self,
+        translated_text: str,
+        local_to_global: Dict[int, int]
+    ) -> Dict[int, str]:
+        """
+        Extract translations from a block with LOCAL indices and remap to GLOBAL indices.
+
+        This method expects the translated text to use local indices (0, 1, 2...)
+        and remaps them to their original global indices using the provided mapping.
+
+        Args:
+            translated_text: Translated text with [N] markers using local indices (0, 1, 2...)
+            local_to_global: Dictionary mapping local indices to global indices
+                            e.g., {0: 458, 1: 459, 2: 460}
+
+        Returns:
+            Dictionary mapping GLOBAL indices to translated text
+
+        Example:
+            >>> # LLM returns: "[0]Hello\n[1]World"
+            >>> # With mapping: {0: 458, 1: 459}
+            >>> result = extract_block_translations_with_remapping(
+            ...     "[0]Hello\n[1]World",
+            ...     {0: 458, 1: 459}
+            ... )
+            >>> result
+            {458: "Hello", 459: "World"}
+        """
+        translations = {}
+
+        # Get expected local indices
+        expected_local_indices = list(local_to_global.keys())
+
+        preprocessed_text = self._fix_multiple_indices_on_same_line(translated_text)
+        preprocessed_text = self._fix_missing_indices(preprocessed_text, expected_local_indices)
+
+        lines = preprocessed_text.strip().split('\n')
+        current_local_index = None
+        current_text_lines = []
+
+        for line in lines:
+            index_match = re.match(r'^\[(\d+)\](.*)$', line)
+
+            if index_match:
+                # Save previous subtitle if any
+                if current_local_index is not None and current_text_lines:
+                    # Map local index to global index
+                    global_index = local_to_global.get(current_local_index)
+                    if global_index is not None:
+                        translations[global_index] = '\n'.join(current_text_lines).strip()
+
+                # Start new subtitle with local index
+                current_local_index = int(index_match.group(1))
+                remaining_text = index_match.group(2).strip()
+
+                if remaining_text:
+                    current_text_lines = [remaining_text]
+                else:
+                    current_text_lines = []
+            else:
+                if current_local_index is not None:
+                    current_text_lines.append(line)
+
+        # Save last subtitle
+        if current_local_index is not None and current_text_lines:
+            global_index = local_to_global.get(current_local_index)
+            if global_index is not None:
+                translations[global_index] = '\n'.join(current_text_lines).strip()
+
+        # Check for missing translations using global indices
+        expected_global_indices = set(local_to_global.values())
+        missing_global_indices = expected_global_indices - set(translations.keys())
+        if missing_global_indices:
+            logger.warning(f"Missing translations for global indices: {missing_global_indices}")
 
         return translations
 

@@ -361,21 +361,28 @@ async def translate_subtitles_in_blocks(subtitle_blocks: List[List[Dict[str, str
             
             # Prepare subtitle blocks with indices
             subtitle_tuples = []
-            block_indices = []
-            
+            block_indices = []  # Global indices (original)
+
             for subtitle in block:
                 idx = int(subtitle['number']) - 1  # Convert to 0-based index
                 text = subtitle['text'].strip()
                 if text:  # Only include non-empty subtitles
                     subtitle_tuples.append((idx, text))
                     block_indices.append(idx)
-            
+
             if not subtitle_tuples:
                 continue
-            
-            # Generate system and user prompts for this block
+
+            # Renumber to local indices (0, 1, 2...) for LLM simplicity
+            # Create mapping: local_index -> global_index
+            local_to_global = {local_idx: global_idx for local_idx, (global_idx, _) in enumerate(subtitle_tuples)}
+
+            # Create subtitle tuples with local indices for LLM
+            local_subtitle_tuples = [(local_idx, text) for local_idx, (_, text) in enumerate(subtitle_tuples)]
+
+            # Generate system and user prompts for this block with local indices
             prompt_pair = generate_subtitle_block_prompt(
-                subtitle_tuples,
+                local_subtitle_tuples,
                 previous_translation_block,
                 source_language,
                 target_language,
@@ -425,18 +432,19 @@ async def translate_subtitles_in_blocks(subtitle_blocks: List[List[Dict[str, str
 
                     if full_raw_response:
                         translated_block_text = client.extract_translation(full_raw_response)
-                        
+
                         # Validate placeholder tags if translation succeeded
                         if translated_block_text:
-                            # Check if all expected [NUMBER] tags are present
-                            expected_tags = set(f"[{idx}]" for idx in block_indices)
+                            # Check if all expected LOCAL [NUMBER] tags are present (0, 1, 2...)
+                            expected_local_indices = list(range(len(local_subtitle_tuples)))
+                            expected_tags = set(f"[{idx}]" for idx in expected_local_indices)
                             found_tags = set()
                             import re
                             for match in re.finditer(r'\[(\d+)\]', translated_block_text):
                                 found_tags.add(match.group(0))
-                            
+
                             missing_tags = expected_tags - found_tags
-                            
+
                             if missing_tags:
                                 if log_callback:
                                     log_callback("srt_placeholder_validation_failed",
@@ -445,7 +453,7 @@ async def translate_subtitles_in_blocks(subtitle_blocks: List[List[Dict[str, str
                                 if retry_count < max_retries - 1:
                                     # Enhance prompt with stronger instructions about preserving tags
                                     prompt_pair = generate_subtitle_block_prompt(
-                                        subtitle_tuples,
+                                        local_subtitle_tuples,
                                         previous_translation_block,
                                         source_language,
                                         target_language,
@@ -462,7 +470,7 @@ async def translate_subtitles_in_blocks(subtitle_blocks: List[List[Dict[str, str
                             else:
                                 # All tags present, translation successful
                                 if retry_count > 0 and log_callback:
-                                    log_callback("srt_retry_successful", 
+                                    log_callback("srt_retry_successful",
                                                f"Block {block_idx+1} translation successful after {retry_count} retries")
                                 break
                         else:
@@ -491,9 +499,9 @@ async def translate_subtitles_in_blocks(subtitle_blocks: List[List[Dict[str, str
                         break
             
             if translated_block_text:
-                # Extract individual translations from block
-                block_translations = srt_processor.extract_block_translations(
-                    translated_block_text, block_indices
+                # Extract individual translations from block with local->global index remapping
+                block_translations = srt_processor.extract_block_translations_with_remapping(
+                    translated_block_text, local_to_global
                 )
 
                 # Update translations dictionary
@@ -517,9 +525,11 @@ async def translate_subtitles_in_blocks(subtitle_blocks: List[List[Dict[str, str
                 completed_blocks_count += 1
 
                 # Store translated block for context (last 5 subtitles)
+                # Use LOCAL indices (0-4) for consistency with how the LLM sees the data
                 last_subtitles = []
-                for idx in sorted(block_translations.keys())[-5:]:
-                    last_subtitles.append(f"[{idx}]{block_translations[idx]}")
+                sorted_global_indices = sorted(block_translations.keys())[-5:]
+                for local_idx, global_idx in enumerate(sorted_global_indices):
+                    last_subtitles.append(f"[{local_idx}]{block_translations[global_idx]}")
                 previous_translation_block = '\n'.join(last_subtitles)
 
                 # Save checkpoint after successful block translation
