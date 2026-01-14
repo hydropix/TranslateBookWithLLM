@@ -170,8 +170,6 @@ function updatePreviewHeight(maxTokens = 450) {
 
     // Apply to CSS variable
     document.documentElement.style.setProperty('--preview-height', `${fixedHeight}px`);
-
-    console.log(`📐 Preview height set: ${fixedHeight}px (fixed height)`);
 }
 
 /**
@@ -186,12 +184,9 @@ async function initializePreviewHeight() {
             const maxTokens = data.max_tokens_per_chunk || 450;
             updatePreviewHeight(maxTokens);
         } else {
-            // Fallback to default
-            console.warn('Could not fetch MAX_TOKENS_PER_CHUNK, using default (450)');
             updatePreviewHeight(450);
         }
-    } catch (error) {
-        console.warn('Error fetching MAX_TOKENS_PER_CHUNK:', error);
+    } catch {
         updatePreviewHeight(450);
     }
 }
@@ -284,7 +279,8 @@ function wireModuleEvents() {
     StateManager.subscribe('files.toProcess', (files) => {
         const translateBtn = DomHelpers.getElement('translateBtn');
         if (translateBtn && !StateManager.getState('translation.isBatchActive')) {
-            translateBtn.disabled = files.length === 0;
+            // Only enable if files exist AND LLM is connected
+            translateBtn.disabled = files.length === 0 || !StatusManager.isConnected();
         }
     });
 }
@@ -297,7 +293,6 @@ function wireModuleEvents() {
  * Initialize all modules in proper order
  */
 function initializeModules() {
-    console.log('🚀 Initializing TranslateBookWithLLM application...');
 
     // 1. Core infrastructure
     initializeState();
@@ -331,13 +326,6 @@ function initializeModules() {
 
     // 8. Wire up events
     wireModuleEvents();
-
-    console.log('✅ Application initialized successfully');
-
-    // Expose StateManager for debugging
-    if (typeof window !== 'undefined') {
-        window.__STATE_MANAGER__ = StateManager;
-    }
 }
 
 // ========================================
@@ -362,7 +350,9 @@ window.resetFiles = () => {
 };
 
 // Form Manager
+window.toggleSettingsOptions = FormManager.toggleSettingsOptions.bind(FormManager);
 window.togglePromptOptions = FormManager.togglePromptOptions.bind(FormManager);
+window.toggleActivityLog = FormManager.toggleActivityLog.bind(FormManager);
 window.checkCustomSourceLanguage = (element) => FormManager.checkCustomSourceLanguage(element);
 window.checkCustomTargetLanguage = (element) => FormManager.checkCustomTargetLanguage(element);
 window.resetForm = FormManager.resetForm.bind(FormManager);
@@ -402,42 +392,6 @@ window.loadResumableJobs = ResumeManager.loadResumableJobs.bind(ResumeManager);
 
 // Provider Manager
 window.refreshModels = ProviderManager.refreshModels.bind(ProviderManager);
-
-// Settings Manager
-window.saveSettings = async () => {
-    const saveBtn = DomHelpers.getElement('saveSettingsBtn');
-    const statusSpan = DomHelpers.getElement('saveSettingsStatus');
-
-    if (saveBtn) {
-        saveBtn.disabled = true;
-        DomHelpers.setText(saveBtn, '💾 Saving...');
-    }
-
-    try {
-        const result = await SettingsManager.saveAllSettings(true);
-        if (result.success) {
-            if (statusSpan) {
-                statusSpan.textContent = '✅ Settings saved!';
-                statusSpan.style.color = '#059669';
-                setTimeout(() => { statusSpan.textContent = ''; }, 3000);
-            }
-            MessageLogger.addLog(`Settings saved: ${result.savedToEnv?.join(', ') || 'local preferences'}`);
-        } else {
-            throw new Error(result.error || 'Unknown error');
-        }
-    } catch (error) {
-        if (statusSpan) {
-            statusSpan.textContent = `❌ ${error.message}`;
-            statusSpan.style.color = '#dc2626';
-        }
-        MessageLogger.addLog(`Failed to save settings: ${error.message}`, 'error');
-    } finally {
-        if (saveBtn) {
-            saveBtn.disabled = false;
-            DomHelpers.setText(saveBtn, '💾 Save Settings');
-        }
-    }
-};
 
 // Message Logger
 window.clearActivityLog = MessageLogger.clearLog.bind(MessageLogger);
@@ -493,8 +447,8 @@ async function showTTSModal(filename, filepath) {
         ]);
         providersInfo = providersInfo.providers || {};
         voicePrompts = voicePrompts.voice_prompts || [];
-    } catch (e) {
-        console.error('Failed to load TTS info:', e);
+    } catch {
+        // TTS info load failed
     }
 
     const isChatterboxAvailable = providersInfo.chatterbox?.available || false;

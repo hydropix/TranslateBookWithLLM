@@ -193,6 +193,37 @@ def create_security_blueprint(output_dir):
             "upload_directory": str(secure_file_handler.upload_dir)
         })
 
+    @bp.route('/api/uploads/verify', methods=['POST'])
+    def verify_uploaded_files():
+        """Verify which uploaded files still exist on the server"""
+        try:
+            data = request.json
+            if not data or 'file_paths' not in data:
+                return jsonify({"error": "No file paths provided"}), 400
+
+            file_paths = data['file_paths']
+            if not isinstance(file_paths, list):
+                return jsonify({"error": "Invalid file paths list"}), 400
+
+            existing_files = []
+            missing_files = []
+
+            for file_path_str in file_paths:
+                file_path = Path(file_path_str)
+                if file_path.exists():
+                    existing_files.append(file_path_str)
+                else:
+                    missing_files.append(file_path_str)
+
+            return jsonify({
+                "existing": existing_files,
+                "missing": missing_files
+            })
+
+        except Exception as e:
+            current_app.logger.error(f"Error verifying uploaded files: {str(e)}")
+            return jsonify({"error": "Verification failed", "details": str(e)}), 500
+
     @bp.route('/api/thumbnails/<path:filename>', methods=['GET'])
     def serve_thumbnail(filename):
         """Serve EPUB cover thumbnail with security validation"""

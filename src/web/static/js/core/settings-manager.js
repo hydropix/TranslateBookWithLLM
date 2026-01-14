@@ -19,6 +19,17 @@ const STORAGE_KEY = 'tbl_user_preferences';
 let envModelApplied = false;
 
 /**
+ * Debounce timer for auto-save
+ */
+let autoSaveTimer = null;
+const AUTO_SAVE_DELAY = 1000; // 1 second debounce
+
+/**
+ * Flag to prevent auto-save during initial load
+ */
+let isInitializing = true;
+
+/**
  * Settings that are saved to localStorage (non-sensitive)
  */
 const LOCAL_SETTINGS = [
@@ -44,10 +55,82 @@ const ENV_SETTINGS_MAP = {
 
 export const SettingsManager = {
     /**
-     * Initialize settings manager - load saved preferences
+     * Initialize settings manager - load saved preferences and setup auto-save
      */
     initialize() {
         this.loadLocalPreferences();
+        // Setup auto-save listeners after a short delay to avoid triggering during initial load
+        setTimeout(() => {
+            this._setupAutoSaveListeners();
+            isInitializing = false;
+        }, 500);
+    },
+
+    /**
+     * Setup event listeners for auto-save on all settings elements
+     * @private
+     */
+    _setupAutoSaveListeners() {
+        // Elements that trigger auto-save
+        const autoSaveElements = [
+            // Provider and model
+            { id: 'llmProvider', event: 'change' },
+            { id: 'model', event: 'change' },
+            // API endpoints
+            { id: 'apiEndpoint', event: 'change' },
+            { id: 'openaiEndpoint', event: 'change' },
+            // API keys (save to .env)
+            { id: 'geminiApiKey', event: 'change' },
+            { id: 'openaiApiKey', event: 'change' },
+            { id: 'openrouterApiKey', event: 'change' },
+            // Languages
+            { id: 'sourceLang', event: 'change' },
+            { id: 'targetLang', event: 'change' },
+            { id: 'customSourceLang', event: 'change' },
+            { id: 'customTargetLang', event: 'change' },
+            // Checkboxes
+            { id: 'ttsEnabled', event: 'change' },
+            { id: 'textCleanup', event: 'change' },
+            { id: 'refineTranslation', event: 'change' }
+        ];
+
+        autoSaveElements.forEach(({ id, event }) => {
+            const element = DomHelpers.getElement(id);
+            if (element) {
+                element.addEventListener(event, () => this._triggerAutoSave());
+            }
+        });
+
+    },
+
+    /**
+     * Trigger auto-save with debounce
+     * @private
+     */
+    _triggerAutoSave() {
+        if (isInitializing) return;
+
+        // Clear existing timer
+        if (autoSaveTimer) {
+            clearTimeout(autoSaveTimer);
+        }
+
+        // Set new timer
+        autoSaveTimer = setTimeout(async () => {
+            await this._performAutoSave();
+        }, AUTO_SAVE_DELAY);
+    },
+
+    /**
+     * Perform the actual auto-save
+     * @private
+     */
+    async _performAutoSave() {
+        try {
+            await this.saveAllSettings(true);
+        } catch {
+            // Auto-save failed silently
+        }
     },
 
     /**
@@ -58,8 +141,7 @@ export const SettingsManager = {
         try {
             const stored = localStorage.getItem(STORAGE_KEY);
             return stored ? JSON.parse(stored) : {};
-        } catch (e) {
-            console.error('Error reading preferences:', e);
+        } catch {
             return {};
         }
     },
@@ -73,8 +155,8 @@ export const SettingsManager = {
             const current = this.getLocalPreferences();
             const updated = { ...current, ...prefs };
             localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
-        } catch (e) {
-            console.error('Error saving preferences:', e);
+        } catch {
+            // Preference save failed silently
         }
     },
 
@@ -253,9 +335,7 @@ export const SettingsManager = {
                 return true;
             }
             return false;
-        } catch (e) {
-            console.error('Error saving API key:', e);
-            MessageLogger.addLog(`Failed to save API key: ${e.message}`, 'error');
+        } catch {
             return false;
         }
     },
@@ -311,7 +391,6 @@ export const SettingsManager = {
                     this.resetEnvModelApplied();
                     return { success: true, savedToEnv: result.saved_keys };
                 } catch (e) {
-                    console.error('Error saving to .env:', e);
                     return { success: false, error: e.message };
                 }
             }
@@ -327,7 +406,6 @@ export const SettingsManager = {
     applyPendingModelSelection() {
         // Don't apply localStorage preference if .env model was already applied
         if (envModelApplied) {
-            console.log('⏭️ Skipping localStorage model - .env model already applied');
             delete window.__pendingModelSelection;
             return;
         }
@@ -341,7 +419,6 @@ export const SettingsManager = {
                     if (option.value === window.__pendingModelSelection) {
                         modelSelect.value = window.__pendingModelSelection;
                         found = true;
-                        console.log(`✅ Applied saved model preference: ${window.__pendingModelSelection}`);
                         break;
                     }
                 }
@@ -358,7 +435,6 @@ export const SettingsManager = {
      */
     markEnvModelApplied() {
         envModelApplied = true;
-        console.log('🔒 .env default model locked in');
     },
 
     /**
@@ -367,7 +443,6 @@ export const SettingsManager = {
      */
     resetEnvModelApplied() {
         envModelApplied = false;
-        console.log('🔓 .env model lock reset - user saved new settings');
     },
 
     /**

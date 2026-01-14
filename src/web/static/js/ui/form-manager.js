@@ -144,6 +144,22 @@ export const FormManager = {
 
 
     /**
+     * Toggle settings options panel
+     */
+    toggleSettingsOptions() {
+        const section = DomHelpers.getElement('settingsOptionsSection');
+        const icon = DomHelpers.getElement('settingsOptionsIcon');
+
+        if (!section || !icon) return;
+
+        const isHidden = section.classList.toggle('hidden');
+        icon.style.transform = isHidden ? 'rotate(0deg)' : 'rotate(180deg)';
+
+        // Update state
+        StateManager.setState('ui.isSettingsOptionsOpen', !isHidden);
+    },
+
+    /**
      * Toggle prompt options panel
      */
     togglePromptOptions() {
@@ -157,6 +173,22 @@ export const FormManager = {
 
         // Update state
         StateManager.setState('ui.isPromptOptionsOpen', !isHidden);
+    },
+
+    /**
+     * Toggle activity log panel
+     */
+    toggleActivityLog() {
+        const section = DomHelpers.getElement('activityLogSection');
+        const icon = DomHelpers.getElement('activityLogIcon');
+
+        if (!section || !icon) return;
+
+        const isHidden = section.classList.toggle('hidden');
+        icon.style.transform = isHidden ? 'rotate(0deg)' : 'rotate(180deg)';
+
+        // Update state
+        StateManager.setState('ui.isActivityLogOpen', !isHidden);
     },
 
     /**
@@ -272,7 +304,6 @@ export const FormManager = {
 
             // Detect browser language for target language (no default from .env)
             const browserLanguage = this.detectBrowserLanguage();
-            console.log(`🌍 Browser language detected: ${browserLanguage}`);
 
             // Set target language from browser detection
             setDefaultLanguage('targetLang', 'customTargetLang', browserLanguage);
@@ -292,8 +323,7 @@ export const FormManager = {
             // Store in state
             StateManager.setState('ui.defaultConfig', config);
 
-        } catch (error) {
-            console.error('Error loading default configuration:', error);
+        } catch {
             MessageLogger.showMessage('Failed to load default configuration', 'warning');
         }
     },
@@ -312,8 +342,8 @@ export const FormManager = {
             MessageLogger.addLog("🛑 Interrupting current translation before clearing files...");
             try {
                 await ApiClient.interruptTranslation(currentJob.translationId);
-            } catch (error) {
-                console.error('Error interrupting translation:', error);
+            } catch {
+                // Interrupt failed
             }
         }
 
@@ -360,8 +390,7 @@ export const FormManager = {
                 if (result.failed && result.failed.length > 0) {
                     MessageLogger.addLog(`⚠️ Failed to delete ${result.failed.length} file(s).`);
                 }
-            } catch (error) {
-                console.error('Error deleting uploaded files:', error);
+            } catch {
                 MessageLogger.addLog("⚠️ Error occurred while deleting uploaded files.");
             }
         }

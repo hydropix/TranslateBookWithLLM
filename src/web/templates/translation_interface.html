@@ -42,92 +42,7 @@
 
         <!-- Main Translation Configuration Card -->
         <div class="main-card">
-            <div class="card-header">
-                <span class="material-symbols-outlined">settings</span>
-                <h2>Translation Configuration</h2>
-            </div>
-
             <div class="card-body">
-                <!-- Provider + API Settings Row -->
-                <div id="providerRow" style="display: grid; grid-template-columns: 1fr 2fr 1fr auto; gap: 15px; margin-bottom: 15px; align-items: end;">
-                    <div class="form-group" style="margin-bottom: 0;">
-                        <label>AI Provider</label>
-                        <div class="neu-inset-light">
-                            <select class="form-control" id="llmProvider">
-                                <option value="ollama">Ollama (Local)</option>
-                                <option value="gemini">Gemini (Cloud)</option>
-                                <option value="openai">OpenAI-Compatible</option>
-                                <option value="openrouter">OpenRouter (200+ models)</option>
-                            </select>
-                        </div>
-                    </div>
-
-                    <!-- Ollama Endpoint -->
-                    <div class="form-group" id="ollamaSettings" style="margin-bottom: 0;">
-                        <label>API Endpoint</label>
-                        <div class="neu-inset-light">
-                            <input type="text" class="form-control" id="apiEndpoint" value="http://localhost:11434/api/generate">
-                        </div>
-                    </div>
-
-                    <!-- Gemini API Key -->
-                    <div class="form-group" id="geminiSettings" style="display: none; margin-bottom: 0;">
-                        <label>API Key <span id="geminiKeyStatus" class="key-status"></span></label>
-                        <div class="neu-inset-light">
-                            <input type="password" class="form-control" id="geminiApiKey" placeholder="Enter Gemini API key" autocomplete="new-password">
-                        </div>
-                    </div>
-
-                    <!-- OpenAI API Key -->
-                    <div class="form-group" id="openaiApiKeyGroup" style="display: none; margin-bottom: 0;">
-                        <label>API Key <span id="openaiKeyStatus" class="key-status"></span></label>
-                        <div class="neu-inset-light">
-                            <input type="password" class="form-control" id="openaiApiKey" placeholder="Enter OpenAI API key" autocomplete="new-password">
-                        </div>
-                    </div>
-
-                    <!-- OpenRouter API Key -->
-                    <div class="form-group" id="openrouterSettings" style="display: none; margin-bottom: 0;">
-                        <label>API Key <span id="openrouterKeyStatus" class="key-status"></span></label>
-                        <div class="neu-inset-light">
-                            <input type="password" class="form-control" id="openrouterApiKey" placeholder="sk-or-v1-..." autocomplete="new-password">
-                        </div>
-                    </div>
-
-                    <!-- Model Selection -->
-                    <div class="form-group" style="margin-bottom: 0;">
-                        <label>Model Selection</label>
-                        <div class="neu-inset-light">
-                            <select class="form-control" id="model">
-                                <option value="">Loading...</option>
-                            </select>
-                        </div>
-                        <!-- Thinking model warning -->
-                        <div id="thinkingModelWarning" style="display: none; margin-top: 8px; padding: 8px 10px; background: #fee2e2; border-left: 3px solid #ef4444; border-radius: 8px;">
-                            <p id="thinkingModelWarningText" style="margin: 0; font-size: 13px; color: #991b1b; white-space: pre-line;"></p>
-                        </div>
-                    </div>
-
-                    <!-- Refresh Button -->
-                    <div class="form-group" style="margin-bottom: 0;">
-                        <label>&nbsp;</label>
-                        <button class="btn btn-secondary" onclick="refreshModels()" title="Refresh model list" style="width: 100%; height: 56px; padding: 0;">
-                            <span class="material-symbols-outlined">refresh</span>
-                        </button>
-                    </div>
-                </div>
-
-                <!-- OpenAI Endpoint Row (shown only for OpenAI provider) -->
-                <div id="openaiEndpointRow" style="display: none; margin-bottom: 15px;">
-                    <div class="form-group" style="margin-bottom: 0;">
-                        <label>API Endpoint</label>
-                        <div class="neu-inset-light">
-                            <input type="text" class="form-control" id="openaiEndpoint" value="https://api.openai.com/v1/chat/completions" placeholder="https://api.openai.com/v1/chat/completions">
-                        </div>
-                        <small style="color: var(--text-muted-light); font-size: 0.75rem; margin-top: 0.5rem; display: block;">Local servers: llama.cpp (8080), LM Studio (1234), vLLM, etc.</small>
-                    </div>
-                </div>
-
                 <!-- Languages Row -->
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
                     <div class="form-group" style="margin-bottom: 0;">
@@ -268,13 +183,115 @@
                     </div>
                 </div>
 
-                <!-- Output Filename Pattern -->
-                <div class="form-group" style="margin-bottom: 15px;">
-                    <label>Naming Convention</label>
-                    <div class="neu-inset-light">
-                        <input type="text" class="form-control" id="outputFilenamePattern" value="{originalName} ({targetLang}).{ext}" title="Use {originalName}, {targetLang} as placeholders">
+                <!-- File Upload Area -->
+                <div class="file-upload" id="fileUpload" onclick="document.getElementById('fileInput').click()">
+                    <div class="upload-icon">
+                        <span class="material-symbols-outlined">cloud_upload</span>
                     </div>
-                    <small style="color: var(--text-muted-light); font-size: 0.75rem; margin-top: 0.5rem; display: block;">Placeholders: {originalName}, {targetLang}, {ext} — Example: Book (French).epub</small>
+                    <h3>Drop files to translate</h3>
+                    <p>Support for TXT, EPUB, and SRT</p>
+                    <div class="browse-btn">Browse Files</div>
+                    <input type="file" id="fileInput" accept=".txt,.epub,.srt" style="display: none;" onchange="handleFileSelect(event)" multiple>
+                </div>
+
+                <!-- Settings (Collapsible) -->
+                <div class="prompt-options-toggle" onclick="toggleSettingsOptions()">
+                    <span style="display: flex; align-items: center; gap: 0.75rem;">
+                        <span class="material-symbols-outlined">tune</span>
+                        <span>Settings</span>
+                    </span>
+                    <span id="settingsOptionsIcon" class="material-symbols-outlined">expand_more</span>
+                </div>
+
+                <div id="settingsOptionsSection" class="hidden">
+                    <!-- Provider + API Settings Row -->
+                    <div id="providerRow" style="display: grid; grid-template-columns: 1fr 2fr 1fr auto; gap: 15px; margin-bottom: 15px; align-items: end;">
+                        <div class="form-group" style="margin-bottom: 0;">
+                            <label>AI Provider</label>
+                            <div class="neu-inset-light">
+                                <select class="form-control" id="llmProvider">
+                                    <option value="ollama">Ollama (Local)</option>
+                                    <option value="gemini">Gemini (Cloud)</option>
+                                    <option value="openai">OpenAI-Compatible</option>
+                                    <option value="openrouter">OpenRouter (200+ models)</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- Ollama Endpoint -->
+                        <div class="form-group" id="ollamaSettings" style="margin-bottom: 0;">
+                            <label>API Endpoint</label>
+                            <div class="neu-inset-light">
+                                <input type="text" class="form-control" id="apiEndpoint" value="http://localhost:11434/api/generate">
+                            </div>
+                        </div>
+
+                        <!-- Gemini API Key -->
+                        <div class="form-group" id="geminiSettings" style="display: none; margin-bottom: 0;">
+                            <label>API Key <span id="geminiKeyStatus" class="key-status"></span></label>
+                            <div class="neu-inset-light">
+                                <input type="password" class="form-control" id="geminiApiKey" placeholder="Enter Gemini API key" autocomplete="new-password">
+                            </div>
+                        </div>
+
+                        <!-- OpenAI API Key -->
+                        <div class="form-group" id="openaiApiKeyGroup" style="display: none; margin-bottom: 0;">
+                            <label>API Key <span id="openaiKeyStatus" class="key-status"></span></label>
+                            <div class="neu-inset-light">
+                                <input type="password" class="form-control" id="openaiApiKey" placeholder="Enter OpenAI API key" autocomplete="new-password">
+                            </div>
+                        </div>
+
+                        <!-- OpenRouter API Key -->
+                        <div class="form-group" id="openrouterSettings" style="display: none; margin-bottom: 0;">
+                            <label>API Key <span id="openrouterKeyStatus" class="key-status"></span></label>
+                            <div class="neu-inset-light">
+                                <input type="password" class="form-control" id="openrouterApiKey" placeholder="sk-or-v1-..." autocomplete="new-password">
+                            </div>
+                        </div>
+
+                        <!-- Model Selection -->
+                        <div class="form-group" style="margin-bottom: 0;">
+                            <label>Model Selection</label>
+                            <div class="neu-inset-light">
+                                <select class="form-control" id="model">
+                                    <option value="">Loading...</option>
+                                </select>
+                            </div>
+                            <!-- Thinking model warning -->
+                            <div id="thinkingModelWarning" style="display: none; margin-top: 8px; padding: 8px 10px; background: #fee2e2; border-left: 3px solid #ef4444; border-radius: 8px;">
+                                <p id="thinkingModelWarningText" style="margin: 0; font-size: 13px; color: #991b1b; white-space: pre-line;"></p>
+                            </div>
+                        </div>
+
+                        <!-- Refresh Button -->
+                        <div class="form-group" style="margin-bottom: 0;">
+                            <label>&nbsp;</label>
+                            <button class="btn btn-secondary" onclick="refreshModels()" title="Refresh model list" style="width: 100%; height: 56px; padding: 0;">
+                                <span class="material-symbols-outlined">refresh</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- OpenAI Endpoint Row (shown only for OpenAI provider) -->
+                    <div id="openaiEndpointRow" style="display: none; margin-bottom: 15px;">
+                        <div class="form-group" style="margin-bottom: 0;">
+                            <label>API Endpoint</label>
+                            <div class="neu-inset-light">
+                                <input type="text" class="form-control" id="openaiEndpoint" value="https://api.openai.com/v1/chat/completions" placeholder="https://api.openai.com/v1/chat/completions">
+                            </div>
+                            <small style="color: var(--text-muted-light); font-size: 0.75rem; margin-top: 0.5rem; display: block;">Local servers: llama.cpp (8080), LM Studio (1234), vLLM, etc.</small>
+                        </div>
+                    </div>
+
+                    <!-- Output Filename Pattern -->
+                    <div class="form-group" style="margin-bottom: 15px;">
+                        <label>Naming Convention</label>
+                        <div class="neu-inset-light">
+                            <input type="text" class="form-control" id="outputFilenamePattern" value="{originalName} ({targetLang}).{ext}" title="Use {originalName}, {targetLang} as placeholders">
+                        </div>
+                        <small style="color: var(--text-muted-light); font-size: 0.75rem; margin-top: 0.5rem; display: block;">Placeholders: {originalName}, {targetLang}, {ext} — Example: Book (French).epub</small>
+                    </div>
                 </div>
 
                 <!-- Prompt Options (Collapsible) -->
@@ -499,28 +516,11 @@
                     </div>
                 </div>
 
-                <!-- Save Settings Button -->
-                <div style="text-align: center; margin: 20px 0;">
-                    <button type="button" class="btn btn-secondary" id="saveSettingsBtn" onclick="saveSettings()">
-                        <span class="material-symbols-outlined">save</span>
-                        Save All Settings
-                    </button>
-                    <span id="saveSettingsStatus" style="margin-left: 10px; font-size: 0.875rem;"></span>
-                </div>
+                <!-- Messages -->
+                <div id="messages"></div>
 
-                <!-- File Upload Area -->
-                <div class="file-upload" id="fileUpload" onclick="document.getElementById('fileInput').click()">
-                    <div class="upload-icon">
-                        <span class="material-symbols-outlined">cloud_upload</span>
-                    </div>
-                    <h3>Drop files to translate</h3>
-                    <p>Support for TXT, EPUB, and SRT</p>
-                    <div class="browse-btn">Browse Files</div>
-                    <input type="file" id="fileInput" accept=".txt,.epub,.srt" style="display: none;" onchange="handleFileSelect(event)" multiple>
-                </div>
-
-                <!-- File Info Section -->
-                <div id="fileInfo" class="hidden" style="margin-bottom: 20px;">
+                <!-- File Info Section (Batch Files) -->
+                <div id="fileInfo" class="hidden" style="margin-bottom: 20px; margin-top: 20px;">
                     <h4 style="color: var(--text-dark); font-weight: 700; margin-bottom: 1rem;">Selected Files:</h4>
                     <ul id="fileListContainer"></ul>
                     <button class="btn btn-secondary" onclick="resetFiles()" style="margin-top: 10px;">
@@ -528,9 +528,6 @@
                         Clear All Files
                     </button>
                 </div>
-
-                <!-- Messages -->
-                <div id="messages"></div>
 
                 <!-- Action Buttons -->
                 <div style="text-align: center; margin-top: 30px; display: flex; justify-content: center; gap: 15px;">
@@ -608,13 +605,17 @@
                     <p id="ttsStatusText" style="margin: 0; font-size: 0.875rem; color: var(--success-light);">Waiting to start...</p>
                 </div>
 
-                <!-- Activity Log -->
-                <div style="margin-top: 30px;">
-                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
-                        <h4 style="margin: 0; color: var(--text-dark); font-weight: 700; display: flex; align-items: center; gap: 0.5rem;">
-                            <span class="material-symbols-outlined">terminal</span>
-                            Activity Log
-                        </h4>
+                <!-- Activity Log (Collapsible) -->
+                <div class="prompt-options-toggle" onclick="toggleActivityLog()" style="margin-top: 30px;">
+                    <span style="display: flex; align-items: center; gap: 0.75rem;">
+                        <span class="material-symbols-outlined">terminal</span>
+                        <span>Activity Log</span>
+                    </span>
+                    <span id="activityLogIcon" class="material-symbols-outlined">expand_more</span>
+                </div>
+
+                <div id="activityLogSection" class="hidden">
+                    <div style="display: flex; justify-content: flex-end; margin-bottom: 10px;">
                         <button class="btn btn-secondary" onclick="clearActivityLog()" style="font-size: 0.75rem; padding: 0.5rem 1rem;">
                             <span class="material-symbols-outlined" style="font-size: 1rem;">delete</span>
                             Clear Log

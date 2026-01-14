@@ -5,6 +5,7 @@
  */
 
 import { DomHelpers } from '../ui/dom-helpers.js';
+import { StateManager } from '../core/state-manager.js';
 
 /**
  * Status types and their visual representations
@@ -59,7 +60,6 @@ export const StatusManager = {
     setStatus(status, customText = null) {
         const statusInfo = STATUS_TYPES[status];
         if (!statusInfo) {
-            console.warn(`Invalid status type: ${status}`);
             return;
         }
 
@@ -80,6 +80,62 @@ export const StatusManager = {
             // Add new status class
             statusDot.classList.add(statusInfo.dotClass);
         }
+
+        // Open Settings foldout on connection problems
+        if (status === 'disconnected' || status === 'error' || status === 'waiting') {
+            this.openSettingsFoldout();
+        }
+
+        // Update translate button based on connection status
+        this.updateTranslateButton(status);
+    },
+
+    /**
+     * Update translate button based on connection status
+     * @param {string} status - Current status
+     */
+    updateTranslateButton(status) {
+        const translateBtn = document.getElementById('translateBtn');
+        if (!translateBtn) return;
+
+        const isConnected = status === 'connected';
+        const filesToProcess = StateManager.getState('files.toProcess') || [];
+        const isBatchActive = StateManager.getState('translation.isBatchActive') || false;
+
+        if (!isConnected) {
+            translateBtn.disabled = true;
+            translateBtn.title = 'LLM not connected - check Settings';
+        } else {
+            // Enable if there are files and no batch is active
+            translateBtn.disabled = filesToProcess.length === 0 || isBatchActive;
+            translateBtn.title = '';
+        }
+    },
+
+    /**
+     * Check if LLM is connected
+     * @returns {boolean} True if connected
+     */
+    isConnected() {
+        return currentStatus === 'connected';
+    },
+
+    /**
+     * Open the Settings foldout if it's closed
+     */
+    openSettingsFoldout() {
+        // Use requestAnimationFrame to ensure DOM is ready
+        requestAnimationFrame(() => {
+            const section = document.getElementById('settingsOptionsSection');
+            const icon = document.getElementById('settingsOptionsIcon');
+
+            if (section && section.classList.contains('hidden')) {
+                section.classList.remove('hidden');
+                if (icon) {
+                    icon.style.transform = 'rotate(180deg)';
+                }
+            }
+        });
     },
 
     /**

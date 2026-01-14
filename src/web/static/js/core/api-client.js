@@ -237,6 +237,18 @@ export const ApiClient = {
         });
     },
 
+    /**
+     * Verify which uploaded files still exist on the server
+     * @param {string[]} filePaths - Array of file paths to verify
+     * @returns {Promise<Object>} Object with existing and missing file paths
+     */
+    async verifyUploadedFiles(filePaths) {
+        return await apiRequest('/api/uploads/verify', {
+            method: 'POST',
+            body: JSON.stringify({ file_paths: filePaths })
+        });
+    },
+
     // ========================================
     // Model Management
     // ========================================
@@ -436,7 +448,3 @@ export const ApiClient = {
     }
 };
 
-// Make API client available globally for debugging
-if (typeof window !== 'undefined') {
-    window.__API_CLIENT__ = ApiClient;
-}

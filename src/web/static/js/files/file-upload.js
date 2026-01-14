@@ -9,6 +9,9 @@ import { StateManager } from '../core/state-manager.js';
 import { ApiClient } from '../core/api-client.js';
 import { MessageLogger } from '../ui/message-logger.js';
 import { DomHelpers } from '../ui/dom-helpers.js';
+import { StatusManager } from '../utils/status-manager.js';
+
+const FILE_QUEUE_STORAGE_KEY = 'tbl_file_queue';
 
 /**
  * Generate output filename based on pattern
@@ -58,7 +61,6 @@ function detectFileType(filename) {
 function setLanguageInSelect(selectId, languageValue) {
     const select = DomHelpers.getElement(selectId);
     if (!select) {
-        console.error(`Select element '${selectId}' not found`);
         return false;
     }
 
@@ -84,7 +86,6 @@ function setLanguageInSelect(selectId, languageValue) {
         return true;
     }
 
-    console.warn(`Language "${languageValue}" not found in select options`);
     return false;
 }
 
@@ -95,6 +96,78 @@ export const FileUpload = {
     initialize() {
         this.setupDragDrop();
         this.setupFileInput();
+        // Restore file queue from localStorage after a short delay
+        // to ensure WebSocket is connected and can verify files
+        setTimeout(() => this.restoreFileQueue(), 1000);
+    },
+
+    /**
+     * Save file queue to localStorage
+     * @private
+     */
+    _saveFileQueue() {
+        try {
+            const filesToProcess = StateManager.getState('files.toProcess') || [];
+            // Save only serializable data (exclude File objects)
+            const serializableFiles = filesToProcess.map(f => ({
+                name: f.name,
+                filePath: f.filePath,
+                fileType: f.fileType,
+                originalExtension: f.originalExtension,
+                status: f.status,
+                outputFilename: f.outputFilename,
+                size: f.size,
+                sourceLanguage: f.sourceLanguage,
+                targetLanguage: f.targetLanguage,
+                translationId: f.translationId,
+                detectedLanguage: f.detectedLanguage,
+                languageConfidence: f.languageConfidence,
+                thumbnail: f.thumbnail
+            }));
+            localStorage.setItem(FILE_QUEUE_STORAGE_KEY, JSON.stringify(serializableFiles));
+        } catch {
+            // Failed to save file queue
+        }
+    },
+
+    /**
+     * Restore file queue from localStorage and verify files exist
+     */
+    async restoreFileQueue() {
+        try {
+            const stored = localStorage.getItem(FILE_QUEUE_STORAGE_KEY);
+            if (!stored) return;
+
+            const savedFiles = JSON.parse(stored);
+            if (!Array.isArray(savedFiles) || savedFiles.length === 0) return;
+
+            // Get file paths to verify
+            const filePaths = savedFiles.map(f => f.filePath);
+
+            // Verify which files still exist on the server
+            const verification = await ApiClient.verifyUploadedFiles(filePaths);
+
+            // Filter to only existing files
+            const existingFilePaths = new Set(verification.existing || []);
+            const restoredFiles = savedFiles.filter(f => existingFilePaths.has(f.filePath));
+
+            if (restoredFiles.length > 0) {
+                // Restore files to state (reset status to Queued for non-completed files)
+                const filesToRestore = restoredFiles.map(f => ({
+                    ...f,
+                    status: f.status === 'Completed' ? 'Completed' : 'Queued'
+                }));
+
+                StateManager.setState('files.toProcess', filesToRestore);
+                this.notifyFileListChanged();
+            }
+
+            // Update localStorage with only existing files
+            this._saveFileQueue();
+
+        } catch {
+            // Failed to restore file queue
+        }
     },
 
     /**
@@ -127,7 +200,6 @@ export const FileUpload = {
     setupDragDrop() {
         const uploadArea = DomHelpers.getElement('fileUpload');
         if (!uploadArea) {
-            console.warn('File upload area not found');
             return;
         }
 
@@ -359,10 +431,10 @@ export const FileUpload = {
             // Show file info section
             DomHelpers.show(fileInfo);
 
-            // Enable translate button if not batch active
+            // Enable translate button if not batch active and LLM is connected
             const isBatchActive = StateManager.getState('translation.isBatchActive') || false;
             if (translateBtn) {
-                translateBtn.disabled = isBatchActive;
+                translateBtn.disabled = isBatchActive || !StatusManager.isConnected();
             }
         } else {
             // Hide file info section
@@ -381,6 +453,9 @@ export const FileUpload = {
     notifyFileListChanged() {
         // Update display immediately
         this.updateFileDisplay();
+
+        // Persist to localStorage
+        this._saveFileQueue();
 
         // Emit event so other modules can react
         const event = new CustomEvent('fileListChanged');

@@ -11,7 +11,9 @@ import { MessageLogger } from '../ui/message-logger.js';
 import { DomHelpers } from '../ui/dom-helpers.js';
 import { Validators } from '../utils/validators.js';
 import { ApiKeyUtils } from '../utils/api-key-utils.js';
+import { StatusManager } from '../utils/status-manager.js';
 import { ProgressManager } from './progress-manager.js';
+import { FileUpload } from '../files/file-upload.js';
 
 /**
  * Validation helper for early failures
@@ -94,6 +96,8 @@ function updateFileStatusInList(filename, status, translationId = null) {
             filesToProcess[fileIndex].translationId = translationId;
         }
         StateManager.setState('files.toProcess', filesToProcess);
+        // Persist to localStorage
+        FileUpload.notifyFileListChanged();
     }
 
     // Emit event for UI update
@@ -184,7 +188,7 @@ export const BatchController = {
 
             const translateBtn = DomHelpers.getElement('translateBtn');
             if (translateBtn) {
-                translateBtn.disabled = filesToProcess.length === 0;
+                translateBtn.disabled = filesToProcess.length === 0 || !StatusManager.isConnected();
                 translateBtn.innerHTML = '▶️ Start Translation Batch';
             }
 
@@ -279,8 +283,9 @@ export const BatchController = {
         StateManager.setState('translation.currentJob', null);
 
         const translateBtn = DomHelpers.getElement('translateBtn');
+        const filesToProcess = StateManager.getState('files.toProcess') || [];
         if (translateBtn) {
-            translateBtn.disabled = false;
+            translateBtn.disabled = filesToProcess.length === 0 || !StatusManager.isConnected();
             translateBtn.innerHTML = '▶️ Start Translation Batch';
         }
 

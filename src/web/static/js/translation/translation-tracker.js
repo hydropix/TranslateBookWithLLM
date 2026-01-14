@@ -9,6 +9,8 @@ import { StateManager } from '../core/state-manager.js';
 import { ApiClient } from '../core/api-client.js';
 import { MessageLogger } from '../ui/message-logger.js';
 import { DomHelpers } from '../ui/dom-helpers.js';
+import { StatusManager } from '../utils/status-manager.js';
+import { FileUpload } from '../files/file-upload.js';
 
 export const TranslationTracker = {
     /**
@@ -17,6 +19,65 @@ export const TranslationTracker = {
     initialize() {
         this.setupEventListeners();
         this.updateActiveTranslationsState();
+        // Check for active translations after a short delay to allow file queue to restore first
+        setTimeout(() => this.restoreActiveTranslation(), 1500);
+    },
+
+    /**
+     * Restore active translation state if there's one running on the server
+     */
+    async restoreActiveTranslation() {
+        try {
+            const response = await ApiClient.getActiveTranslations();
+            const activeJobs = (response.translations || []).filter(
+                t => t.status === 'running' || t.status === 'queued'
+            );
+
+            if (activeJobs.length === 0) return;
+
+            // Find matching file in our queue
+            const filesToProcess = StateManager.getState('files.toProcess') || [];
+
+            for (const job of activeJobs) {
+                const matchingFile = filesToProcess.find(f =>
+                    f.translationId === job.translation_id ||
+                    f.filePath === job.input_file ||
+                    f.name === job.input_file?.split('/').pop()
+                );
+
+                if (matchingFile) {
+
+                    // Restore state
+                    StateManager.setState('translation.currentJob', {
+                        fileRef: matchingFile,
+                        translationId: job.translation_id
+                    });
+                    StateManager.setState('translation.isBatchActive', true);
+
+                    // Update UI
+                    this.updateFileStatusInList(matchingFile.name, 'Processing', job.translation_id);
+                    DomHelpers.show('progressSection');
+                    DomHelpers.setText('currentFileProgressTitle', `📊 Translating: ${matchingFile.name}`);
+
+                    // Update progress if available
+                    if (job.progress !== undefined) {
+                        this.updateProgress(job.progress);
+                    }
+
+                    // Update button states
+                    const translateBtn = DomHelpers.getElement('translateBtn');
+                    if (translateBtn) {
+                        translateBtn.disabled = true;
+                        translateBtn.innerHTML = '⏳ Batch in Progress...';
+                    }
+                    DomHelpers.show('interruptBtn');
+
+                    break;
+                }
+            }
+        } catch {
+            // Failed to restore active translation
+        }
     },
 
     /**
@@ -24,14 +85,9 @@ export const TranslationTracker = {
      */
     setupEventListeners() {
         // Listen for state changes
-        StateManager.subscribe('translation.currentJob', (job) => {
-            if (job) {
-                console.log('Current job updated:', job);
-            }
-        });
+        StateManager.subscribe('translation.currentJob', () => {});
 
-        StateManager.subscribe('translation.hasActive', (hasActive) => {
-            console.log('Active translation state changed:', hasActive);
+        StateManager.subscribe('translation.hasActive', () => {
             this.updateResumeButtonsState();
         });
     },
@@ -44,12 +100,9 @@ export const TranslationTracker = {
         const currentJob = StateManager.getState('translation.currentJob');
 
         if (!currentJob || data.translation_id !== currentJob.translationId) {
-            // Received update for a job that's not current - possible state inconsistency
+            // Check if we should reset UI for finished jobs
             if (data.translation_id && !currentJob) {
-                console.warn('Received translation update but no current job. Possible state desync.');
-                // Check if we should reset UI
                 if (data.status === 'completed' || data.status === 'error' || data.status === 'interrupted') {
-                    console.log('Translation finished, ensuring UI is in idle state');
                     this.resetUIToIdle();
                 }
             }
@@ -218,6 +271,8 @@ export const TranslationTracker = {
                 fileObj.translationId = translationId;
             }
             StateManager.setState('files.toProcess', filesToProcess);
+            // Persist to localStorage
+            FileUpload.notifyFileListChanged();
         }
     },
 
@@ -304,13 +359,11 @@ export const TranslationTracker = {
 
             // If state changed, update UI
             if (wasActive !== hasActive) {
-                console.log('Active translation state changed:', hasActive);
                 this.updateResumeButtonsState();
             }
 
             return { hasActive, activeJobs };
-        } catch (error) {
-            console.error('Error updating active translations state:', error);
+        } catch {
             return {
                 hasActive: StateManager.getState('translation.hasActive'),
                 activeJobs: StateManager.getState('translation.activeJobs')
@@ -386,7 +439,6 @@ export const TranslationTracker = {
      * Reset UI state to idle (no active translation)
      */
     resetUIToIdle() {
-        console.log('Resetting UI to idle state...');
 
         // Reset state variables
         StateManager.setState('translation.isBatchActive', false);
@@ -398,7 +450,7 @@ export const TranslationTracker = {
         DomHelpers.setText('interruptBtn', '⏹️ Interrupt Current & Stop Batch');
 
         const filesToProcess = StateManager.getState('files.toProcess');
-        DomHelpers.setDisabled('translateBtn', filesToProcess.length === 0);
+        DomHelpers.setDisabled('translateBtn', filesToProcess.length === 0 || !StatusManager.isConnected());
         DomHelpers.setText('translateBtn', '▶️ Start Translation Batch');
 
         // Hide progress section if no files to process
@@ -413,7 +465,5 @@ export const TranslationTracker = {
         if (window.loadResumableJobs) {
             window.loadResumableJobs();
         }
-
-        MessageLogger.addLog('🔄 UI reset to idle state');
     }
 };
