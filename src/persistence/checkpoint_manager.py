@@ -353,6 +353,57 @@ class CheckpointManager:
         """
         Build the complete translated output from saved chunks.
 
+        Now uses the adapter pattern for all file formats, providing
+        consistent reconstruction logic across TXT, SRT, and EPUB.
+
+        Args:
+            translation_id: Job identifier
+            file_type: Type of file (txt, srt, epub)
+
+        Returns:
+            Tuple of (translated_text, error_message)
+        """
+        # Use the new adapter-based reconstruction
+        import asyncio
+        from src.core.adapters import build_translated_output as adapter_build_output
+
+        try:
+            output_bytes, error = asyncio.run(
+                adapter_build_output(
+                    translation_id=translation_id,
+                    checkpoint_manager=self
+                )
+            )
+
+            if error:
+                return None, error
+
+            if output_bytes:
+                # For EPUB, return as base64-encoded string for consistency with legacy code
+                if file_type == 'epub':
+                    import base64
+                    return base64.b64encode(output_bytes).decode('utf-8'), None
+                else:
+                    # For TXT/SRT, decode bytes to string
+                    return output_bytes.decode('utf-8'), None
+
+            return None, "No output generated"
+
+        except Exception as e:
+            # Fallback to legacy reconstruction if adapter fails
+            return self._build_translated_output_legacy(translation_id, file_type)
+
+    def _build_translated_output_legacy(
+        self,
+        translation_id: str,
+        file_type: str
+    ) -> Tuple[Optional[str], Optional[str]]:
+        """
+        Legacy build method - kept as fallback.
+
+        This is the original implementation, preserved for backward compatibility
+        in case the adapter-based reconstruction fails.
+
         Args:
             translation_id: Job identifier
             file_type: Type of file (txt, srt, epub)
@@ -424,13 +475,136 @@ class CheckpointManager:
             return translated_srt, None
 
         elif file_type == 'epub':
-            # EPUB simplified mode - checkpoint recovery not yet implemented
-            # The new simplified mode translates XHTML files individually and modifies them in place
-            # Resume would require re-processing the EPUB from the last successfully translated file
-            return None, "EPUB checkpoint resume not yet implemented for simplified mode"
+            # EPUB reconstruction from checkpoint
+            # Extract original EPUB, restore translated files, and repackage
+            job = self.db.get_job(translation_id)
+            if not job:
+                return None, "Job not found"
+
+            config = job['config']
+            preserved_input_path = config.get('preserved_input_path')
+
+            if not preserved_input_path or not Path(preserved_input_path).exists():
+                return None, "Original EPUB file not found, cannot reconstruct"
+
+            try:
+                import tempfile
+                import zipfile
+                from lxml import etree
+
+                # Create temporary directory for reconstruction
+                with tempfile.TemporaryDirectory() as temp_dir:
+                    temp_path = Path(temp_dir)
+
+                    # Extract original EPUB
+                    with zipfile.ZipFile(preserved_input_path, 'r') as zip_ref:
+                        zip_ref.extractall(temp_path)
+
+                    # Restore translated files from checkpoint
+                    restore_success = self.restore_epub_files(translation_id, temp_path)
+
+                    if not restore_success:
+                        return None, "Failed to restore translated files from checkpoint"
+
+                    # Repackage EPUB
+                    output_path = Path(tempfile.mktemp(suffix='.epub'))
+                    try:
+                        with zipfile.ZipFile(output_path, 'w', zipfile.ZIP_DEFLATED) as epub_zip:
+                            # Add mimetype first (uncompressed)
+                            mimetype_path = temp_path / 'mimetype'
+                            if mimetype_path.exists():
+                                epub_zip.write(
+                                    mimetype_path,
+                                    'mimetype',
+                                    compress_type=zipfile.ZIP_STORED
+                                )
+
+                            # Add all other files
+                            for file_path in temp_path.rglob('*'):
+                                if file_path.is_file() and file_path.name != 'mimetype':
+                                    arcname = file_path.relative_to(temp_path)
+                                    epub_zip.write(file_path, arcname)
+
+                        # Read as string (will be written as binary by caller)
+                        with open(output_path, 'rb') as f:
+                            epub_bytes = f.read()
+
+                        # Return as base64-encoded string for storage consistency
+                        import base64
+                        return base64.b64encode(epub_bytes).decode('utf-8'), None
+
+                    finally:
+                        if output_path.exists():
+                            output_path.unlink()
+
+            except Exception as e:
+                return None, f"Error reconstructing EPUB: {str(e)}"
 
         else:
             return None, f"Unknown file type: {file_type}"
+
+    def save_epub_file(
+        self,
+        translation_id: str,
+        file_href: str,
+        file_content: bytes
+    ) -> bool:
+        """
+        Save a translated XHTML file for EPUB reconstruction.
+
+        Args:
+            translation_id: Job identifier
+            file_href: Relative path within EPUB (e.g., "OEBPS/chapter1.xhtml")
+            file_content: Raw file content (bytes)
+
+        Returns:
+            True if saved successfully
+        """
+        job_dir = self.uploads_dir / translation_id / "translated_files"
+        job_dir.mkdir(parents=True, exist_ok=True)
+
+        # Preserve directory structure
+        file_path = job_dir / file_href
+        file_path.parent.mkdir(parents=True, exist_ok=True)
+
+        try:
+            with open(file_path, 'wb') as f:
+                f.write(file_content)
+            return True
+        except Exception as e:
+            print(f"Error saving EPUB file {file_href}: {e}")
+            return False
+
+    def restore_epub_files(
+        self,
+        translation_id: str,
+        work_dir: Path
+    ) -> bool:
+        """
+        Restore translated XHTML files from checkpoint to work_dir.
+
+        Args:
+            translation_id: Job identifier
+            work_dir: Work directory where files should be restored
+
+        Returns:
+            True if restore successful
+        """
+        translated_files_dir = self.uploads_dir / translation_id / "translated_files"
+        if not translated_files_dir.exists():
+            return False
+
+        try:
+            for file_path in translated_files_dir.rglob('*'):
+                if file_path.is_file():
+                    rel_path = file_path.relative_to(translated_files_dir)
+                    dest_path = work_dir / rel_path
+                    dest_path.parent.mkdir(parents=True, exist_ok=True)
+                    shutil.copy2(file_path, dest_path)
+            return True
+        except Exception as e:
+            print(f"Error restoring EPUB files: {e}")
+            return False
 
     def close(self):
         """Close database connection."""

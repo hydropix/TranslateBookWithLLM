@@ -9,10 +9,10 @@ import threading
 from datetime import datetime
 from pathlib import Path
 
-from src.core.epub import translate_epub_file
 from src.utils.unified_logger import setup_web_logger, LogType
 from src.utils.file_utils import get_unique_output_path, generate_tts_for_translation
 from src.core.llm import OpenRouterProvider
+from src.core.adapters import translate_file
 from src.tts.tts_config import TTSConfig
 from .websocket import emit_update
 
@@ -202,108 +202,55 @@ async def perform_actual_translation(translation_id, config, state_manager, outp
         })
         
         input_path_for_translate_module = config.get('file_path')
-        if config['file_type'] == 'epub':
-            if not input_path_for_translate_module:
-                _log_message_callback("epub_error_no_path", "❌ EPUB translation requires a file path from upload.")
-                raise Exception("EPUB translation requires a file_path.")
 
-            await translate_epub_file(
-                input_path_for_translate_module,
-                output_filepath_on_server,
-                config['source_language'],
-                config['target_language'],
-                config['model'],
-                config['llm_api_endpoint'],
-                progress_callback=_update_translation_progress_callback,
-                log_callback=_log_message_callback,
-                stats_callback=_update_translation_stats_callback,
-                check_interruption_callback=should_interrupt_current_task,
-                llm_provider=config.get('llm_provider', 'ollama'),
-                gemini_api_key=config.get('gemini_api_key', ''),
-                openai_api_key=config.get('openai_api_key', ''),
-                openrouter_api_key=config.get('openrouter_api_key', ''),
-                context_window=config.get('context_window', 2048),
-                auto_adjust_context=config.get('auto_adjust_context', True),
-                min_chunk_size=config.get('min_chunk_size', 5),
-                checkpoint_manager=checkpoint_manager,
-                translation_id=translation_id,
-                resume_from_index=resume_from_index,
-                prompt_options=config.get('prompt_options', {})
-            )
-            state_manager.set_translation_field(translation_id, 'result', "[EPUB file translated - download to view]")
-            
-        elif config['file_type'] == 'txt':
-            temp_txt_file_path = None
-            if 'text' in config and input_path_for_translate_module is None:
-                with tempfile.NamedTemporaryFile(mode="w", encoding="utf-8", delete=False, suffix=".txt", dir=output_dir) as tmp_f:
-                    tmp_f.write(config['text'])
-                    temp_txt_file_path = tmp_f.name
-                input_path_for_translate_module = temp_txt_file_path
+        # Handle special case for TXT with inline text content (no file upload)
+        temp_txt_file_path = None
+        if config['file_type'] == 'txt' and 'text' in config and input_path_for_translate_module is None:
+            with tempfile.NamedTemporaryFile(mode="w", encoding="utf-8", delete=False, suffix=".txt", dir=output_dir) as tmp_f:
+                tmp_f.write(config['text'])
+                temp_txt_file_path = tmp_f.name
+            input_path_for_translate_module = temp_txt_file_path
 
-            # Use unified file processing logic
-            from src.utils.file_utils import translate_text_file_with_callbacks
+        # Validate input file path
+        if not input_path_for_translate_module:
+            _log_message_callback("error_no_path", f"❌ {config['file_type'].upper()} translation requires a file path from upload.")
+            raise Exception(f"{config['file_type'].upper()} translation requires a file_path.")
 
-            await translate_text_file_with_callbacks(
-                input_path_for_translate_module,
-                output_filepath_on_server,
-                config['source_language'],
-                config['target_language'],
-                config['model'],
-                config['llm_api_endpoint'],
-                progress_callback=_update_translation_progress_callback,
-                log_callback=_log_message_callback,
-                stats_callback=_update_translation_stats_callback,
-                check_interruption_callback=should_interrupt_current_task,
-                llm_provider=config.get('llm_provider', 'ollama'),
-                gemini_api_key=config.get('gemini_api_key', ''),
-                openai_api_key=config.get('openai_api_key', ''),
-                openrouter_api_key=config.get('openrouter_api_key', ''),
-                context_window=config.get('context_window', 2048),
-                auto_adjust_context=config.get('auto_adjust_context', True),
-                min_chunk_size=config.get('min_chunk_size', 5),
-                checkpoint_manager=checkpoint_manager,
-                translation_id=translation_id,
-                resume_from_index=resume_from_index,
-                prompt_options=config.get('prompt_options', {})
-            )
+        # Use unified adapter-based translation
+        await translate_file(
+            input_filepath=input_path_for_translate_module,
+            output_filepath=output_filepath_on_server,
+            source_language=config['source_language'],
+            target_language=config['target_language'],
+            model_name=config['model'],
+            llm_provider=config.get('llm_provider', 'ollama'),
+            checkpoint_manager=checkpoint_manager,
+            translation_id=translation_id,
+            progress_callback=_update_translation_progress_callback,
+            log_callback=_log_message_callback,
+            stats_callback=_update_translation_stats_callback,
+            check_interruption_callback=should_interrupt_current_task,
+            resume_from_index=resume_from_index,
+            llm_api_endpoint=config['llm_api_endpoint'],
+            gemini_api_key=config.get('gemini_api_key', ''),
+            openai_api_key=config.get('openai_api_key', ''),
+            openrouter_api_key=config.get('openrouter_api_key', ''),
+            context_window=config.get('context_window', 2048),
+            auto_adjust_context=config.get('auto_adjust_context', True),
+            min_chunk_size=config.get('min_chunk_size', 5),
+            prompt_options=config.get('prompt_options', {})
+        )
 
-            if os.path.exists(output_filepath_on_server) and state_manager.get_translation_field(translation_id, 'status') not in ['error', 'interrupted_before_save']:
-                state_manager.set_translation_field(translation_id, 'result', "[TXT file translated - content available for download]")
-            elif not os.path.exists(output_filepath_on_server):
-                state_manager.set_translation_field(translation_id, 'result', "[TXT file (partially) translated - content not loaded for preview or write failed]")
+        # Set result message based on file type
+        file_type_upper = config['file_type'].upper()
+        if os.path.exists(output_filepath_on_server) and state_manager.get_translation_field(translation_id, 'status') not in ['error', 'interrupted_before_save']:
+            state_manager.set_translation_field(translation_id, 'result', f"[{file_type_upper} file translated - download to view]")
+        elif not os.path.exists(output_filepath_on_server):
+            state_manager.set_translation_field(translation_id, 'result', f"[{file_type_upper} file (partially) translated - content not loaded for preview or write failed]")
 
-            if temp_txt_file_path and os.path.exists(temp_txt_file_path):
-                os.remove(temp_txt_file_path)
-                
-        elif config['file_type'] == 'srt':
-            # Use unified file processing logic
-            from src.utils.file_utils import translate_srt_file_with_callbacks
-            
-            await translate_srt_file_with_callbacks(
-                input_path_for_translate_module,
-                output_filepath_on_server,
-                config['source_language'],
-                config['target_language'],
-                config['model'],
-                config['llm_api_endpoint'],
-                progress_callback=_update_translation_progress_callback,
-                log_callback=_log_message_callback,
-                stats_callback=_update_translation_stats_callback,
-                check_interruption_callback=should_interrupt_current_task,
-                llm_provider=config.get('llm_provider', 'ollama'),
-                gemini_api_key=config.get('gemini_api_key', ''),
-                openai_api_key=config.get('openai_api_key', ''),
-                openrouter_api_key=config.get('openrouter_api_key', ''),
-                checkpoint_manager=checkpoint_manager,
-                translation_id=translation_id,
-                resume_from_block_index=resume_from_index
-            )
-            
-            state_manager.set_translation_field(translation_id, 'result', "[SRT file translated - download to view]")
-            
-        else:
-            _log_message_callback("unknown_file_type", f"❌ Unknown file type: {config['file_type']}")
-            raise Exception(f"Unsupported file type: {config['file_type']}")
+        # Clean up temporary text file if created
+        if temp_txt_file_path and os.path.exists(temp_txt_file_path):
+            os.remove(temp_txt_file_path)
 
         state_manager.set_translation_field(translation_id, 'output_filepath', output_filepath_on_server)
 

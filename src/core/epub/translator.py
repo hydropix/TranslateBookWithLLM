@@ -54,6 +54,11 @@ async def translate_epub_file(
     """
     Translate an EPUB file using LLM with simplified mode.
 
+    .. deprecated:: Phase 6
+        This function is deprecated and will be removed in a future version.
+        Use :func:`src.core.adapters.translate_file` instead, which provides
+        a unified interface for all file formats using the adapter pattern.
+
     Main orchestration function is now ~80 lines total (down from 340 lines).
 
     Uses the simplified translation approach:
@@ -87,6 +92,15 @@ async def translate_epub_file(
         max_tokens_per_chunk: Maximum tokens per chunk for simplified mode
         max_attempts: Maximum translation attempts per chunk
     """
+    # Issue deprecation warning
+    import warnings
+    warnings.warn(
+        "translate_epub_file is deprecated and will be removed in a future version. "
+        "Use src.core.adapters.translate_file instead.",
+        DeprecationWarning,
+        stacklevel=2
+    )
+
     # Validate input file
     if not os.path.exists(input_filepath):
         err_msg = f"ERROR: Input EPUB file '{input_filepath}' not found."
@@ -142,10 +156,87 @@ async def translate_epub_file(
             # 2. Parse manifest
             manifest_data = _parse_epub_manifest(temp_dir, log_callback)
 
+            # 2.5. Restore previously translated files from checkpoint (if resuming)
+            restored_docs = {}
+            if checkpoint_manager and translation_id and resume_from_index > 0:
+                if log_callback:
+                    log_callback("epub_restore_checkpoint",
+                                f"Restoring {resume_from_index} previously translated files from checkpoint...")
+
+                from pathlib import Path
+                restore_success = checkpoint_manager.restore_epub_files(
+                    translation_id=translation_id,
+                    work_dir=Path(temp_dir)
+                )
+
+                if restore_success:
+                    # Parse restored files and add them to parsed_xhtml_docs
+                    # This ensures they are included in the final repackaging
+                    # IMPORTANT: Only parse files that actually exist in the checkpoint storage,
+                    # not all files up to resume_from_index (some may have failed translation)
+
+                    # Get list of files that were actually saved in checkpoint
+                    # Files are stored with paths relative to temp_dir (e.g., "EPUB/cover.xhtml")
+                    from pathlib import Path
+                    checkpoint_files_dir = checkpoint_manager.uploads_dir / translation_id / "translated_files"
+                    opf_dir = manifest_data['opf_dir']
+
+                    if checkpoint_files_dir.exists():
+                        restored_count = 0
+                        for saved_file in checkpoint_files_dir.rglob('*'):
+                            if saved_file.is_file():
+                                # Get relative path from checkpoint storage (e.g., "EPUB/cover.xhtml")
+                                rel_path = saved_file.relative_to(checkpoint_files_dir)
+                                rel_path_str = str(rel_path).replace('\\', '/')
+
+                                # Calculate absolute path in temp_dir
+                                file_path_abs = os.path.normpath(os.path.join(temp_dir, rel_path_str))
+
+                                # Fallback for old checkpoints that used content_href without EPUB prefix
+                                # If file doesn't exist at expected path, try opf_dir + filename
+                                if not os.path.exists(file_path_abs):
+                                    # Old format: file was saved as "cover.xhtml" instead of "EPUB/cover.xhtml"
+                                    file_path_abs = os.path.normpath(os.path.join(opf_dir, rel_path_str))
+                                    if log_callback:
+                                        log_callback("epub_restore_fallback",
+                                                   f"🔄 Using fallback path for old checkpoint: {rel_path_str}")
+
+                                try:
+                                    async with aiofiles.open(file_path_abs, 'r', encoding='utf-8') as f:
+                                        restored_content = await f.read()
+
+                                    parser = etree.XMLParser(encoding='utf-8', recover=True, remove_blank_text=False)
+                                    doc_root = etree.fromstring(restored_content.encode('utf-8'), parser)
+                                    restored_docs[file_path_abs] = doc_root
+                                    restored_count += 1
+
+                                    if log_callback:
+                                        log_callback("epub_restore_file_parsed",
+                                                   f"📄 Restored file {restored_count}: {rel_path_str}")
+                                except Exception as e:
+                                    if log_callback:
+                                        from .xhtml_translator import _log_error
+                                        _log_error(log_callback, "epub_restore_parse_error",
+                                                     f"⚠️ Warning: Could not parse restored file {rel_path_str}: {e}")
+
+                        if log_callback:
+                            log_callback("epub_restore_success",
+                                        f"✅ Successfully restored {len(restored_docs)} files from checkpoint (resume from file {resume_from_index})")
+                    else:
+                        if log_callback:
+                            log_callback("epub_restore_no_files",
+                                       f"⚠️ No translated files found in checkpoint")
+                else:
+                    if log_callback:
+                        from .xhtml_translator import _log_error
+                        _log_error(log_callback, "epub_restore_warning",
+                                     "Warning: Could not restore all files from checkpoint. Translation will continue from scratch.")
+
             # 3. Process content files
             results = await _process_all_content_files(
                 content_files=manifest_data['content_files'],
                 opf_dir=manifest_data['opf_dir'],
+                temp_dir=temp_dir,
                 source_language=source_language,
                 target_language=target_language,
                 model_name=model_name,
@@ -160,7 +251,8 @@ async def translate_epub_file(
                 progress_callback=progress_callback,
                 stats_callback=stats_callback,
                 check_interruption_callback=check_interruption_callback,
-                prompt_options=prompt_options
+                prompt_options=prompt_options,
+                restored_docs=restored_docs  # Pass restored docs to include in final output
             )
 
             # 4. Save translated files
@@ -560,6 +652,7 @@ async def _count_all_chunks(
 async def _process_all_content_files(
     content_files: list,
     opf_dir: str,
+    temp_dir: str,
     source_language: str,
     target_language: str,
     model_name: str,
@@ -574,7 +667,8 @@ async def _process_all_content_files(
     progress_callback: Optional[Callable] = None,
     stats_callback: Optional[Callable] = None,
     check_interruption_callback: Optional[Callable] = None,
-    prompt_options: Optional[Dict] = None
+    prompt_options: Optional[Dict] = None,
+    restored_docs: Optional[Dict[str, etree._Element]] = None
 ) -> Dict:
     """Process all XHTML content files with accurate token-based progress tracking.
 
@@ -641,9 +735,10 @@ async def _process_all_content_files(
     if stats_callback:
         stats_callback(progress_tracker.get_stats().to_dict())
 
-    parsed_xhtml_docs: Dict[str, etree._Element] = {}
+    # Start with restored documents (if any) to preserve previous translations
+    parsed_xhtml_docs: Dict[str, etree._Element] = restored_docs.copy() if restored_docs else {}
     total_files = len(content_files)
-    completed_files = 0
+    completed_files = len(parsed_xhtml_docs)  # Count restored files as completed
     failed_files = 0
     global_chunk_index = 0  # Track global chunk index across all files
 
@@ -791,18 +886,56 @@ async def _process_all_content_files(
             stats_callback(progress_tracker.get_stats().to_dict())
 
         # Save checkpoint after each file
+        # Note: For EPUB, we save the file href as a marker (not actual content)
+        # The actual translated XHTML files are saved separately via save_epub_file()
+        # This checkpoint just tracks progress and file names for resume capability
         if checkpoint_manager and translation_id:
             stats = progress_tracker.get_stats()
             checkpoint_manager.save_checkpoint(
                 translation_id=translation_id,
                 chunk_index=file_idx + 1,
-                original_text=content_href,
-                translated_text=content_href,
-                chunk_data={'last_file': content_href},
+                original_text=content_href,  # File href marker (not actual content)
+                translated_text=content_href,  # File href marker (not actual content)
+                chunk_data={'last_file': content_href, 'file_type': 'epub_xhtml'},
                 total_chunks=stats.total_chunks,
                 completed_chunks=stats.completed_chunks,
                 failed_chunks=stats.failed_chunks
             )
+
+            # Persist translated XHTML file for resume capability
+            # This enables EPUB resume by saving each translated file incrementally
+            if success and doc_root is not None:
+                try:
+                    # Serialize the translated document
+                    file_content = etree.tostring(
+                        doc_root,
+                        encoding='utf-8',
+                        xml_declaration=True,
+                        pretty_print=True,
+                        method='xml'
+                    )
+
+                    # Calculate relative path from temp_dir root (not just content_href)
+                    # This preserves the EPUB internal structure (e.g., EPUB/cover.xhtml)
+                    file_rel_path = os.path.relpath(file_path_abs, temp_dir).replace('\\', '/')
+
+                    # Save to checkpoint storage
+                    save_result = checkpoint_manager.save_epub_file(
+                        translation_id=translation_id,
+                        file_href=file_rel_path,
+                        file_content=file_content
+                    )
+
+                    if log_callback and save_result:
+                        log_callback("epub_checkpoint_file_saved",
+                                   f"💾 Checkpoint saved: {file_rel_path} ({len(file_content)} bytes)")
+                except Exception as e:
+                    if log_callback:
+                        from .xhtml_translator import _log_error
+                        _log_error(log_callback, "epub_checkpoint_save_error",
+                                     f"⚠️ Warning: Could not save file to checkpoint: {content_href}: {e}")
+                    else:
+                        print(f"Warning: Could not save file to checkpoint: {content_href}: {e}")
 
     # Final statistics aggregation
     final_stats = progress_tracker.get_stats()
@@ -828,7 +961,9 @@ async def _save_translated_files(
         parsed_xhtml_docs: Dictionary of file paths to parsed documents
         log_callback: Optional logging callback
     """
-    # Removed verbose "Saving translated files..." message
+    if log_callback:
+        log_callback("epub_save_files_start",
+                   f"💾 Saving {len(parsed_xhtml_docs)} translated XHTML files to temp directory...")
 
     for file_path_abs, doc_root in parsed_xhtml_docs.items():
         try:

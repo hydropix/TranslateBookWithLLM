@@ -982,7 +982,7 @@ async def translate_xhtml_simplified(
     target_language: str,
     model_name: str,
     llm_client: Any,
-    max_tokens_per_chunk: int = 450,
+    max_tokens_per_chunk: Optional[int] = None,
     log_callback: Optional[Callable] = None,
     progress_callback: Optional[Callable] = None,
     context_manager: Optional[AdaptiveContextManager] = None,
@@ -1009,7 +1009,7 @@ async def translate_xhtml_simplified(
         target_language: Target language
         model_name: LLM model name
         llm_client: LLM client
-        max_tokens_per_chunk: Maximum tokens per chunk
+        max_tokens_per_chunk: Maximum tokens per chunk (defaults to MAX_TOKENS_PER_CHUNK from config/.env)
         log_callback: Optional logging callback
         progress_callback: Optional progress callback (0-100)
         context_manager: Optional AdaptiveContextManager for handling context overflow
@@ -1020,6 +1020,11 @@ async def translate_xhtml_simplified(
     Returns:
         Tuple of (success: bool, stats: TranslationStats)
     """
+    # Use config value if not provided
+    if max_tokens_per_chunk is None:
+        from src.config import MAX_TOKENS_PER_CHUNK
+        max_tokens_per_chunk = MAX_TOKENS_PER_CHUNK
+
     # 1. Setup
     body_html, body_element, tag_preserver = _setup_translation(
         doc_root,

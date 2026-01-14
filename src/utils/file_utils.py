@@ -75,6 +75,11 @@ async def translate_text_file_with_callbacks(input_filepath, output_filepath,
     """
     Translate a text file with callback support
 
+    .. deprecated:: Phase 6
+        This function is deprecated and will be removed in a future version.
+        Use :func:`src.core.adapters.translate_file` instead, which provides
+        a unified interface for all file formats using the adapter pattern.
+
     Args:
         input_filepath (str): Path to input file
         output_filepath (str): Path to output file
@@ -90,11 +95,20 @@ async def translate_text_file_with_callbacks(input_filepath, output_filepath,
         soft_limit_ratio (float): Soft limit ratio for token chunking (default 0.8)
         prompt_options (dict): Optional dict with prompt customization options
     """
+    # Issue deprecation warning
+    import warnings
+    warnings.warn(
+        "translate_text_file_with_callbacks is deprecated and will be removed in a future version. "
+        "Use src.core.adapters.translate_file instead.",
+        DeprecationWarning,
+        stacklevel=2
+    )
+
     if not os.path.exists(input_filepath):
         err_msg = f"ERROR: Input file '{input_filepath}' not found."
-        if log_callback: 
+        if log_callback:
             log_callback("file_not_found_error", err_msg)
-        else: 
+        else:
             print(err_msg)
         return
 
@@ -300,6 +314,11 @@ async def translate_srt_file_with_callbacks(input_filepath, output_filepath,
     """
     Translate an SRT subtitle file with callback support
 
+    .. deprecated:: Phase 6
+        This function is deprecated and will be removed in a future version.
+        Use :func:`src.core.adapters.translate_file` instead, which provides
+        a unified interface for all file formats using the adapter pattern.
+
     Args:
         input_filepath (str): Path to input SRT file
         output_filepath (str): Path to output SRT file
@@ -313,6 +332,15 @@ async def translate_srt_file_with_callbacks(input_filepath, output_filepath,
         check_interruption_callback (callable): Interruption check callback
         prompt_options (dict): Optional prompt customization options (not yet used for SRT)
     """
+    # Issue deprecation warning
+    import warnings
+    warnings.warn(
+        "translate_srt_file_with_callbacks is deprecated and will be removed in a future version. "
+        "Use src.core.adapters.translate_file instead.",
+        DeprecationWarning,
+        stacklevel=2
+    )
+
     # Note: prompt_options is accepted but not yet propagated to subtitle translation
     # SRT uses a specialized prompt (generate_subtitle_block_prompt) that doesn't use prompt_options yet
     if not os.path.exists(input_filepath):
@@ -490,6 +518,11 @@ async def translate_file(input_filepath, output_filepath,
     """
     Translate a file (auto-detect format)
 
+    .. deprecated:: Phase 6
+        This function is deprecated and will be removed in a future version.
+        Use :func:`src.core.adapters.translate_file` instead, which provides
+        a unified interface with better architecture and checkpoint support.
+
     Args:
         input_filepath (str): Path to input file
         output_filepath (str): Path to output file
@@ -503,6 +536,15 @@ async def translate_file(input_filepath, output_filepath,
         check_interruption_callback (callable): Interruption check callback
         prompt_options (dict): Optional prompt customization options
     """
+    # Issue deprecation warning
+    import warnings
+    warnings.warn(
+        "translate_file (from file_utils) is deprecated and will be removed in a future version. "
+        "Use src.core.adapters.translate_file instead.",
+        DeprecationWarning,
+        stacklevel=2
+    )
+
     if prompt_options is None:
         prompt_options = {}
     _, ext = os.path.splitext(input_filepath.lower())

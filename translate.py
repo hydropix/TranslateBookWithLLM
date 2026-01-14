@@ -10,9 +10,12 @@ import logging
 logging.getLogger('httpx').setLevel(logging.WARNING)
 
 from src.config import DEFAULT_MODEL, API_ENDPOINT, LLM_PROVIDER, GEMINI_API_KEY, OPENAI_API_KEY, OPENROUTER_API_KEY, DEFAULT_SOURCE_LANGUAGE, DEFAULT_TARGET_LANGUAGE
-from src.utils.file_utils import translate_file, get_unique_output_path, generate_tts_for_translation
+from src.utils.file_utils import get_unique_output_path, generate_tts_for_translation
 from src.utils.unified_logger import setup_cli_logger, LogType
 from src.tts.tts_config import TTSConfig, TTS_ENABLED, TTS_VOICE, TTS_RATE, TTS_BITRATE, TTS_OUTPUT_FORMAT
+from src.persistence.checkpoint_manager import CheckpointManager
+from src.core.adapters import translate_file
+import uuid
 
 
 if __name__ == "__main__":
@@ -100,18 +103,27 @@ if __name__ == "__main__":
     }
 
     try:
+        # Create checkpoint manager for resume capability
+        checkpoint_manager = CheckpointManager()
+
+        # Generate unique translation ID
+        translation_id = f"cli_{uuid.uuid4().hex[:8]}"
+
+        # Call the new adapter-based translate_file
         asyncio.run(translate_file(
-            args.input,
-            args.output,
-            args.source_lang,
-            args.target_lang,
-            args.model,
-            cli_api_endpoint=args.api_endpoint,
+            input_filepath=args.input,
+            output_filepath=args.output,
+            source_language=args.source_lang,
+            target_language=args.target_lang,
+            model_name=args.model,
+            llm_provider=args.provider,
+            checkpoint_manager=checkpoint_manager,
+            translation_id=translation_id,
             progress_callback=None,
             log_callback=log_callback,
             stats_callback=None,
             check_interruption_callback=None,
-            llm_provider=args.provider,
+            llm_api_endpoint=args.api_endpoint,
             gemini_api_key=args.gemini_api_key,
             openai_api_key=args.openai_api_key,
             openrouter_api_key=args.openrouter_api_key,
