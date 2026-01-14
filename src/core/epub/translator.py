@@ -885,57 +885,63 @@ async def _process_all_content_files(
         if stats_callback:
             stats_callback(progress_tracker.get_stats().to_dict())
 
-        # Save checkpoint after each file
-        # Note: For EPUB, we save the file href as a marker (not actual content)
-        # The actual translated XHTML files are saved separately via save_epub_file()
-        # This checkpoint just tracks progress and file names for resume capability
-        if checkpoint_manager and translation_id:
-            stats = progress_tracker.get_stats()
-            checkpoint_manager.save_checkpoint(
-                translation_id=translation_id,
-                chunk_index=file_idx + 1,
-                original_text=content_href,  # File href marker (not actual content)
-                translated_text=content_href,  # File href marker (not actual content)
-                chunk_data={'last_file': content_href, 'file_type': 'epub_xhtml'},
-                total_chunks=stats.total_chunks,
-                completed_chunks=stats.completed_chunks,
-                failed_chunks=stats.failed_chunks
-            )
+        # Save checkpoint after each file - ONLY if translation succeeded
+        # This ensures we don't skip files on resume when translation failed
+        # The checkpoint is saved AFTER persisting the translated file to prevent
+        # marking a file as done when it wasn't actually saved
+        if checkpoint_manager and translation_id and success and doc_root is not None:
+            try:
+                # First, persist the translated XHTML file to checkpoint storage
+                # This enables EPUB resume by saving each translated file incrementally
+                file_content = etree.tostring(
+                    doc_root,
+                    encoding='utf-8',
+                    xml_declaration=True,
+                    pretty_print=True,
+                    method='xml'
+                )
 
-            # Persist translated XHTML file for resume capability
-            # This enables EPUB resume by saving each translated file incrementally
-            if success and doc_root is not None:
-                try:
-                    # Serialize the translated document
-                    file_content = etree.tostring(
-                        doc_root,
-                        encoding='utf-8',
-                        xml_declaration=True,
-                        pretty_print=True,
-                        method='xml'
-                    )
+                # Calculate relative path from temp_dir root (not just content_href)
+                # This preserves the EPUB internal structure (e.g., EPUB/cover.xhtml)
+                file_rel_path = os.path.relpath(file_path_abs, temp_dir).replace('\\', '/')
 
-                    # Calculate relative path from temp_dir root (not just content_href)
-                    # This preserves the EPUB internal structure (e.g., EPUB/cover.xhtml)
-                    file_rel_path = os.path.relpath(file_path_abs, temp_dir).replace('\\', '/')
+                # Save to checkpoint storage
+                save_result = checkpoint_manager.save_epub_file(
+                    translation_id=translation_id,
+                    file_href=file_rel_path,
+                    file_content=file_content
+                )
 
-                    # Save to checkpoint storage
-                    save_result = checkpoint_manager.save_epub_file(
+                if save_result:
+                    # Only update checkpoint progress AFTER file is successfully saved
+                    # chunk_index represents the NEXT file to process (file_idx + 1)
+                    stats = progress_tracker.get_stats()
+                    checkpoint_manager.save_checkpoint(
                         translation_id=translation_id,
-                        file_href=file_rel_path,
-                        file_content=file_content
+                        chunk_index=file_idx + 1,
+                        original_text=content_href,  # File href marker (not actual content)
+                        translated_text=content_href,  # File href marker (not actual content)
+                        chunk_data={'last_file': content_href, 'file_type': 'epub_xhtml'},
+                        total_chunks=stats.total_chunks,
+                        completed_chunks=stats.completed_chunks,
+                        failed_chunks=stats.failed_chunks
                     )
 
-                    if log_callback and save_result:
+                    if log_callback:
                         log_callback("epub_checkpoint_file_saved",
                                    f"💾 Checkpoint saved: {file_rel_path} ({len(file_content)} bytes)")
-                except Exception as e:
+                else:
                     if log_callback:
                         from .xhtml_translator import _log_error
                         _log_error(log_callback, "epub_checkpoint_save_error",
-                                     f"⚠️ Warning: Could not save file to checkpoint: {content_href}: {e}")
-                    else:
-                        print(f"Warning: Could not save file to checkpoint: {content_href}: {e}")
+                                     f"⚠️ Warning: Could not save file to checkpoint storage: {content_href}")
+            except Exception as e:
+                if log_callback:
+                    from .xhtml_translator import _log_error
+                    _log_error(log_callback, "epub_checkpoint_save_error",
+                                 f"⚠️ Warning: Could not save file to checkpoint: {content_href}: {e}")
+                else:
+                    print(f"Warning: Could not save file to checkpoint: {content_href}: {e}")
 
     # Final statistics aggregation
     final_stats = progress_tracker.get_stats()

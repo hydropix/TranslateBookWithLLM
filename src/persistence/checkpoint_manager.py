@@ -194,8 +194,31 @@ class CheckpointManager:
         chunks = self.db.get_chunks(translation_id)
 
         # Determine resume point
+        # For EPUB: current_chunk_index is saved as (file_idx + 1) after translating file_idx
+        # This means current_chunk_index already represents the next file to translate
+        # So we should NOT add +1 here, otherwise we skip a file
+        #
+        # For TXT/SRT: current_chunk_index is the last completed chunk index
+        # Adding +1 gives us the next chunk to translate
+        #
+        # To handle both cases correctly:
+        # - EPUB saves chunk_index = file_idx + 1 (next file to process)
+        # - TXT/SRT save chunk_index = actual chunk index completed
+        #
+        # The fix: For EPUB, don't add +1. For TXT/SRT, add +1.
+        # We detect EPUB by checking file_type
         progress = job['progress']
-        resume_from_index = progress['current_chunk_index'] + 1
+        file_type = job.get('file_type', 'txt')
+
+        if file_type == 'epub':
+            # EPUB: current_chunk_index is already the index of the NEXT file to translate
+            # because translator.py saves chunk_index=file_idx+1 after completing file_idx
+            # Handle the initial case where current_chunk_index = -1 (no files processed yet)
+            resume_from_index = max(0, progress['current_chunk_index'])
+        else:
+            # TXT/SRT: current_chunk_index is the last completed chunk
+            # We need to resume from the next one
+            resume_from_index = progress['current_chunk_index'] + 1
 
         return {
             'job': job,
