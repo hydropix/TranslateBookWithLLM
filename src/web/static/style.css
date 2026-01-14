@@ -1321,11 +1321,46 @@ input[type="range"]::-moz-range-thumb {
     border: 1px solid var(--border-light);
     border-radius: 0.75rem;
     transition: all 0.2s ease;
+    position: relative;
+    overflow: hidden;
 }
 
 .file-item:hover {
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
     transform: translateY(-1px);
+}
+
+/* Active file - the last uploaded file that syncs with language selectors */
+.file-item.file-active {
+    border-color: var(--primary-light);
+    border-width: 2px;
+    background: linear-gradient(135deg, rgba(54, 118, 216, 0.05) 0%, rgba(54, 118, 216, 0.02) 100%);
+}
+
+.file-item.file-active::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 4px;
+    background: var(--primary-light);
+    border-radius: 0.75rem 0 0 0.75rem;
+}
+
+.file-active-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 8px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--primary-light);
+    background: rgba(54, 118, 216, 0.1);
+    border-radius: 4px;
+    margin-left: 8px;
 }
 
 .file-icon {
@@ -1366,10 +1401,44 @@ input[type="range"]::-moz-range-thumb {
     font-style: italic;
 }
 
+.file-remove-btn {
+    margin-left: auto;
+    padding: 4px;
+    border: none;
+    background: transparent;
+    color: var(--text-muted-light);
+    cursor: pointer;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+    flex-shrink: 0;
+}
+
+.file-remove-btn:hover {
+    background: rgba(239, 68, 68, 0.1);
+    color: #ef4444;
+}
+
+.file-remove-btn .material-symbols-outlined {
+    font-size: 18px;
+}
+
 /* Dark mode support */
 html.dark .file-item {
     background: rgba(26, 31, 46, 0.5);
     border-color: rgba(255, 255, 255, 0.1);
+}
+
+html.dark .file-item.file-active {
+    border-color: var(--primary-light);
+    background: linear-gradient(135deg, rgba(90, 142, 232, 0.12) 0%, rgba(90, 142, 232, 0.05) 100%);
+}
+
+html.dark .file-active-badge {
+    color: var(--primary-light);
+    background: rgba(90, 142, 232, 0.2);
 }
 
 html.dark .file-icon {

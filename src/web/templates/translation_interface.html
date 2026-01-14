@@ -516,17 +516,10 @@
                     </div>
                 </div>
 
-                <!-- Messages -->
-                <div id="messages"></div>
-
                 <!-- File Info Section (Batch Files) -->
                 <div id="fileInfo" class="hidden" style="margin-bottom: 20px; margin-top: 20px;">
                     <h4 style="color: var(--text-dark); font-weight: 700; margin-bottom: 1rem;">Selected Files:</h4>
                     <ul id="fileListContainer"></ul>
-                    <button class="btn btn-secondary" onclick="resetFiles()" style="margin-top: 10px;">
-                        <span class="material-symbols-outlined">close</span>
-                        Clear All Files
-                    </button>
                 </div>
 
                 <!-- Action Buttons -->
@@ -540,6 +533,9 @@
                         Interrupt Current & Stop Batch
                     </button>
                 </div>
+
+                <!-- Messages (connection status, notifications) -->
+                <div id="messages"></div>
 
                 <!-- Progress Section -->
                 <div id="progressSection" class="progress-section hidden">

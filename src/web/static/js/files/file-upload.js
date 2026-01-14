@@ -13,6 +13,9 @@ import { StatusManager } from '../utils/status-manager.js';
 
 const FILE_QUEUE_STORAGE_KEY = 'tbl_file_queue';
 
+// Track the last uploaded file for language synchronization
+let lastUploadedFileName = null;
+
 /**
  * Generate output filename based on pattern
  * @param {File} file - Original file
@@ -96,9 +99,91 @@ export const FileUpload = {
     initialize() {
         this.setupDragDrop();
         this.setupFileInput();
+        this.setupLanguageSyncListeners();
         // Restore file queue from localStorage after a short delay
         // to ensure WebSocket is connected and can verify files
         setTimeout(() => this.restoreFileQueue(), 1000);
+    },
+
+    /**
+     * Set up listeners to sync language changes with the last uploaded file
+     */
+    setupLanguageSyncListeners() {
+        const sourceLangSelect = DomHelpers.getElement('sourceLang');
+        const targetLangSelect = DomHelpers.getElement('targetLang');
+        const customSourceLang = DomHelpers.getElement('customSourceLang');
+        const customTargetLang = DomHelpers.getElement('customTargetLang');
+
+        // Sync source language changes
+        if (sourceLangSelect) {
+            sourceLangSelect.addEventListener('change', () => {
+                this._syncLanguageToLastFile('source');
+            });
+        }
+        if (customSourceLang) {
+            customSourceLang.addEventListener('input', () => {
+                this._syncLanguageToLastFile('source');
+            });
+        }
+
+        // Sync target language changes
+        if (targetLangSelect) {
+            targetLangSelect.addEventListener('change', () => {
+                this._syncLanguageToLastFile('target');
+            });
+        }
+        if (customTargetLang) {
+            customTargetLang.addEventListener('input', () => {
+                this._syncLanguageToLastFile('target');
+            });
+        }
+    },
+
+    /**
+     * Sync language selection to the last uploaded file
+     * @param {string} type - 'source' or 'target'
+     */
+    _syncLanguageToLastFile(type) {
+        if (!lastUploadedFileName) return;
+
+        const filesToProcess = StateManager.getState('files.toProcess') || [];
+        const fileIndex = filesToProcess.findIndex(f => f.name === lastUploadedFileName);
+
+        if (fileIndex === -1) {
+            // File no longer in queue, reset tracking
+            lastUploadedFileName = null;
+            return;
+        }
+
+        const file = filesToProcess[fileIndex];
+
+        // Only sync if file is still queued (not started)
+        if (file.status !== 'Queued') return;
+
+        if (type === 'source') {
+            file.sourceLanguage = this._getCurrentSourceLanguage();
+        } else {
+            file.targetLanguage = this._getCurrentTargetLanguage();
+        }
+
+        StateManager.setState('files.toProcess', filesToProcess);
+        this._saveFileQueue();
+        this.updateFileDisplay();
+    },
+
+    /**
+     * Get the name of the last uploaded file
+     * @returns {string|null} Last uploaded filename
+     */
+    getLastUploadedFileName() {
+        return lastUploadedFileName;
+    },
+
+    /**
+     * Clear the last uploaded file tracking
+     */
+    clearLastUploadedFile() {
+        lastUploadedFileName = null;
     },
 
     /**
@@ -287,6 +372,16 @@ export const FileUpload = {
             // Upload file using ApiClient
             const uploadResult = await ApiClient.uploadFile(file);
 
+            // Determine initial source language:
+            // - Use detected language if confidence >= 70%
+            // - Otherwise use current form value
+            let initialSourceLanguage;
+            if (uploadResult.detected_language && uploadResult.language_confidence >= 0.7) {
+                initialSourceLanguage = uploadResult.detected_language;
+            } else {
+                initialSourceLanguage = this._getCurrentSourceLanguage();
+            }
+
             // Create file object
             const fileObject = {
                 name: file.name,
@@ -296,8 +391,7 @@ export const FileUpload = {
                 status: 'Queued',
                 outputFilename: outputFilename,
                 size: file.size,
-                // Capture source and target languages at the time of adding to queue
-                sourceLanguage: this._getCurrentSourceLanguage(),
+                sourceLanguage: initialSourceLanguage,
                 targetLanguage: this._getCurrentTargetLanguage(),
                 translationId: null,
                 result: null,
@@ -311,13 +405,15 @@ export const FileUpload = {
             const updatedFiles = [...filesToProcess, fileObject];
             StateManager.setState('files.toProcess', updatedFiles);
 
+            // Track this as the last uploaded file for language sync
+            lastUploadedFileName = file.name;
+
             // Auto-update source language field if detected with good confidence
             if (uploadResult.detected_language && uploadResult.language_confidence >= 0.7) {
                 const sourceLangInput = DomHelpers.getElement('sourceLang');
 
                 if (sourceLangInput) {
-                    // Always update the source language when a new file is uploaded
-                    // This ensures the detected language replaces any previous value
+                    // Update the form to match the detected language
                     const success = setLanguageInSelect('sourceLang', uploadResult.detected_language);
 
                     if (success) {
@@ -370,11 +466,15 @@ export const FileUpload = {
         fileListContainer.innerHTML = '';
 
         if (filesToProcess.length > 0) {
-            // Add each file to the list
-            filesToProcess.forEach(file => {
+            // Display files in reverse order (newest first) but keep execution order unchanged
+            const displayFiles = [...filesToProcess].reverse();
+            displayFiles.forEach(file => {
                 const li = document.createElement('li');
                 li.setAttribute('data-filename', file.name);
-                li.className = 'file-item';
+
+                // Mark the last uploaded file as active (editable via language selectors)
+                const isActiveFile = file.name === lastUploadedFileName && file.status === 'Queued';
+                li.className = isActiveFile ? 'file-item file-active' : 'file-item';
 
                 // Icon/thumbnail container
                 const iconContainer = document.createElement('span');
@@ -423,7 +523,27 @@ export const FileUpload = {
                 statusSpan.textContent = `(${file.status})`;
 
                 infoSpan.appendChild(statusSpan);
+
+                // Add "Active" badge for the current editable file
+                if (isActiveFile) {
+                    const activeBadge = document.createElement('span');
+                    activeBadge.className = 'file-active-badge';
+                    activeBadge.innerHTML = '<span class="material-symbols-outlined" style="font-size: 12px;">edit</span> Active';
+                    infoSpan.appendChild(activeBadge);
+                }
+
                 li.appendChild(infoSpan);
+
+                // Remove button
+                const removeBtn = document.createElement('button');
+                removeBtn.className = 'file-remove-btn';
+                removeBtn.title = 'Remove file';
+                removeBtn.innerHTML = '<span class="material-symbols-outlined">close</span>';
+                removeBtn.onclick = (e) => {
+                    e.stopPropagation();
+                    this.removeFile(file.name);
+                };
+                li.appendChild(removeBtn);
 
                 fileListContainer.appendChild(li);
             });
@@ -470,6 +590,12 @@ export const FileUpload = {
         const filesToProcess = StateManager.getState('files.toProcess') || [];
         const updatedFiles = filesToProcess.filter(f => f.name !== filename);
         StateManager.setState('files.toProcess', updatedFiles);
+
+        // If removing the last uploaded file, clear tracking
+        if (filename === lastUploadedFileName) {
+            lastUploadedFileName = null;
+        }
+
         this.notifyFileListChanged();
     },
 
@@ -478,6 +604,7 @@ export const FileUpload = {
      */
     clearAll() {
         StateManager.setState('files.toProcess', []);
+        lastUploadedFileName = null;
         this.notifyFileListChanged();
     },
 
