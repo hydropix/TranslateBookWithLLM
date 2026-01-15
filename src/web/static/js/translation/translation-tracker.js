@@ -57,7 +57,7 @@ export const TranslationTracker = {
                     // Update UI
                     this.updateFileStatusInList(matchingFile.name, 'Processing', job.translation_id);
                     DomHelpers.show('progressSection');
-                    DomHelpers.setText('currentFileProgressTitle', `📊 Translating: ${matchingFile.name}`);
+                    this.updateTranslationTitle(matchingFile);
 
                     // Update progress if available
                     if (job.progress !== undefined) {
@@ -160,7 +160,7 @@ export const TranslationTracker = {
         } else if (data.status === 'running') {
             MessageLogger.resetProgressTracking(); // Reset when starting new translation
             DomHelpers.show('progressSection');
-            DomHelpers.setText('currentFileProgressTitle', `📊 Translating: ${currentFile.name}`);
+            this.updateTranslationTitle(currentFile);
 
             // Reset OpenRouter cost display for new translation
             this.resetOpenRouterCostDisplay();
@@ -178,6 +178,156 @@ export const TranslationTracker = {
 
             this.updateFileStatusInList(currentFile.name, 'Processing');
         }
+    },
+
+    /**
+     * Update translation title with file icon/thumbnail and name
+     * @param {Object} file - File object
+     */
+    updateTranslationTitle(file) {
+        const titleElement = DomHelpers.getElement('currentFileProgressTitle');
+        if (!titleElement) return;
+
+        // Clear existing content
+        titleElement.innerHTML = '';
+
+        // Create main container with vertical layout
+        const mainContainer = document.createElement('div');
+        mainContainer.style.display = 'flex';
+        mainContainer.style.flexDirection = 'column';
+        mainContainer.style.gap = '8px';
+
+        // Add "Translating" text
+        const translatingText = document.createElement('div');
+        translatingText.textContent = 'Translating';
+        translatingText.style.fontWeight = 'bold';
+        mainContainer.appendChild(translatingText);
+
+        // Create file info container (icon + filename)
+        const fileInfoContainer = document.createElement('div');
+        fileInfoContainer.style.display = 'flex';
+        fileInfoContainer.style.alignItems = 'center';
+        fileInfoContainer.style.gap = '8px';
+
+        // Icon/thumbnail container
+        const iconContainer = document.createElement('span');
+        iconContainer.style.display = 'inline-flex';
+        iconContainer.style.alignItems = 'center';
+        iconContainer.style.fontSize = '24px';
+
+        if (file.fileType === 'epub' && file.thumbnail) {
+            // Show thumbnail
+            const img = document.createElement('img');
+            img.src = `/api/thumbnails/${encodeURIComponent(file.thumbnail)}`;
+            img.alt = 'Cover';
+            img.style.width = '48px';
+            img.style.height = '72px';
+            img.style.objectFit = 'cover';
+            img.style.borderRadius = '3px';
+            img.style.boxShadow = '0 2px 4px rgba(0,0,0,0.2)';
+
+            // Fallback to generic SVG on error
+            img.onerror = () => {
+                iconContainer.innerHTML = this._createGenericEPUBIcon();
+            };
+
+            iconContainer.appendChild(img);
+        } else {
+            // Generic icons
+            iconContainer.innerHTML = this._getFileIcon(file.fileType);
+        }
+
+        fileInfoContainer.appendChild(iconContainer);
+
+        // File name (split name and extension)
+        const fileNameContainer = document.createElement('div');
+        fileNameContainer.style.display = 'flex';
+        fileNameContainer.style.flexDirection = 'column';
+        fileNameContainer.style.gap = '4px';
+
+        // Split filename and extension
+        const lastDotIndex = file.name.lastIndexOf('.');
+        const fileNameWithoutExt = lastDotIndex > 0 ? file.name.substring(0, lastDotIndex) : file.name;
+        const fileExt = lastDotIndex > 0 ? file.name.substring(lastDotIndex) : '';
+
+        // Create container for name + extension
+        const nameRow = document.createElement('div');
+        nameRow.style.display = 'flex';
+        nameRow.style.alignItems = 'baseline';
+        nameRow.style.gap = '2px';
+
+        // File name (bold and larger)
+        const fileNameSpan = document.createElement('span');
+        fileNameSpan.textContent = fileNameWithoutExt;
+        fileNameSpan.style.fontSize = '18px';
+        fileNameSpan.style.fontWeight = 'bold';
+        nameRow.appendChild(fileNameSpan);
+
+        // Extension (normal size)
+        if (fileExt) {
+            const extSpan = document.createElement('span');
+            extSpan.textContent = fileExt;
+            extSpan.style.fontSize = '14px';
+            extSpan.style.color = 'var(--text-muted-light)';
+            nameRow.appendChild(extSpan);
+        }
+
+        fileNameContainer.appendChild(nameRow);
+
+        // Language info (source → target)
+        if (file.sourceLanguage && file.targetLanguage) {
+            const langSpan = document.createElement('div');
+            langSpan.textContent = `${file.sourceLanguage} → ${file.targetLanguage}`;
+            langSpan.style.fontSize = '12px';
+            langSpan.style.color = 'var(--text-muted-light)';
+            langSpan.style.fontWeight = 'normal';
+            fileNameContainer.appendChild(langSpan);
+        }
+
+        fileInfoContainer.appendChild(fileNameContainer);
+
+        // Add file info to main container
+        mainContainer.appendChild(fileInfoContainer);
+
+        // Add main container to title element
+        titleElement.appendChild(mainContainer);
+    },
+
+    /**
+     * Get file icon based on file type
+     * @param {string} fileType - File type ('txt', 'epub', 'srt')
+     * @returns {string} HTML string for icon
+     */
+    _getFileIcon(fileType) {
+        if (fileType === 'epub') {
+            return this._createGenericEPUBIcon();
+        } else if (fileType === 'srt') {
+            return '🎬';
+        }
+        return '📄';
+    },
+
+    /**
+     * Create generic EPUB icon as SVG
+     * @returns {string} SVG HTML string
+     */
+    _createGenericEPUBIcon() {
+        return `
+            <svg style="width: 48px; height: 72px;" viewBox="0 0 48 72" xmlns="http://www.w3.org/2000/svg">
+                <!-- Book cover -->
+                <rect x="6" y="3" width="36" height="66" rx="2.5"
+                      fill="#5a8ee8" stroke="#3676d8" stroke-width="2"/>
+                <!-- Book spine line -->
+                <path d="M6 13 L42 13" stroke="#3676d8" stroke-width="1.8"/>
+                <!-- Text lines -->
+                <path d="M10 22 L38 22 M10 32 L38 32 M10 42 L32 42"
+                      stroke="white" stroke-width="2.2" stroke-linecap="round" opacity="0.8"/>
+                <!-- EPUB badge -->
+                <circle cx="24" cy="56" r="5" fill="white" opacity="0.9"/>
+                <text x="24" y="60" text-anchor="middle" font-size="6"
+                      fill="#3676d8" font-weight="bold">E</text>
+            </svg>
+        `;
     },
 
     /**
@@ -297,10 +447,8 @@ export const TranslationTracker = {
             (resultData.status === 'interrupted' ? 'Interrupted' : 'Error')
         );
 
-        // Remove file from filesToProcess if translation completed or was interrupted
-        if (resultData.status === 'completed' || resultData.status === 'interrupted') {
-            this.removeFileFromProcessingList(currentFile.name);
-        }
+        // Note: File is now removed from the list when translation starts,
+        // not when it completes (see batch-controller.js)
 
         // Clear current job
         StateManager.setState('translation.currentJob', null);
@@ -315,23 +463,6 @@ export const TranslationTracker = {
         } else {
             // Error case - continue to next file
             this.processNextFileInQueue();
-        }
-    },
-
-    /**
-     * Remove file from processing list
-     * @param {string} filename - Filename to remove
-     */
-    removeFileFromProcessingList(filename) {
-        const filesToProcess = StateManager.getState('files.toProcess');
-        const fileIndex = filesToProcess.findIndex(f => f.name === filename);
-
-        if (fileIndex !== -1) {
-            filesToProcess.splice(fileIndex, 1);
-            StateManager.setState('files.toProcess', filesToProcess);
-            MessageLogger.addLog(`🗑️ Removed ${filename} from file list (source file cleaned up)`);
-            // Notify file list change to update UI and persist to localStorage
-            FileUpload.notifyFileListChanged();
         }
     },
 
