@@ -1337,9 +1337,20 @@ input[type="range"]::-moz-range-thumb {
     overflow: hidden;
 }
 
-.file-item:hover {
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+/* Clickable file items (Queued status) */
+.file-item[style*="cursor: pointer"]:hover {
+    box-shadow: 0 2px 8px rgba(54, 118, 216, 0.15);
     transform: translateY(-1px);
+    border-color: var(--primary-light);
+}
+
+.file-item[style*="cursor: pointer"]:hover:not(.file-active) {
+    background: rgba(54, 118, 216, 0.03);
+}
+
+/* Non-clickable file items (Processing/Completed) */
+.file-item:not([style*="cursor: pointer"]):hover {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
 }
 
 /* Active file - the last uploaded file that syncs with language selectors */

@@ -187,6 +187,81 @@ export const FileUpload = {
     },
 
     /**
+     * Set a file as the active file for editing
+     * Syncs the file's language parameters TO the UI (file → interface)
+     * @param {string} filename - Name of the file to set as active
+     */
+    setActiveFile(filename) {
+        const filesToProcess = StateManager.getState('files.toProcess') || [];
+        const file = filesToProcess.find(f => f.name === filename);
+
+        if (!file) {
+            return false;
+        }
+
+        // Only allow setting as active if file is still Queued
+        if (file.status !== 'Queued') {
+            MessageLogger.showMessage(`Cannot edit file '${filename}' - it's already being processed.`, 'info');
+            return false;
+        }
+
+        // Update the active file tracking
+        lastUploadedFileName = filename;
+
+        // Sync file parameters TO the interface (file → UI)
+        this._syncFileToInterface(file);
+
+        // Update display to reflect new active file
+        this.updateFileDisplay();
+
+        return true;
+    },
+
+    /**
+     * Sync file language parameters to the UI interface
+     * This is the reverse direction: file → interface
+     * @param {Object} file - File object with sourceLanguage and targetLanguage
+     * @private
+     */
+    _syncFileToInterface(file) {
+        // Sync source language
+        if (file.sourceLanguage) {
+            const success = setLanguageInSelect('sourceLang', file.sourceLanguage);
+            if (!success) {
+                // Language not in list, set to "Other" and fill custom input
+                const sourceLangSelect = DomHelpers.getElement('sourceLang');
+                const customSourceLang = DomHelpers.getElement('customSourceLang');
+                if (sourceLangSelect) {
+                    sourceLangSelect.value = 'Other';
+                    sourceLangSelect.dispatchEvent(new Event('change', { bubbles: true }));
+                }
+                if (customSourceLang) {
+                    customSourceLang.value = file.sourceLanguage;
+                    customSourceLang.dispatchEvent(new Event('input', { bubbles: true }));
+                }
+            }
+        }
+
+        // Sync target language
+        if (file.targetLanguage) {
+            const success = setLanguageInSelect('targetLang', file.targetLanguage);
+            if (!success) {
+                // Language not in list, set to "Other" and fill custom input
+                const targetLangSelect = DomHelpers.getElement('targetLang');
+                const customTargetLang = DomHelpers.getElement('customTargetLang');
+                if (targetLangSelect) {
+                    targetLangSelect.value = 'Other';
+                    targetLangSelect.dispatchEvent(new Event('change', { bubbles: true }));
+                }
+                if (customTargetLang) {
+                    customTargetLang.value = file.targetLanguage;
+                    customTargetLang.dispatchEvent(new Event('input', { bubbles: true }));
+                }
+            }
+        }
+    },
+
+    /**
      * Save file queue to localStorage
      * @private
      */
@@ -475,6 +550,14 @@ export const FileUpload = {
                 // Mark the last uploaded file as active (editable via language selectors)
                 const isActiveFile = file.name === lastUploadedFileName && file.status === 'Queued';
                 li.className = isActiveFile ? 'file-item file-active' : 'file-item';
+
+                // Add click handler to set file as active (only for Queued files)
+                if (file.status === 'Queued') {
+                    li.style.cursor = 'pointer';
+                    li.onclick = () => {
+                        this.setActiveFile(file.name);
+                    };
+                }
 
                 // Icon/thumbnail container
                 const iconContainer = document.createElement('span');

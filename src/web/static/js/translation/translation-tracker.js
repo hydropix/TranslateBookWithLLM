@@ -330,6 +330,8 @@ export const TranslationTracker = {
             filesToProcess.splice(fileIndex, 1);
             StateManager.setState('files.toProcess', filesToProcess);
             MessageLogger.addLog(`🗑️ Removed ${filename} from file list (source file cleaned up)`);
+            // Notify file list change to update UI and persist to localStorage
+            FileUpload.notifyFileListChanged();
         }
     },
 
