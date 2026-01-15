@@ -100,9 +100,11 @@ export const FileUpload = {
         this.setupDragDrop();
         this.setupFileInput();
         this.setupLanguageSyncListeners();
-        // Restore file queue from localStorage after a short delay
-        // to ensure WebSocket is connected and can verify files
-        setTimeout(() => this.restoreFileQueue(), 1000);
+        // Restore file queue from localStorage synchronously first
+        // This ensures files are available immediately on page load
+        this.restoreFileQueueSync();
+        // Then verify files exist on server after a delay
+        setTimeout(() => this.verifyAndCleanupFileQueue(), 1000);
     },
 
     /**
@@ -375,7 +377,62 @@ export const FileUpload = {
     },
 
     /**
+     * Restore file queue from localStorage synchronously (no server verification)
+     * This ensures files appear immediately on page load
+     */
+    restoreFileQueueSync() {
+        try {
+            const stored = localStorage.getItem(FILE_QUEUE_STORAGE_KEY);
+            if (!stored) return;
+
+            const savedFiles = JSON.parse(stored);
+            if (!Array.isArray(savedFiles) || savedFiles.length === 0) return;
+
+            // Restore files to state immediately (reset status to Queued for non-completed files)
+            const filesToRestore = savedFiles.map(f => ({
+                ...f,
+                status: f.status === 'Completed' ? 'Completed' : 'Queued'
+            }));
+
+            StateManager.setState('files.toProcess', filesToRestore);
+            this.updateFileDisplay();
+        } catch {
+            // Failed to restore file queue
+        }
+    },
+
+    /**
+     * Verify and cleanup file queue after restoration
+     * This runs after a delay to verify files still exist on server
+     */
+    async verifyAndCleanupFileQueue() {
+        try {
+            const filesToProcess = StateManager.getState('files.toProcess') || [];
+            if (filesToProcess.length === 0) return;
+
+            // Get file paths to verify
+            const filePaths = filesToProcess.map(f => f.filePath);
+
+            // Verify which files still exist on the server
+            const verification = await ApiClient.verifyUploadedFiles(filePaths);
+
+            // Filter to only existing files
+            const existingFilePaths = new Set(verification.existing || []);
+            const validFiles = filesToProcess.filter(f => existingFilePaths.has(f.filePath));
+
+            // Update state if any files were removed
+            if (validFiles.length !== filesToProcess.length) {
+                StateManager.setState('files.toProcess', validFiles);
+                this.notifyFileListChanged();
+            }
+        } catch {
+            // Failed to verify file queue
+        }
+    },
+
+    /**
      * Restore file queue from localStorage and verify files exist
+     * @deprecated Use restoreFileQueueSync() followed by verifyAndCleanupFileQueue() instead
      */
     async restoreFileQueue() {
         try {

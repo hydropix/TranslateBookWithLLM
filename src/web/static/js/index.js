@@ -216,18 +216,23 @@ window.installFFmpeg = async function() {
 
 /**
  * Initialize application state
+ * Note: Some state (like files.toProcess) will be restored from localStorage
+ * by their respective modules, so we only set defaults if not already present
  */
 function initializeState() {
-    // Files state
-    StateManager.setState('files.toProcess', []);
-    StateManager.setState('files.selected', []);
-    StateManager.setState('files.managed', []);
+    // Files state - only initialize if not already set (will be restored by FileUpload)
+    if (!StateManager.getState('files.toProcess')) {
+        StateManager.setState('files.toProcess', []);
+    }
+    if (!StateManager.getState('files.selected')) {
+        StateManager.setState('files.selected', []);
+    }
+    if (!StateManager.getState('files.managed')) {
+        StateManager.setState('files.managed', []);
+    }
 
-    // Translation state
-    StateManager.setState('translation.currentJob', null);
-    StateManager.setState('translation.isBatchActive', false);
-    StateManager.setState('translation.activeJobs', []);
-    StateManager.setState('translation.hasActive', false);
+    // Translation state - DO NOT reset here, will be restored by TranslationTracker from localStorage
+    // TranslationTracker.initialize() will handle loading saved state or initializing defaults
 
     // UI state
     StateManager.setState('ui.currentProvider', 'ollama');

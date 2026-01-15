@@ -44,13 +44,37 @@ from src.api.translation_state import get_state_manager
 
 
 # Initialize Flask app with static folder configuration
-base_path = os.getcwd()
-static_folder_path = os.path.join(base_path, 'src', 'web', 'static')
+# Handle PyInstaller bundle paths
+if getattr(sys, 'frozen', False):
+    # Running as compiled executable - files are in _MEIPASS
+    bundle_dir = sys._MEIPASS
+    static_folder_path = os.path.join(bundle_dir, 'src', 'web', 'static')
+    template_folder_path = os.path.join(bundle_dir, 'src', 'web', 'templates')
+
+    # Debug: print paths to verify
+    print(f"🔍 PyInstaller bundle detected")
+    print(f"   Bundle dir: {bundle_dir}")
+    print(f"   Static folder: {static_folder_path}")
+    print(f"   Template folder: {template_folder_path}")
+    print(f"   Static folder exists: {os.path.exists(static_folder_path)}")
+    print(f"   Template folder exists: {os.path.exists(template_folder_path)}")
+
+    if os.path.exists(template_folder_path):
+        print(f"   Templates: {os.listdir(template_folder_path)}")
+    if os.path.exists(bundle_dir):
+        print(f"   Bundle contents: {os.listdir(bundle_dir)}")
+else:
+    # Running as normal Python script
+    base_path = os.getcwd()
+    static_folder_path = os.path.join(base_path, 'src', 'web', 'static')
+    template_folder_path = os.path.join(base_path, 'src', 'web', 'templates')
+
 app = Flask(__name__,
             static_folder=static_folder_path,
+            template_folder=template_folder_path,
             static_url_path='/static')
 CORS(app)
-socketio = SocketIO(app, cors_allowed_origins="*")
+socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading')
 
 # Thread-safe state manager
 state_manager = get_state_manager()
@@ -168,35 +192,53 @@ def test_ollama_connection():
         return False
 
 
-if __name__ == '__main__':
-    # Validate configuration before starting
-    validate_configuration()
+def start_server():
+    """Start the translation server - can be called from launcher or directly"""
+    try:
+        # Validate configuration before starting
+        validate_configuration()
 
-    logger.info("="*60)
-    logger.info(f"🚀 LLM TRANSLATION SERVER (Version {datetime.now().strftime('%Y%m%d-%H%M')})")
-    logger.info("="*60)
-    logger.info(f"   - Default Ollama Endpoint: {DEFAULT_OLLAMA_API_ENDPOINT}")
-    logger.info(f"   - Interface: http://{HOST}:{PORT}")
-    logger.info(f"   - API: http://{HOST}:{PORT}/api/")
-    logger.info(f"   - Health Check: http://{HOST}:{PORT}/api/health")
-    logger.info(f"   - Supported formats: .txt, .epub, and .srt")
-    logger.info("")
-
-    # Test Ollama connection at startup
-    test_ollama_connection()
-
-    logger.info("")
-    logger.info("💡 Press Ctrl+C to stop the server")
-    logger.info("")
-
-    # Production deployment note
-    if HOST == '0.0.0.0':
-        logger.warning("⚠️  Server is binding to 0.0.0.0 (all network interfaces)")
-        logger.warning("   For production, use a proper WSGI server like gunicorn:")
-        logger.warning("   gunicorn --worker-class eventlet -w 1 --bind 0.0.0.0:5000 translation_api:app")
+        logger.info("="*60)
+        logger.info(f"🚀 LLM TRANSLATION SERVER (Version {datetime.now().strftime('%Y%m%d-%H%M')})")
+        logger.info("="*60)
+        logger.info(f"   - Default Ollama Endpoint: {DEFAULT_OLLAMA_API_ENDPOINT}")
+        logger.info(f"   - Interface: http://{HOST}:{PORT}")
+        logger.info(f"   - API: http://{HOST}:{PORT}/api/")
+        logger.info(f"   - Health Check: http://{HOST}:{PORT}/api/health")
+        logger.info(f"   - Supported formats: .txt, .epub, and .srt")
         logger.info("")
 
-    # Auto-open browser (especially useful for portable executable)
-    open_browser(HOST, PORT)
+        # Test Ollama connection at startup
+        test_ollama_connection()
 
-    socketio.run(app, debug=False, host=HOST, port=PORT, allow_unsafe_werkzeug=True)
+        logger.info("")
+        logger.info("💡 Press Ctrl+C to stop the server")
+        logger.info("")
+
+        # Production deployment note
+        if HOST == '0.0.0.0':
+            logger.warning("⚠️  Server is binding to 0.0.0.0 (all network interfaces)")
+            logger.warning("   For production, use a proper WSGI server like gunicorn:")
+            logger.warning("   gunicorn --worker-class eventlet -w 1 --bind 0.0.0.0:5000 translation_api:app")
+            logger.info("")
+
+        # Auto-open browser (especially useful for portable executable)
+        open_browser(HOST, PORT)
+
+        socketio.run(app, debug=False, host=HOST, port=PORT, allow_unsafe_werkzeug=True)
+    except Exception as e:
+        logger.error("="*60)
+        logger.error("❌ FATAL ERROR")
+        logger.error("="*60)
+        logger.error(f"{e}")
+        logger.error("")
+        logger.error("Press any key to exit...")
+        logger.error("="*60)
+        import traceback
+        traceback.print_exc()
+        input()  # Keep console open
+        sys.exit(1)
+
+
+if __name__ == '__main__':
+    start_server()

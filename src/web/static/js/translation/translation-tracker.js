@@ -12,15 +12,100 @@ import { DomHelpers } from '../ui/dom-helpers.js';
 import { StatusManager } from '../utils/status-manager.js';
 import { FileUpload } from '../files/file-upload.js';
 
+const TRANSLATION_STATE_STORAGE_KEY = 'tbl_translation_state';
+
 export const TranslationTracker = {
     /**
      * Initialize translation tracker
      */
     initialize() {
         this.setupEventListeners();
+        // First, try to restore from localStorage synchronously
+        this.restoreTranslationStateSync();
         this.updateActiveTranslationsState();
-        // Check for active translations after a short delay to allow file queue to restore first
+        // Then verify with server after a short delay to allow file queue to restore first
         setTimeout(() => this.restoreActiveTranslation(), 1500);
+    },
+
+    /**
+     * Restore translation state from localStorage synchronously
+     * This ensures the UI shows the translation state immediately on page load
+     */
+    restoreTranslationStateSync() {
+        try {
+            const stored = localStorage.getItem(TRANSLATION_STATE_STORAGE_KEY);
+
+            if (!stored) {
+                // No saved state, initialize defaults
+                this.initializeDefaultTranslationState();
+                return;
+            }
+
+            const savedState = JSON.parse(stored);
+
+            // Only restore if there's an active job saved
+            if (savedState.isBatchActive && savedState.currentJob) {
+                StateManager.setState('translation.currentJob', savedState.currentJob);
+                StateManager.setState('translation.isBatchActive', savedState.isBatchActive);
+                StateManager.setState('translation.activeJobs', savedState.activeJobs || []);
+                StateManager.setState('translation.hasActive', savedState.hasActive || false);
+
+                // Show progress section
+                DomHelpers.show('progressSection');
+                DomHelpers.show('interruptBtn');
+
+                // Update translate button
+                const translateBtn = DomHelpers.getElement('translateBtn');
+                if (translateBtn) {
+                    translateBtn.disabled = true;
+                    translateBtn.innerHTML = '⏳ Batch in Progress...';
+                }
+            } else {
+                // Saved state exists but no active job, initialize defaults
+                this.initializeDefaultTranslationState();
+            }
+        } catch (error) {
+            console.warn('Failed to restore translation state from localStorage:', error);
+            this.initializeDefaultTranslationState();
+        }
+    },
+
+    /**
+     * Initialize default translation state (when no saved state exists)
+     */
+    initializeDefaultTranslationState() {
+        StateManager.setState('translation.currentJob', null);
+        StateManager.setState('translation.isBatchActive', false);
+        StateManager.setState('translation.activeJobs', []);
+        StateManager.setState('translation.hasActive', false);
+    },
+
+    /**
+     * Save translation state to localStorage
+     */
+    saveTranslationState() {
+        try {
+            const state = {
+                currentJob: StateManager.getState('translation.currentJob'),
+                isBatchActive: StateManager.getState('translation.isBatchActive'),
+                activeJobs: StateManager.getState('translation.activeJobs'),
+                hasActive: StateManager.getState('translation.hasActive')
+            };
+            localStorage.setItem(TRANSLATION_STATE_STORAGE_KEY, JSON.stringify(state));
+        } catch (error) {
+            console.warn('Failed to save translation state to localStorage:', error);
+        }
+    },
+
+    /**
+     * Clear translation state from localStorage
+     */
+    clearTranslationState() {
+        try {
+            localStorage.removeItem(TRANSLATION_STATE_STORAGE_KEY);
+        } catch (error) {
+            console.warn('Failed to clear translation state from localStorage:', error);
+        }
     },
 
     /**
@@ -84,11 +169,22 @@ export const TranslationTracker = {
      * Set up event listeners
      */
     setupEventListeners() {
-        // Listen for state changes
-        StateManager.subscribe('translation.currentJob', () => {});
+        // Listen for state changes and auto-save to localStorage
+        StateManager.subscribe('translation.currentJob', () => {
+            this.saveTranslationState();
+        });
+
+        StateManager.subscribe('translation.isBatchActive', () => {
+            this.saveTranslationState();
+        });
 
         StateManager.subscribe('translation.hasActive', () => {
             this.updateResumeButtonsState();
+            this.saveTranslationState();
+        });
+
+        StateManager.subscribe('translation.activeJobs', () => {
+            this.saveTranslationState();
         });
     },
 
@@ -576,6 +672,9 @@ export const TranslationTracker = {
         // Reset state variables
         StateManager.setState('translation.isBatchActive', false);
         StateManager.setState('translation.currentJob', null);
+
+        // Clear saved state from localStorage
+        this.clearTranslationState();
 
         // Reset UI elements
         DomHelpers.hide('interruptBtn');

@@ -2,16 +2,21 @@
 Configuration and health check routes
 """
 import os
+import sys
 import asyncio
 import logging
 import requests
 import re
+import time
 from flask import Blueprint, request, jsonify, send_from_directory
 from pathlib import Path
 
 
 def get_base_path():
     """Get base path for resources (templates, static files)"""
+    # In PyInstaller bundle, use the temporary extraction directory
+    if getattr(sys, 'frozen', False):
+        return sys._MEIPASS
     return os.getcwd()
 
 
@@ -46,6 +51,9 @@ def create_config_blueprint():
     """Create and configure the config blueprint"""
     bp = Blueprint('config', __name__)
 
+    # Store server startup time to detect restarts
+    startup_time = int(time.time())
+
     @bp.route('/')
     def serve_interface():
         """Serve the main translation interface"""
@@ -64,7 +72,8 @@ def create_config_blueprint():
             "message": "Translation API is running",
             "translate_module": "loaded",
             "ollama_default_endpoint": DEFAULT_OLLAMA_API_ENDPOINT,
-            "supported_formats": ["txt", "epub", "srt"]
+            "supported_formats": ["txt", "epub", "srt"],
+            "startup_time": startup_time  # Used to detect server restarts
         })
 
     @bp.route('/api/models', methods=['GET', 'POST'])

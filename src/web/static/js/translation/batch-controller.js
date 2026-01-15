@@ -14,6 +14,7 @@ import { ApiKeyUtils } from '../utils/api-key-utils.js';
 import { StatusManager } from '../utils/status-manager.js';
 import { ProgressManager } from './progress-manager.js';
 import { FileUpload } from '../files/file-upload.js';
+import { TranslationTracker } from './translation-tracker.js';
 
 /**
  * Validation helper for early failures
@@ -434,6 +435,11 @@ export const BatchController = {
     stopBatch() {
         StateManager.setState('translation.isBatchActive', false);
         StateManager.setState('translation.currentJob', null);
+
+        // Clear saved translation state from localStorage
+        if (TranslationTracker && TranslationTracker.clearTranslationState) {
+            TranslationTracker.clearTranslationState();
+        }
 
         const translateBtn = DomHelpers.getElement('translateBtn');
         const filesToProcess = StateManager.getState('files.toProcess') || [];

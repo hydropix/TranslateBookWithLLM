@@ -34,41 +34,50 @@ if _debug_mode:
     _config_logger.debug(f"📁 .env exists: {_env_exists}")
 
 if not _env_exists:
-    print("\n" + "="*70)
-    print("⚠️  WARNING: .env configuration file not found")
-    print("="*70)
-    print("\nThe application will run with default settings, but you may need to")
-    print("configure it for your specific setup.\n")
+    # Check if running as PyInstaller executable
+    _is_frozen = getattr(sys, 'frozen', False)
 
-    if _env_example.exists():
-        print("📋 QUICK SETUP:")
-        print(f"   1. Copy the template: copy .env.example .env")
-        print(f"   2. Edit .env to match your configuration")
-        print(f"   3. Restart the application\n")
+    if not _is_frozen:
+        # Only show the interactive prompt when NOT running as executable
+        print("\n" + "="*70)
+        print("⚠️  WARNING: .env configuration file not found")
+        print("="*70)
+        print("\nThe application will run with default settings, but you may need to")
+        print("configure it for your specific setup.\n")
+
+        if _env_example.exists():
+            print("📋 QUICK SETUP:")
+            print(f"   1. Copy the template: copy .env.example .env")
+            print(f"   2. Edit .env to match your configuration")
+            print(f"   3. Restart the application\n")
+        else:
+            print("📋 MANUAL SETUP:")
+            print(f"   1. Create a .env file in: {Path.cwd()}")
+            print(f"   2. Add your configuration (see documentation)")
+            print(f"   3. Restart the application\n")
+
+        print("🔧 DEFAULT SETTINGS BEING USED:")
+        print(f"   • API Endpoint: http://localhost:11434/api/generate")
+        print(f"   • LLM Provider: ollama")
+        print(f"   • Model: qwen3:14b")
+        print(f"   • Port: 5000")
+        print(f"\n💡 TIP: If using a remote server or different provider, you MUST")
+        print(f"   create a .env file with the correct settings.\n")
+        print("="*70)
+        print("Press Ctrl+C to stop and configure, or wait 5 seconds to continue...")
+        print("="*70 + "\n")
+
+        # Give user time to read and react
+        import time
+        try:
+            time.sleep(5)
+        except KeyboardInterrupt:
+            print("\n\n⏹️  Startup cancelled by user. Please configure .env and try again.\n")
+            sys.exit(0)
     else:
-        print("📋 MANUAL SETUP:")
-        print(f"   1. Create a .env file in: {Path.cwd()}")
-        print(f"   2. Add your configuration (see documentation)")
-        print(f"   3. Restart the application\n")
-
-    print("🔧 DEFAULT SETTINGS BEING USED:")
-    print(f"   • API Endpoint: http://localhost:11434/api/generate")
-    print(f"   • LLM Provider: ollama")
-    print(f"   • Model: qwen3:14b")
-    print(f"   • Port: 5000")
-    print(f"\n💡 TIP: If using a remote server or different provider, you MUST")
-    print(f"   create a .env file with the correct settings.\n")
-    print("="*70)
-    print("Press Ctrl+C to stop and configure, or wait 5 seconds to continue...")
-    print("="*70 + "\n")
-
-    # Give user time to read and react
-    import time
-    try:
-        time.sleep(5)
-    except KeyboardInterrupt:
-        print("\n\n⏹️  Startup cancelled by user. Please configure .env and try again.\n")
-        sys.exit(0)
+        # Running as executable - silently use defaults
+        if _debug_mode:
+            _config_logger.debug("⚠️  .env not found, using defaults (executable mode)")
 
 # Load .env file if it exists
 _dotenv_result = load_dotenv(_env_file)

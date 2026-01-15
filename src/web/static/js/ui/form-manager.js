@@ -10,6 +10,7 @@ import { ApiClient } from '../core/api-client.js';
 import { DomHelpers } from './dom-helpers.js';
 import { MessageLogger } from './message-logger.js';
 import { ApiKeyUtils } from '../utils/api-key-utils.js';
+import { TranslationTracker } from '../translation/translation-tracker.js';
 
 /**
  * Set default language in select/input
@@ -356,6 +357,11 @@ export const FormManager = {
         StateManager.setState('files.toProcess', []);
         StateManager.setState('translation.currentJob', null);
         StateManager.setState('translation.isBatchActive', false);
+
+        // Clear saved translation state from localStorage
+        if (TranslationTracker && TranslationTracker.clearTranslationState) {
+            TranslationTracker.clearTranslationState();
+        }
 
         // Reset file input
         DomHelpers.setValue('fileInput', '');

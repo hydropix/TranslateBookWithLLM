@@ -10,6 +10,8 @@ import { ApiClient } from '../core/api-client.js';
 import { WebSocketManager } from '../core/websocket-manager.js';
 import { MessageLogger } from '../ui/message-logger.js';
 
+const SERVER_SESSION_KEY = 'tbl_server_session_id';
+
 export const LifecycleManager = {
     /**
      * Initialize lifecycle manager
@@ -36,6 +38,9 @@ export const LifecycleManager = {
                     MessageLogger.addLog(`Supported file formats: ${healthData.supported_formats.join(', ')}`);
                 }
 
+                // Check if server was restarted
+                await this.checkServerRestart(healthData);
+
                 // Initialize WebSocket connection
                 this.initializeConnection();
 
@@ -47,6 +52,49 @@ export const LifecycleManager = {
                 MessageLogger.addLog(`❌ Failed to connect to server or load config: ${error.message}`);
             }
         });
+    },
+
+    /**
+     * Check if server was restarted and clean up stale state
+     * @param {Object} healthData - Health check response data
+     */
+    async checkServerRestart(healthData) {
+        try {
+            // Get server session ID (could be startup timestamp or unique ID)
+            const serverSessionId = healthData.session_id || healthData.startup_time;
+
+            if (!serverSessionId) {
+                // Server doesn't provide session ID, skip check
+                return;
+            }
+
+            const lastSessionId = localStorage.getItem(SERVER_SESSION_KEY);
+
+            if (lastSessionId && lastSessionId !== serverSessionId) {
+                // Server was restarted! Clean up translation state only
+                console.warn('Server restart detected. Cleaning up translation state...');
+                MessageLogger.addLog('⚠️ Server restart detected. Clearing active translation state.');
+
+                // Clear translation state (the translation job no longer exists)
+                const TRANSLATION_STATE_STORAGE_KEY = 'tbl_translation_state';
+                localStorage.removeItem(TRANSLATION_STATE_STORAGE_KEY);
+
+                // Reset translation state in memory
+                StateManager.setState('translation.currentJob', null);
+                StateManager.setState('translation.isBatchActive', false);
+                StateManager.setState('translation.activeJobs', []);
+                StateManager.setState('translation.hasActive', false);
+
+                // Note: We keep the file queue (tbl_file_queue) as files might still exist on disk
+                // The FileUpload module will verify which files still exist
+            }
+
+            // Store current session ID
+            localStorage.setItem(SERVER_SESSION_KEY, serverSessionId);
+
+        } catch (error) {
+            console.warn('Error checking server restart:', error);
+        }
     },
 
     /**
