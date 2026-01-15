@@ -7,6 +7,7 @@
     /* Light mode colors from reference */
     --primary-light: #3676d8;
     --background-light: #f0f2f5;
+    --background-outer: #ffffff;
     --text-dark: #1f2a3a;
     --text-muted-light: #6b7a90;
     --border-light: #e0e4e9;
@@ -30,29 +31,30 @@
    ======================================== */
 
 html.dark {
-    /* Dark mode colors */
+    /* Dark mode colors - neutral grays */
     --primary-light: #5a8ee8;
-    --background-light: #1a1f2e;
-    --text-dark: #e5e7eb;
-    --text-muted-light: #9ca3af;
-    --border-light: #2d3548;
+    --background-light: #1a1a1a;
+    --background-outer: #000000;
+    --text-dark: #e0e0e0;
+    --text-muted-light: #888888;
+    --border-light: #333333;
     --success-light: #34d399;
-    --success-light-bg: #1a3a2e;
+    --success-light-bg: #1a2a1a;
     --info-light: #60a5fa;
-    --info-light-bg: #1e3a5f;
+    --info-light-bg: #1a1a2a;
 
     /* Neumorphic shadows for dark mode */
-    --shadow-dark: #0d1117;
-    --shadow-light: #252b3b;
+    --shadow-dark: #0a0a0a;
+    --shadow-light: #2a2a2a;
 }
 
 html.dark .neu-inset-light {
-    background: #151923;
-    border: 2px solid rgba(90, 142, 232, 0.15);
+    background: #141414;
+    border: 2px solid rgba(136, 136, 136, 0.15);
 }
 
 html.dark .neu-inset-light:hover {
-    border-color: rgba(90, 142, 232, 0.35);
+    border-color: rgba(136, 136, 136, 0.35);
 }
 
 html.dark .neu-inset-light:focus-within {
@@ -60,24 +62,24 @@ html.dark .neu-inset-light:focus-within {
 }
 
 html.dark .form-control {
-    background: #151923;
-    color: #e5e7eb;
+    background: #141414;
+    color: #e0e0e0;
 }
 
 html.dark .neu-inset-light .form-control {
-    background: #151923;
+    background: #141414;
 }
 
 html.dark .form-control:focus {
-    background: #151923;
+    background: #141414;
 }
 
 html.dark .form-control::placeholder {
-    color: #6b7280;
+    color: #666666;
 }
 
 html.dark .header {
-    background: rgba(26, 31, 46, 0.9);
+    background: rgba(26, 26, 26, 0.9);
 }
 
 html.dark .file-upload {
@@ -85,11 +87,11 @@ html.dark .file-upload {
 }
 
 html.dark .file-table thead tr {
-    background: rgba(90, 142, 232, 0.1);
+    background: rgba(136, 136, 136, 0.1);
 }
 
 html.dark .file-table tbody tr:hover {
-    background: rgba(90, 142, 232, 0.05);
+    background: rgba(136, 136, 136, 0.05);
 }
 
 html.dark .message.error {
@@ -116,8 +118,8 @@ html.dark #ttsOptions {
 }
 
 html.dark .log-entry.log-summary-detailed {
-    background: #151923;
-    border-color: rgba(90, 142, 232, 0.3);
+    background: #141414;
+    border-color: rgba(136, 136, 136, 0.3);
     border-left-color: var(--primary-light);
 }
 
@@ -128,7 +130,7 @@ html.dark .log-entry.log-summary-detailed {
 }
 
 body {
-    background-color: var(--background-light);
+    background-color: var(--background-outer);
     color: var(--text-dark);
     font-family: "Inter", -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     min-height: 100vh;
