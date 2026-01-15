@@ -224,6 +224,55 @@ def create_security_blueprint(output_dir):
             current_app.logger.error(f"Error verifying uploaded files: {str(e)}")
             return jsonify({"error": "Verification failed", "details": str(e)}), 500
 
+    @bp.route('/api/detect-language', methods=['POST'])
+    def detect_language():
+        """Detect language from an already uploaded file"""
+        try:
+            data = request.json
+            if not data or 'file_path' not in data:
+                return jsonify({"error": "No file path provided"}), 400
+
+            file_path_str = data['file_path']
+            file_path = Path(file_path_str)
+
+            # Security: ensure file exists
+            if not file_path.exists():
+                return jsonify({"error": "File not found"}), 404
+
+            # Security: ensure file is within upload directory
+            resolved = file_path.resolve()
+            upload_resolved = secure_file_handler.upload_dir.resolve()
+            if not str(resolved).startswith(str(upload_resolved)):
+                return jsonify({"error": "Access denied"}), 403
+
+            # Read file and detect language
+            with open(file_path, 'rb') as f:
+                file_data = f.read()
+
+            detected_language, confidence = LanguageDetector.detect_language_from_file(
+                file_data, file_path.name
+            )
+
+            if detected_language:
+                current_app.logger.info(
+                    f"Language detected: {detected_language} "
+                    f"(confidence: {confidence:.2f}) for {file_path.name}"
+                )
+                return jsonify({
+                    "success": True,
+                    "detected_language": detected_language,
+                    "language_confidence": round(confidence, 2)
+                })
+            else:
+                return jsonify({
+                    "success": False,
+                    "error": "Could not detect language"
+                }), 200
+
+        except Exception as e:
+            current_app.logger.error(f"Language detection error: {str(e)}")
+            return jsonify({"error": "Language detection failed"}), 500
+
     @bp.route('/api/thumbnails/<path:filename>', methods=['GET'])
     def serve_thumbnail(filename):
         """Serve EPUB cover thumbnail with security validation"""

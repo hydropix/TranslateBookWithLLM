@@ -249,6 +249,18 @@ export const ApiClient = {
         });
     },
 
+    /**
+     * Detect language from an uploaded file
+     * @param {string} filePath - Path to the uploaded file
+     * @returns {Promise<Object>} Detection result with detected_language and language_confidence
+     */
+    async detectLanguage(filePath) {
+        return await apiRequest('/api/detect-language', {
+            method: 'POST',
+            body: JSON.stringify({ file_path: filePath })
+        });
+    },
+
     // ========================================
     // Model Management
     // ========================================

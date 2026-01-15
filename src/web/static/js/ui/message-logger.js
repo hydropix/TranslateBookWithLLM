@@ -425,10 +425,10 @@ export const MessageLogger = {
 
         let translatedText = translateMatch[1];
 
-        // Remove placeholder tags ([TAG0], [TAG1], etc.) for cleaner preview
-        // NOTE: This pattern must stay synchronized with PLACEHOLDER_PATTERN in
-        // src/config.py (currently: [TAG + number + ])
-        translatedText = translatedText.replace(/\[TAG\d+\]/g, '');
+        // Remove placeholder tags for cleaner preview (UI only, not in console logs)
+        // NOTE: These patterns must stay synchronized with src/config.py
+        translatedText = translatedText.replace(/\[TAG\d+\]/g, '');  // HTML tag placeholders
+        translatedText = translatedText.replace(/\[id\d+\]/g, '');   // Technical content placeholders
         // Also remove legacy Unicode format for backward compatibility
         translatedText = translatedText.replace(/⟦TAG\d+⟧/g, '');
 

@@ -174,7 +174,7 @@ body {
    ======================================== */
 
 .container {
-    max-width: 1600px;
+    max-width: 900px;
     margin: 0 auto;
 }
 
@@ -222,11 +222,6 @@ body {
 }
 
 .header .logo-icon {
-    background: var(--background-light);
-    box-shadow: 5px 5px 10px var(--shadow-dark), -5px -5px 10px var(--shadow-light);
-    border: 1px solid var(--border-light);
-    padding: 0.75rem;
-    border-radius: 1.5rem;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -604,29 +599,29 @@ select.form-control {
 }
 
 .stat-card {
-    padding: 1.5rem;
+    padding: 0.75rem 1rem;
     background: var(--background-light);
     box-shadow: 5px 5px 10px var(--shadow-dark), -5px -5px 10px var(--shadow-light);
     border: 1px solid var(--border-light);
-    border-radius: 1.5rem;
+    border-radius: 1rem;
     text-align: center;
     transition: transform 0.3s;
 }
 
 .stat-card:hover {
-    transform: translateY(-2px);
+    transform: translateY(-1px);
 }
 
 .stat-card h3 {
-    font-size: 2rem;
+    font-size: 1.5rem;
     color: var(--primary-light);
     font-weight: 900;
-    margin-bottom: 0.5rem;
+    margin-bottom: 0.25rem;
 }
 
 .stat-card p {
     color: var(--text-muted-light);
-    font-size: 0.875rem;
+    font-size: 0.75rem;
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.05em;
@@ -976,6 +971,11 @@ input[type="checkbox"] {
 
 .app-footer a:hover {
     color: #5a8ee8;
+}
+
+.app-footer .footer-separator {
+    margin: 0 0.75rem;
+    color: var(--border-light);
 }
 
 .app-footer .heart {

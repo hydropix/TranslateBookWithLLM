@@ -117,7 +117,12 @@ export const FileUpload = {
         // Sync source language changes
         if (sourceLangSelect) {
             sourceLangSelect.addEventListener('change', () => {
-                this._syncLanguageToLastFile('source');
+                // If Auto-detect is selected (empty value), trigger language detection
+                if (sourceLangSelect.value === '') {
+                    this._triggerAutoDetection();
+                } else {
+                    this._syncLanguageToLastFile('source');
+                }
             });
         }
         if (customSourceLang) {
@@ -169,6 +174,85 @@ export const FileUpload = {
         StateManager.setState('files.toProcess', filesToProcess);
         this._saveFileQueue();
         this.updateFileDisplay();
+    },
+
+    /**
+     * Trigger automatic language detection on the last uploaded file
+     * Called when user selects "Auto-detect" in the source language dropdown
+     */
+    async _triggerAutoDetection() {
+        if (!lastUploadedFileName) {
+            MessageLogger.showMessage('No file uploaded yet. Upload a file to auto-detect its language.', 'info');
+            return;
+        }
+
+        const filesToProcess = StateManager.getState('files.toProcess') || [];
+        const file = filesToProcess.find(f => f.name === lastUploadedFileName);
+
+        if (!file) {
+            MessageLogger.showMessage('File not found in queue.', 'error');
+            return;
+        }
+
+        if (!file.filePath) {
+            MessageLogger.showMessage('File path not available for language detection.', 'error');
+            return;
+        }
+
+        // Check if we already have a detected language with good confidence
+        if (file.detectedLanguage && file.languageConfidence >= 0.7) {
+            const success = setLanguageInSelect('sourceLang', file.detectedLanguage);
+            if (success) {
+                MessageLogger.showMessage(
+                    `Using previously detected language: ${file.detectedLanguage} ` +
+                    `(${(file.languageConfidence * 100).toFixed(0)}% confidence)`,
+                    'success'
+                );
+            }
+            return;
+        }
+
+        // Call the API to detect language
+        MessageLogger.showMessage(`Detecting language for ${file.name}...`, 'info');
+
+        try {
+            const result = await ApiClient.detectLanguage(file.filePath);
+
+            if (result.success && result.detected_language) {
+                // Update file object with detected language
+                file.detectedLanguage = result.detected_language;
+                file.languageConfidence = result.language_confidence;
+
+                // Only auto-set if confidence >= 70%
+                if (result.language_confidence >= 0.7) {
+                    file.sourceLanguage = result.detected_language;
+                    const success = setLanguageInSelect('sourceLang', result.detected_language);
+
+                    if (!success) {
+                        MessageLogger.showMessage(
+                            `Language detected but not in list: ${result.detected_language}`,
+                            'info'
+                        );
+                    }
+                } else {
+                    MessageLogger.showMessage(
+                        `Low confidence detection: ${result.detected_language} ` +
+                        `(${(result.language_confidence * 100).toFixed(0)}% confidence). ` +
+                        `Please select the source language manually.`,
+                        'warning'
+                    );
+                }
+
+                // Update state
+                StateManager.setState('files.toProcess', filesToProcess);
+                this._saveFileQueue();
+                this.updateFileDisplay();
+            } else {
+                MessageLogger.showMessage('Could not detect language from file content.', 'warning');
+            }
+        } catch (error) {
+            MessageLogger.showMessage(`Language detection failed: ${error.message}`, 'error');
+        }
     },
 
     /**
@@ -488,34 +572,17 @@ export const FileUpload = {
                 const sourceLangInput = DomHelpers.getElement('sourceLang');
 
                 if (sourceLangInput) {
-                    // Update the form to match the detected language
+                    // Update the form to match the detected language - silent when successful
                     const success = setLanguageInSelect('sourceLang', uploadResult.detected_language);
 
-                    if (success) {
-                        MessageLogger.showMessage(
-                            `File '${file.name}' (${uploadResult.file_type}) uploaded. ` +
-                            `Detected language: ${uploadResult.detected_language} ` +
-                            `(${(uploadResult.language_confidence * 100).toFixed(0)}% confidence)`,
-                            'success'
-                        );
-                    } else {
+                    if (!success) {
                         MessageLogger.showMessage(
                             `File '${file.name}' (${uploadResult.file_type}) uploaded. ` +
                             `Language detected but not in list: ${uploadResult.detected_language}`,
                             'info'
                         );
                     }
-                } else {
-                    MessageLogger.showMessage(
-                        `File '${file.name}' (${uploadResult.file_type}) uploaded. Path: ${uploadResult.file_path}`,
-                        'success'
-                    );
                 }
-            } else {
-                MessageLogger.showMessage(
-                    `File '${file.name}' (${uploadResult.file_type}) uploaded. Path: ${uploadResult.file_path}`,
-                    'success'
-                );
             }
 
         } catch (error) {

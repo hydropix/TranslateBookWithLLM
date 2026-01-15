@@ -61,23 +61,11 @@ export const LifecycleManager = {
     },
 
     /**
-     * Set up beforeunload handler (prevent accidental page closure during active translation)
+     * Set up beforeunload handler
+     * Note: No confirmation popup needed - checkpoint system saves all progress automatically
      */
     setupBeforeUnloadHandler() {
-        window.addEventListener('beforeunload', (e) => {
-            const isBatchActive = StateManager.getState('translation.isBatchActive');
-            const currentJob = StateManager.getState('translation.currentJob');
-
-            if (isBatchActive && currentJob) {
-                // Modern browsers require both preventDefault and returnValue
-                const confirmationMessage = 'A translation is in progress. Are you sure you want to leave this page?';
-
-                e.preventDefault();
-                e.returnValue = confirmationMessage;
-
-                return confirmationMessage;
-            }
-        });
+        // No-op: checkpoint system handles saving, no need to warn user
     },
 
     /**
