@@ -20,6 +20,7 @@ from src.tts.providers import (
     get_gpu_status,
     CHATTERBOX_LANGUAGES,
 )
+from src.tts.audio_processor import get_ffmpeg_status, install_ffmpeg_windows
 from src.utils.file_utils import generate_tts_for_translation
 from src.api.services import FileService
 
@@ -512,6 +513,55 @@ def create_tts_blueprint(output_dir, socketio):
             return jsonify({
                 "error": "Failed to delete voice prompt",
                 "details": str(e)
+            }), 500
+
+    @bp.route('/api/tts/ffmpeg/status', methods=['GET'])
+    def ffmpeg_status():
+        """
+        Check FFmpeg availability and installation options.
+
+        Returns:
+            JSON with FFmpeg status and auto-install availability
+        """
+        status = get_ffmpeg_status()
+        return jsonify(status)
+
+    @bp.route('/api/tts/ffmpeg/install', methods=['POST'])
+    def install_ffmpeg():
+        """
+        Attempt to automatically install FFmpeg (Windows only via winget).
+
+        Returns:
+            JSON with installation result
+        """
+        status = get_ffmpeg_status()
+
+        if status["available"]:
+            return jsonify({
+                "success": True,
+                "message": "FFmpeg is already installed",
+                "version": status["version"]
+            })
+
+        if not status["can_auto_install"]:
+            return jsonify({
+                "success": False,
+                "error": "Auto-installation is only supported on Windows with winget"
+            }), 400
+
+        # Perform installation
+        success, message = install_ffmpeg_windows()
+
+        if success:
+            return jsonify({
+                "success": True,
+                "message": message,
+                "restart_required": True
+            })
+        else:
+            return jsonify({
+                "success": False,
+                "error": message
             }), 500
 
     return bp

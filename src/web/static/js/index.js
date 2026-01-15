@@ -122,11 +122,91 @@ function handleTtsUpdate(data) {
                 ttsProgressBar.textContent = 'Failed';
                 ttsProgressBar.style.background = '#ef4444';
             }
+
+            const errorText = error || message || 'Unknown error';
+            const isFFmpegError = errorText.toLowerCase().includes('ffmpeg');
+
             if (ttsStatusText) {
-                ttsStatusText.textContent = `❌ TTS failed: ${error || message || 'Unknown error'}`;
+                if (isFFmpegError) {
+                    // Show FFmpeg install button instead of long instructions
+                    ttsStatusText.innerHTML = `
+                        <span style="color: #ef4444;">❌ FFmpeg is required for audio encoding</span>
+                        <div style="margin-top: 10px;">
+                            <button id="installFFmpegBtn" class="btn btn-primary" style="margin-right: 10px;" onclick="window.installFFmpeg()">
+                                <span class="material-symbols-outlined" style="font-size: 18px; vertical-align: middle;">download</span>
+                                Install FFmpeg (winget)
+                            </button>
+                            <a href="https://ffmpeg.org/download.html" target="_blank" class="btn btn-secondary" style="text-decoration: none;">
+                                Manual Download
+                            </a>
+                        </div>
+                        <p style="margin-top: 8px; font-size: 0.8rem; color: var(--text-secondary);">
+                            After installation, restart the application.
+                        </p>
+                    `;
+                } else {
+                    ttsStatusText.textContent = `❌ TTS failed: ${errorText}`;
+                }
             }
-            MessageLogger.addLog(`❌ TTS failed: ${error || message || 'Unknown error'}`);
+            MessageLogger.addLog(`❌ TTS failed: ${errorText}`);
             break;
+    }
+}
+
+/**
+ * Install FFmpeg via winget (Windows)
+ */
+window.installFFmpeg = async function() {
+    const btn = document.getElementById('installFFmpegBtn');
+    const ttsStatusText = DomHelpers.getElement('ttsStatusText');
+
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = `
+            <span class="material-symbols-outlined rotating" style="font-size: 18px; vertical-align: middle;">sync</span>
+            Installing...
+        `;
+    }
+
+    try {
+        const response = await fetch('/api/tts/ffmpeg/install', { method: 'POST' });
+        const result = await response.json();
+
+        if (result.success) {
+            if (ttsStatusText) {
+                ttsStatusText.innerHTML = `
+                    <span style="color: #22c55e;">✅ ${result.message}</span>
+                    <p style="margin-top: 8px; font-size: 0.8rem; color: var(--text-secondary);">
+                        Please restart the application to use TTS.
+                    </p>
+                `;
+            }
+            MessageLogger.addLog('✅ FFmpeg installed successfully');
+        } else {
+            if (ttsStatusText) {
+                ttsStatusText.innerHTML = `
+                    <span style="color: #ef4444;">❌ Installation failed: ${result.error}</span>
+                    <div style="margin-top: 10px;">
+                        <a href="https://ffmpeg.org/download.html" target="_blank" class="btn btn-secondary" style="text-decoration: none;">
+                            Manual Download
+                        </a>
+                    </div>
+                `;
+            }
+            MessageLogger.addLog(`❌ FFmpeg installation failed: ${result.error}`);
+        }
+    } catch (err) {
+        if (ttsStatusText) {
+            ttsStatusText.innerHTML = `
+                <span style="color: #ef4444;">❌ Installation error: ${err.message}</span>
+                <div style="margin-top: 10px;">
+                    <a href="https://ffmpeg.org/download.html" target="_blank" class="btn btn-secondary" style="text-decoration: none;">
+                        Manual Download
+                    </a>
+                </div>
+            `;
+        }
+        MessageLogger.addLog(`❌ FFmpeg installation error: ${err.message}`);
     }
 }
 

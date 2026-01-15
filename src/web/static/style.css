@@ -1106,6 +1106,16 @@ input[type="checkbox"] {
     }
 }
 
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+.rotating {
+    animation: spin 1s linear infinite;
+    display: inline-block;
+}
+
 /* TTS Slider Styles */
 .tts-slider {
     -webkit-appearance: none;

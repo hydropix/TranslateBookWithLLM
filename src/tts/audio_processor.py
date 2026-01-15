@@ -103,6 +103,92 @@ def check_ffmpeg_with_instructions() -> Tuple[bool, str]:
     return False, get_ffmpeg_install_instructions()
 
 
+def get_ffmpeg_status() -> dict:
+    """
+    Get detailed FFmpeg status for API responses.
+
+    Returns:
+        Dict with availability status and version info
+    """
+    import platform
+    available = check_ffmpeg_available()
+    result = {
+        "available": available,
+        "platform": platform.system().lower(),
+        "version": None,
+        "can_auto_install": platform.system().lower() == "windows"
+    }
+
+    if available:
+        try:
+            proc = subprocess.run(
+                ['ffmpeg', '-version'],
+                capture_output=True,
+                text=True,
+                timeout=5
+            )
+            if proc.stdout:
+                result["version"] = proc.stdout.split('\n')[0]
+        except Exception:
+            result["version"] = "unknown"
+
+    return result
+
+
+def install_ffmpeg_windows() -> Tuple[bool, str]:
+    """
+    Attempt to install FFmpeg on Windows using winget.
+
+    Returns:
+        Tuple of (success: bool, message: str)
+    """
+    import platform
+    if platform.system().lower() != "windows":
+        return False, "Auto-installation is only supported on Windows"
+
+    logger.info("Attempting to install FFmpeg via winget...")
+
+    try:
+        # Check if winget is available
+        winget_check = subprocess.run(
+            ['winget', '--version'],
+            capture_output=True,
+            text=True,
+            timeout=10
+        )
+
+        if winget_check.returncode != 0:
+            return False, "winget is not available. Please install FFmpeg manually."
+
+        # Install FFmpeg using winget
+        result = subprocess.run(
+            ['winget', 'install', 'Gyan.FFmpeg', '--accept-package-agreements', '--accept-source-agreements'],
+            capture_output=True,
+            text=True,
+            timeout=300  # 5 minutes timeout for download/install
+        )
+
+        if result.returncode == 0:
+            logger.info("FFmpeg installed successfully via winget")
+            return True, "FFmpeg installed successfully! Please restart the application to use TTS."
+        else:
+            # Check if already installed
+            if "already installed" in result.stdout.lower() or "already installed" in result.stderr.lower():
+                return True, "FFmpeg is already installed. Please restart the application."
+
+            error_msg = result.stderr or result.stdout or "Unknown error"
+            logger.error(f"winget install failed: {error_msg}")
+            return False, f"Installation failed: {error_msg}"
+
+    except subprocess.TimeoutExpired:
+        return False, "Installation timed out. Please try installing FFmpeg manually."
+    except FileNotFoundError:
+        return False, "winget not found. Please install FFmpeg manually or install winget first."
+    except Exception as e:
+        logger.exception("Error during FFmpeg installation")
+        return False, f"Installation error: {str(e)}"
+
+
 def chunk_text_for_tts(text: str, max_chunk_size: int = 5000) -> List[str]:
     """
     Split text into chunks suitable for TTS synthesis.
