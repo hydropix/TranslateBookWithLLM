@@ -33,23 +33,23 @@
 html.dark {
     /* Dark mode colors - neutral grays */
     --primary-light: #5a8ee8;
-    --background-light: #1a1a1a;
-    --background-outer: #000000;
-    --text-dark: #e0e0e0;
-    --text-muted-light: #888888;
-    --border-light: #333333;
+    --background-light: #2a2a2a;
+    --background-outer: #121212;
+    --text-dark: #e8e8e8;
+    --text-muted-light: #999999;
+    --border-light: #444444;
     --success-light: #34d399;
     --success-light-bg: #1a2a1a;
     --info-light: #60a5fa;
     --info-light-bg: #1a1a2a;
 
     /* Neumorphic shadows for dark mode */
-    --shadow-dark: #0a0a0a;
-    --shadow-light: #2a2a2a;
+    --shadow-dark: #1a1a1a;
+    --shadow-light: #3a3a3a;
 }
 
 html.dark .neu-inset-light {
-    background: #141414;
+    background: #222222;
     border: 2px solid rgba(136, 136, 136, 0.15);
 }
 
@@ -62,24 +62,24 @@ html.dark .neu-inset-light:focus-within {
 }
 
 html.dark .form-control {
-    background: #141414;
-    color: #e0e0e0;
+    background: #222222;
+    color: #e8e8e8;
 }
 
 html.dark .neu-inset-light .form-control {
-    background: #141414;
+    background: #222222;
 }
 
 html.dark .form-control:focus {
-    background: #141414;
+    background: #222222;
 }
 
 html.dark .form-control::placeholder {
-    color: #666666;
+    color: #777777;
 }
 
 html.dark .header {
-    background: rgba(26, 26, 26, 0.9);
+    background: rgba(42, 42, 42, 0.9);
 }
 
 html.dark .file-upload {
@@ -118,7 +118,7 @@ html.dark #ttsOptions {
 }
 
 html.dark .log-entry.log-summary-detailed {
-    background: #141414;
+    background: #222222;
     border-color: rgba(136, 136, 136, 0.3);
     border-left-color: var(--primary-light);
 }
