@@ -427,10 +427,10 @@ export const MessageLogger = {
 
         // Remove placeholder tags for cleaner preview (UI only, not in console logs)
         // NOTE: These patterns must stay synchronized with src/config.py
-        translatedText = translatedText.replace(/\[TAG\d+\]/g, '');  // HTML tag placeholders
-        translatedText = translatedText.replace(/\[id\d+\]/g, '');   // Technical content placeholders
+        translatedText = translatedText.replace(/\[TAG\d+\]/g, ' ');  // HTML tag placeholders
+        translatedText = translatedText.replace(/\[id\d+\]/g, ' ');   // Technical content placeholders
         // Also remove legacy Unicode format for backward compatibility
-        translatedText = translatedText.replace(/⟦TAG\d+⟧/g, '');
+        translatedText = translatedText.replace(/⟦TAG\d+⟧/g, ' ');
 
         // Remove common leading whitespace (indentation) from all lines
         const lines = translatedText.split('\n');

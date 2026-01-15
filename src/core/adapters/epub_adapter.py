@@ -78,7 +78,6 @@ class EpubAdapter(FormatAdapter):
             # Find OPF file
             self.opf_path = self._find_opf_file()
             if not self.opf_path:
-                print("ERROR: content.opf not found in EPUB")
                 return False
 
             # Parse OPF to get content files
@@ -90,7 +89,6 @@ class EpubAdapter(FormatAdapter):
             spine = opf_root.find('.//opf:spine', namespaces=NAMESPACES)
 
             if manifest is None or spine is None:
-                print("ERROR: manifest or spine missing in EPUB")
                 return False
 
             # Get content files from spine (in reading order)
@@ -105,8 +103,7 @@ class EpubAdapter(FormatAdapter):
 
             return True
 
-        except Exception as e:
-            print(f"Error preparing EPUB file: {e}")
+        except Exception:
             return False
 
     def _find_opf_file(self) -> Optional[Path]:
@@ -196,7 +193,6 @@ class EpubAdapter(FormatAdapter):
         file_path = self.opf_dir / file_href
 
         if not file_path.exists():
-            print(f"Warning: Translated file not found: {file_path}")
             return False
 
         # Persist the translated file to checkpoint storage
@@ -211,20 +207,20 @@ class EpubAdapter(FormatAdapter):
                     file_content=file_content
                 )
 
-                if not success:
-                    print(f"Warning: Failed to save EPUB file to checkpoint: {file_href}")
-
                 return success
-            except Exception as e:
-                print(f"Error saving EPUB file {file_href}: {e}")
+            except Exception:
                 return False
         else:
             # No checkpoint manager - just confirm file exists in work_dir
             return file_path.exists()
 
-    async def reconstruct_output(self) -> bytes:
+    async def reconstruct_output(self, bilingual: bool = False) -> bytes:
         """
         Repackage the EPUB from work_dir.
+
+        Args:
+            bilingual: If True, the XHTML files should already contain
+                      bilingual content (handled during translation phase).
 
         Returns:
             Complete EPUB file as bytes
@@ -281,9 +277,6 @@ class EpubAdapter(FormatAdapter):
                 work_dir=self.work_dir
             )
 
-            if not success:
-                print("Warning: Failed to restore EPUB files from checkpoint")
-
         # Return resume index from checkpoint
         return checkpoint_data.get('resume_from_index', 0)
 
@@ -294,8 +287,8 @@ class EpubAdapter(FormatAdapter):
         if self.work_dir and self.work_dir.exists():
             try:
                 shutil.rmtree(self.work_dir)
-            except Exception as e:
-                print(f"Warning: Could not clean up work directory: {e}")
+            except Exception:
+                pass
 
     @property
     def format_name(self) -> str:

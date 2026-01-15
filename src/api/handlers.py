@@ -34,7 +34,6 @@ def run_translation_async_wrapper(translation_id, config, state_manager, output_
         loop.run_until_complete(perform_actual_translation(translation_id, config, state_manager, output_dir, socketio))
     except Exception as e:
         error_msg = f"Uncaught major error in translation wrapper {translation_id}: {str(e)}"
-        print(error_msg)
         if state_manager.exists(translation_id):
             state_manager.set_translation_field(translation_id, 'status', 'error')
             state_manager.set_translation_field(translation_id, 'error', error_msg)
@@ -60,7 +59,6 @@ async def perform_actual_translation(translation_id, config, state_manager, outp
         socketio: SocketIO instance
     """
     if not state_manager.exists(translation_id):
-        print(f"Critical error: {translation_id} not found in state_manager.")
         return
 
     state_manager.set_translation_field(translation_id, 'status', 'running')
@@ -238,7 +236,8 @@ async def perform_actual_translation(translation_id, config, state_manager, outp
             context_window=config.get('context_window', 2048),
             auto_adjust_context=config.get('auto_adjust_context', True),
             min_chunk_size=config.get('min_chunk_size', 5),
-            prompt_options=config.get('prompt_options', {})
+            prompt_options=config.get('prompt_options', {}),
+            bilingual_output=config.get('bilingual_output', False)
         )
 
         # Set result message based on file type
@@ -403,11 +402,9 @@ async def perform_actual_translation(translation_id, config, state_manager, outp
     except Exception as e:
         critical_error_msg = f"Critical error during translation task ({translation_id}): {str(e)}"
         _log_message_callback("critical_error_perform_task", critical_error_msg)
-        print(f"!!! {critical_error_msg}")
         import traceback
         tb_str = traceback.format_exc()
         _log_message_callback("critical_error_perform_task_traceback", tb_str)
-        print(tb_str)
 
         if state_manager.exists(translation_id):
             state_manager.set_translation_field(translation_id, 'status', 'error')

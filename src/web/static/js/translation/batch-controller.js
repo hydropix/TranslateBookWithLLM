@@ -48,6 +48,9 @@ function getTranslationConfig(file) {
         refine: DomHelpers.getElement('refineTranslation')?.checked || false
     };
 
+    // Get TTS configuration
+    const ttsEnabled = DomHelpers.getElement('ttsEnabled')?.checked || false;
+
     const config = {
         source_language: sourceLanguageVal,
         target_language: targetLanguageVal,
@@ -63,7 +66,15 @@ function getTranslationConfig(file) {
         // are now controlled via .env only - server will use defaults from config.py
         output_filename: file.outputFilename,
         file_type: file.fileType,
-        prompt_options: promptOptions
+        prompt_options: promptOptions,
+        // Bilingual output (original + translation interleaved)
+        bilingual_output: DomHelpers.getElement('bilingualMode')?.checked || false,
+        // TTS configuration
+        tts_enabled: ttsEnabled,
+        tts_voice: ttsEnabled ? (DomHelpers.getValue('ttsVoice') || '') : '',
+        tts_rate: ttsEnabled ? (DomHelpers.getValue('ttsRate') || '+0%') : '+0%',
+        tts_format: ttsEnabled ? (DomHelpers.getValue('ttsFormat') || 'opus') : 'opus',
+        tts_bitrate: ttsEnabled ? (DomHelpers.getValue('ttsBitrate') || '64k') : '64k'
     };
 
     // Handle file input based on type
@@ -144,6 +155,26 @@ export const BatchController = {
             if (!ollamaApiEndpoint) {
                 return earlyValidationFail('Ollama API Endpoint cannot be empty for the batch.');
             }
+        }
+
+        // Update any queued files that have empty languages with current form values
+        let filesUpdated = false;
+        for (const file of filesToProcess) {
+            if (file.status !== 'Queued') continue;
+
+            if (!file.sourceLanguage || file.sourceLanguage === 'Other') {
+                file.sourceLanguage = sourceLanguageVal;
+                filesUpdated = true;
+            }
+            if (!file.targetLanguage || file.targetLanguage === 'Other') {
+                file.targetLanguage = targetLanguageVal;
+                filesUpdated = true;
+            }
+        }
+
+        // Save updated file queue if any changes
+        if (filesUpdated) {
+            StateManager.setState('files.toProcess', filesToProcess);
         }
 
         // Mark batch as active

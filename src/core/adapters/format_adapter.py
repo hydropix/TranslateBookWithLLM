@@ -90,12 +90,16 @@ class FormatAdapter(ABC):
         pass
 
     @abstractmethod
-    async def reconstruct_output(self) -> bytes:
+    async def reconstruct_output(self, bilingual: bool = False) -> bytes:
         """
         Reconstruct the final output file from all translated units.
 
         This method is called after all units have been translated.
         It should combine all translated content into the final output format.
+
+        Args:
+            bilingual: If True, interleave original and translated content
+                      for language learning or review purposes.
 
         Returns:
             Complete output file as bytes

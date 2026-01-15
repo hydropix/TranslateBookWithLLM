@@ -45,8 +45,7 @@ class SrtAdapter(FormatAdapter):
 
             return True
 
-        except Exception as e:
-            print(f"Error preparing SRT file: {e}")
+        except Exception:
             return False
 
     def get_translation_units(self) -> List[TranslationUnit]:
@@ -117,29 +116,72 @@ class SrtAdapter(FormatAdapter):
 
             return True
 
-        except Exception as e:
-            print(f"Error saving unit translation: {e}")
+        except Exception:
             return False
 
-    async def reconstruct_output(self) -> bytes:
-        """Reconstruct SRT file with translations."""
-        try:
-            # Update subtitles with translations
-            updated_subtitles = self.processor.update_translated_subtitles(
-                self.subtitles,
-                self.translations
-            )
+    async def reconstruct_output(self, bilingual: bool = False) -> bytes:
+        """
+        Reconstruct SRT file with translations.
 
-            # Reconstruct SRT format
-            srt_content = self.processor.reconstruct_srt(updated_subtitles)
+        Args:
+            bilingual: If True, include both original and translated text
+                      in each subtitle entry (original on first line,
+                      translation on second line).
+
+        Returns:
+            Complete SRT file as bytes
+        """
+        try:
+            if bilingual:
+                # Bilingual mode: keep original and add translation below
+                srt_content = self._reconstruct_bilingual_srt()
+            else:
+                # Standard mode: replace text with translation
+                updated_subtitles = self.processor.update_translated_subtitles(
+                    self.subtitles,
+                    self.translations
+                )
+                srt_content = self.processor.reconstruct_srt(updated_subtitles)
 
             return srt_content.encode('utf-8')
 
-        except Exception as e:
-            print(f"Error reconstructing SRT output: {e}")
+        except Exception:
             # Fallback: return original file
             with open(self.input_file_path, 'rb') as f:
                 return f.read()
+
+    def _reconstruct_bilingual_srt(self) -> str:
+        """
+        Reconstruct SRT with bilingual format (original + translation).
+
+        Format:
+            1
+            00:00:01,000 --> 00:00:04,000
+            Hello, how are you?
+            Bonjour, comment allez-vous ?
+        """
+        from src.config import ATTRIBUTION_ENABLED, GENERATOR_NAME, GENERATOR_SOURCE
+
+        srt_blocks = []
+
+        for idx, subtitle in enumerate(self.subtitles):
+            original_text = subtitle.get('original_text', subtitle['text'])
+            translated_text = self.translations.get(idx, original_text)
+
+            block = f"{subtitle['number']}\n"
+            block += f"{subtitle['start_time']} --> {subtitle['end_time']}\n"
+            block += f"{original_text}\n"
+            block += f"{translated_text}\n"
+
+            srt_blocks.append(block)
+
+        # Add signature as comment at the end if enabled
+        if ATTRIBUTION_ENABLED:
+            signature = f"\n# Translated with {GENERATOR_NAME} (Bilingual)\n"
+            signature += f"# {GENERATOR_SOURCE}\n"
+            srt_blocks.append(signature)
+
+        return '\n'.join(srt_blocks)
 
     async def resume_from_checkpoint(self, checkpoint_data: Dict[str, Any]) -> int:
         """Restore translations from checkpoint."""
@@ -166,8 +208,7 @@ class SrtAdapter(FormatAdapter):
 
             return checkpoint_data.get('resume_from_index', 0)
 
-        except Exception as e:
-            print(f"Error resuming from checkpoint: {e}")
+        except Exception:
             return 0
 
     async def cleanup(self):

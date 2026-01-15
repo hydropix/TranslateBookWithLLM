@@ -80,6 +80,8 @@ def create_translation_blueprint(state_manager, start_translation_job):
             'openrouter_api_key': _resolve_api_key(data.get('openrouter_api_key'), 'OPENROUTER_API_KEY'),
             # Prompt options (optional instructions to include in the system prompt)
             'prompt_options': data.get('prompt_options', {}),
+            # Bilingual output (original + translation interleaved)
+            'bilingual_output': data.get('bilingual_output', False),
             # TTS configuration
             'tts_enabled': data.get('tts_enabled', False),
             'tts_config': TTSConfig.from_web_request(data).to_dict() if data.get('tts_enabled') else None

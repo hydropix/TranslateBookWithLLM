@@ -58,6 +58,7 @@ class GenericTranslator:
         progress_callback: Optional[Callable] = None,
         log_callback: Optional[Callable] = None,
         check_interruption_callback: Optional[Callable] = None,
+        bilingual_output: bool = False,
         **llm_kwargs
     ) -> bool:
         """
@@ -71,6 +72,7 @@ class GenericTranslator:
             progress_callback: Optional callback for progress updates (receives percentage)
             log_callback: Optional callback for logging (receives type and message)
             check_interruption_callback: Optional callback to check if translation should be interrupted
+            bilingual_output: If True, output will contain both original and translated text
             **llm_kwargs: Additional LLM configuration (endpoint, api_key, etc.)
 
         Returns:
@@ -154,7 +156,7 @@ class GenericTranslator:
                         try:
                             if log_callback:
                                 log_callback("reconstruct_partial", "Saving partial output before interruption")
-                            output_bytes = await self.adapter.reconstruct_output()
+                            output_bytes = await self.adapter.reconstruct_output(bilingual=bilingual_output)
                             with open(self.adapter.output_file_path, 'wb') as f:
                                 f.write(output_bytes)
                         except Exception as e:
@@ -266,7 +268,7 @@ class GenericTranslator:
                 log_callback("reconstruct_start", "Reconstructing output file")
 
             try:
-                output_bytes = await self.adapter.reconstruct_output()
+                output_bytes = await self.adapter.reconstruct_output(bilingual=bilingual_output)
 
                 # Save final file
                 with open(self.adapter.output_file_path, 'wb') as f:

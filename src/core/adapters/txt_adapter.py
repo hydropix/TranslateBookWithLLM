@@ -65,8 +65,7 @@ class TxtAdapter(FormatAdapter):
 
             return True
 
-        except Exception as e:
-            print(f"Error preparing TXT file: {e}")
+        except Exception:
             return False
 
     def get_translation_units(self) -> List[TranslationUnit]:
@@ -115,35 +114,46 @@ class TxtAdapter(FormatAdapter):
             if 0 <= chunk_index < len(self.translated_chunks):
                 self.translated_chunks[chunk_index] = translated_content
                 return True
-            else:
-                print(f"Invalid chunk index: {chunk_index}")
-                return False
-
-        except Exception as e:
-            print(f"Error saving translated chunk: {e}")
             return False
 
-    async def reconstruct_output(self) -> bytes:
+        except Exception:
+            return False
+
+    async def reconstruct_output(self, bilingual: bool = False) -> bytes:
         """
         Reconstruct the complete translated text file.
 
         If a chunk wasn't translated, uses the original text as fallback.
 
+        Args:
+            bilingual: If True, interleave original and translated content
+                      with visual separators for language learning.
+
         Returns:
             Complete translated file as bytes
         """
-        # Join all chunks, using original text for untranslated chunks
         text_chunks = []
+        separator = "─" * 40
 
         for i, translated_chunk in enumerate(self.translated_chunks):
-            if translated_chunk is not None:
-                text_chunks.append(translated_chunk)
-            else:
-                # Fallback to original content
-                text_chunks.append(self.chunks[i]['main_content'])
+            original = self.chunks[i]['main_content'].strip()
+            translated = translated_chunk.strip() if translated_chunk else original
 
-        # Join with newlines (preserving paragraph structure)
-        final_text = '\n'.join(text_chunks)
+            if bilingual:
+                # Bilingual format: original, blank line, translation, separator
+                block = f"{original}\n\n{translated}\n\n{separator}"
+                text_chunks.append(block)
+            else:
+                # Standard format: translation only
+                text_chunks.append(translated if translated_chunk else original)
+
+        # Join chunks
+        joiner = "\n\n" if bilingual else "\n"
+        final_text = joiner.join(text_chunks)
+
+        # Remove trailing separator in bilingual mode
+        if bilingual and final_text.endswith(separator):
+            final_text = final_text[:-len(separator)].rstrip()
 
         return final_text.encode('utf-8')
 
@@ -177,8 +187,7 @@ class TxtAdapter(FormatAdapter):
             # Return resume index
             return checkpoint_data.get('resume_from_index', 0)
 
-        except Exception as e:
-            print(f"Error resuming from checkpoint: {e}")
+        except Exception:
             return 0
 
     async def cleanup(self):
