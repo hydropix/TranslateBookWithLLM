@@ -60,12 +60,19 @@ class Database:
                     config JSON NOT NULL,
                     progress JSON NOT NULL,
                     translation_context JSON,
+                    server_session_id TEXT,
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     paused_at TIMESTAMP,
                     completed_at TIMESTAMP
                 )
             """)
+
+            # Add server_session_id column if it doesn't exist (migration for existing DBs)
+            cursor.execute("PRAGMA table_info(translation_jobs)")
+            columns = [row[1] for row in cursor.fetchall()]
+            if 'server_session_id' not in columns:
+                cursor.execute("ALTER TABLE translation_jobs ADD COLUMN server_session_id TEXT")
 
             # Checkpoint chunks table
             cursor.execute("""
@@ -96,7 +103,13 @@ class Database:
 
             conn.commit()
 
-    def create_job(self, translation_id: str, file_type: str, config: Dict[str, Any]) -> bool:
+    def create_job(
+        self,
+        translation_id: str,
+        file_type: str,
+        config: Dict[str, Any],
+        server_session_id: Optional[str] = None
+    ) -> bool:
         """
         Create a new translation job record.
 
@@ -104,6 +117,7 @@ class Database:
             translation_id: Unique job identifier
             file_type: Type of file (txt, srt, epub)
             config: Full translation configuration
+            server_session_id: Unique identifier for the current server session
 
         Returns:
             True if created successfully
@@ -123,14 +137,15 @@ class Database:
 
                 cursor.execute("""
                     INSERT INTO translation_jobs
-                    (translation_id, status, file_type, config, progress)
-                    VALUES (?, ?, ?, ?, ?)
+                    (translation_id, status, file_type, config, progress, server_session_id)
+                    VALUES (?, ?, ?, ?, ?, ?)
                 """, (
                     translation_id,
                     'running',
                     file_type,
                     json.dumps(config),
-                    json.dumps(progress)
+                    json.dumps(progress),
+                    server_session_id
                 ))
 
                 conn.commit()
@@ -368,9 +383,12 @@ class Database:
                 print(f"Error getting chunks: {e}")
                 return []
 
-    def get_resumable_jobs(self) -> List[Dict[str, Any]]:
+    def get_resumable_jobs(self, max_age_days: int = 30) -> List[Dict[str, Any]]:
         """
         Get all jobs that can be resumed (status = paused or interrupted).
+
+        Args:
+            max_age_days: Maximum age in days for resumable jobs (default 30)
 
         Returns:
             List of job dictionaries
@@ -380,11 +398,13 @@ class Database:
                 conn = self._get_connection()
                 cursor = conn.cursor()
 
+                # Only return jobs created within max_age_days
                 cursor.execute("""
                     SELECT * FROM translation_jobs
                     WHERE status IN ('paused', 'interrupted', 'error')
+                    AND created_at > datetime('now', ? || ' days')
                     ORDER BY updated_at DESC
-                """)
+                """, (f'-{max_age_days}',))
 
                 jobs = []
                 for row in cursor.fetchall():
@@ -403,6 +423,89 @@ class Database:
             except Exception as e:
                 print(f"Error getting resumable jobs: {e}")
                 return []
+
+    def cleanup_old_jobs(self, max_age_days: int = 30) -> int:
+        """
+        Delete old jobs that are no longer relevant.
+
+        Removes jobs older than max_age_days that are in resumable states
+        (paused, interrupted, error) to prevent database bloat.
+
+        Args:
+            max_age_days: Maximum age in days for jobs to keep (default 30)
+
+        Returns:
+            Number of jobs deleted
+        """
+        with self._lock:
+            try:
+                conn = self._get_connection()
+                cursor = conn.cursor()
+
+                # Get IDs of jobs to delete (for logging and file cleanup)
+                cursor.execute("""
+                    SELECT translation_id FROM translation_jobs
+                    WHERE status IN ('paused', 'interrupted', 'error', 'completed')
+                    AND created_at <= datetime('now', ? || ' days')
+                """, (f'-{max_age_days}',))
+
+                job_ids = [row['translation_id'] for row in cursor.fetchall()]
+
+                if not job_ids:
+                    return 0
+
+                # Delete old jobs (chunks deleted via CASCADE)
+                cursor.execute("""
+                    DELETE FROM translation_jobs
+                    WHERE status IN ('paused', 'interrupted', 'error', 'completed')
+                    AND created_at <= datetime('now', ? || ' days')
+                """, (f'-{max_age_days}',))
+
+                deleted_count = cursor.rowcount
+                conn.commit()
+                return deleted_count
+            except Exception as e:
+                print(f"Error cleaning up old jobs: {e}")
+                return 0
+
+    def reset_running_jobs(self, current_session_id: str) -> int:
+        """
+        Reset jobs with 'running' status from previous server sessions to 'interrupted'.
+
+        Only resets jobs that have a different server_session_id than the current one,
+        preserving jobs that are actually running in the current session.
+
+        This should be called on server startup to handle jobs that were
+        interrupted by a server crash or restart.
+
+        Args:
+            current_session_id: The current server's session ID
+
+        Returns:
+            Number of jobs reset
+        """
+        with self._lock:
+            try:
+                conn = self._get_connection()
+                cursor = conn.cursor()
+
+                # Reset jobs that are 'running' but from a different session
+                # (or have no session_id, meaning they're from before this feature)
+                cursor.execute("""
+                    UPDATE translation_jobs
+                    SET status = 'interrupted',
+                        updated_at = CURRENT_TIMESTAMP,
+                        paused_at = CURRENT_TIMESTAMP
+                    WHERE status = 'running'
+                    AND (server_session_id IS NULL OR server_session_id != ?)
+                """, (current_session_id,))
+
+                affected_rows = cursor.rowcount
+                conn.commit()
+                return affected_rows
+            except Exception as e:
+                print(f"Error resetting running jobs: {e}")
+                return 0
 
     def update_translation_context(
         self,

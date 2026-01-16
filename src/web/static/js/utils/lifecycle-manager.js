@@ -70,7 +70,7 @@ export const LifecycleManager = {
 
             const lastSessionId = localStorage.getItem(SERVER_SESSION_KEY);
 
-            if (lastSessionId && lastSessionId !== serverSessionId) {
+            if (lastSessionId && lastSessionId !== String(serverSessionId)) {
                 // Server was restarted! Clean up translation state only
                 console.warn('Server restart detected. Cleaning up translation state...');
                 MessageLogger.addLog('⚠️ Server restart detected. Clearing active translation state.');

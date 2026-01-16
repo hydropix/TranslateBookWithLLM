@@ -294,26 +294,44 @@
                     </div>
                 </div>
 
-                <!-- Prompt Options (Collapsible) -->
+                <!-- Options (Collapsible) -->
                 <div class="prompt-options-toggle" onclick="togglePromptOptions()">
                     <span style="display: flex; align-items: center; gap: 0.75rem;">
                         <span class="material-symbols-outlined">edit_note</span>
-                        <span>Prompt Options</span>
+                        <span>Options</span>
                     </span>
                     <span id="promptOptionsIcon" class="material-symbols-outlined">expand_more</span>
                 </div>
 
                 <div id="promptOptionsSection" class="hidden">
-                    <p style="margin: 0 0 15px 0; font-size: 0.875rem; color: var(--text-muted-light);">
-                        Optional instructions to include in the translation prompt. Enable these for specific document types.
-                    </p>
+                    <!-- Polish Translation (Refinement Pass) -->
+                    <div class="form-group" style="margin-bottom: 15px;">
+                        <label style="display: flex; align-items: flex-start; gap: 10px; cursor: pointer;">
+                            <input type="checkbox" id="refineTranslation">
+                            <div>
+                                <span style="font-weight: 600; color: var(--text-dark);">Polish Translation (2nd Pass)</span>
+                                <p style="margin: 5px 0 0 0; font-size: 0.8125rem; color: var(--text-muted-light);">
+                                    Runs a second refinement pass after translation. The LLM rewrites the first-pass translation to improve literary quality, natural flow, and stylistic elegance. Doubles the translation time but significantly improves output quality.
+                                </p>
+                            </div>
+                        </label>
+                    </div>
 
-                    <p style="margin: 0 0 15px 0; font-size: 0.875rem; padding: 10px; background: var(--bg-secondary); border-radius: 8px; color: var(--text-muted-light);">
-                        ℹ️ <strong>Note:</strong> Technical content protection (code, formulas, measurements) is always active and will be automatically detected.
-                    </p>
+                    <!-- Bilingual Output -->
+                    <div class="form-group" style="margin-bottom: 15px;">
+                        <label style="display: flex; align-items: flex-start; gap: 10px; cursor: pointer;">
+                            <input type="checkbox" id="bilingualMode">
+                            <div>
+                                <span style="font-weight: 600; color: var(--text-dark);">Bilingual Output</span>
+                                <p style="margin: 5px 0 0 0; font-size: 0.8125rem; color: var(--text-muted-light);">
+                                    Include original text alongside the translation. Each chunk displays the source text followed by its translation, ideal for language learning or side-by-side comparison.
+                                </p>
+                            </div>
+                        </label>
+                    </div>
 
                     <!-- Text Cleanup (OCR Correction) -->
-                    <div class="form-group" style="margin-bottom: 15px;">
+                    <div class="form-group" style="margin-bottom: 0;">
                         <label style="display: flex; align-items: flex-start; gap: 10px; cursor: pointer;">
                             <input type="checkbox" id="textCleanup">
                             <div>
@@ -322,30 +340,6 @@
                                     For poorly formatted or OCR-scanned texts. Instructs the LLM to fix: broken line breaks, double spaces, punctuation errors, and merge incorrectly split paragraphs.
                                 </p>
                             </div>
-                        </label>
-                    </div>
-
-                    <!-- Polish Translation (Refinement Pass) -->
-                    <div class="form-group" style="margin-bottom: 0;">
-                        <label style="display: flex; align-items: flex-start; gap: 10px; cursor: pointer;">
-                            <input type="checkbox" id="refineTranslation">
-                            <div>
-                                <span style="font-weight: 600; color: var(--text-dark);">✨ Polish Translation (2nd Pass)</span>
-                                <p style="margin: 5px 0 0 0; font-size: 0.8125rem; color: var(--text-muted-light);">
-                                    Runs a second refinement pass after translation. The LLM rewrites the first-pass translation to improve literary quality, natural flow, and stylistic elegance. Doubles the translation time but significantly improves output quality.
-                                </p>
-                            </div>
-                        </label>
-                    </div>
-                </div>
-
-                <!-- Bilingual Option -->
-                <div class="form-group" style="margin-bottom: 15px; margin-top: 15px;">
-                    <div style="display: flex; align-items: center; gap: 30px; flex-wrap: wrap;">
-                        <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;" title="Include original text before each translated chunk for language learning or review">
-                            <input type="checkbox" id="bilingualMode">
-                            <span class="material-symbols-outlined">translate</span>
-                            <span style="font-weight: 600;">Bilingual</span>
                         </label>
                     </div>
                 </div>
@@ -413,9 +407,10 @@
 
                     <!-- Last Translation Preview -->
                     <div id="lastTranslationPreviewSection" style="margin-top: 20px; display: block !important;">
-                        <h4 style="margin: 0 0 10px 0; color: var(--text-dark); font-weight: 700;">
+                        <h4 style="margin: 0 0 10px 0; color: var(--text-dark); font-weight: 700; display: flex; align-items: center; gap: 0.5rem;">
                             <span class="material-symbols-outlined" style="vertical-align: middle; font-size: 1.25rem;">description</span>
                             Last Translation Preview
+                            <span id="previewLanguages" style="font-weight: 400; font-size: 0.85rem; color: var(--text-muted-light); margin-left: 0.5rem;"></span>
                         </h4>
                         <div class="log-container" id="lastTranslationPreview">
                             <div style="color: var(--text-muted-light); font-style: italic; padding: 10px;">No translation yet...</div>

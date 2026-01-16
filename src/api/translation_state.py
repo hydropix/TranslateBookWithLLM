@@ -4,18 +4,28 @@ Thread-safe translation state management
 import threading
 import time
 import copy
+import uuid
 from datetime import datetime
 from typing import Dict, Any, Optional
 from src.persistence.checkpoint_manager import CheckpointManager
 
 
+def generate_server_session_id() -> str:
+    """Generate a unique session ID for this server instance."""
+    return str(uuid.uuid4())
+
+
 class TranslationStateManager:
     """Thread-safe manager for translation state"""
 
-    def __init__(self, checkpoint_manager: Optional[CheckpointManager] = None):
+    def __init__(self, checkpoint_manager: Optional[CheckpointManager] = None, server_session_id: Optional[str] = None):
         self._translations: Dict[str, Dict[str, Any]] = {}
         self._lock = threading.RLock()  # Use RLock to allow nested locking
-        self.checkpoint_manager = checkpoint_manager or CheckpointManager()
+        # Generate a unique session ID for this server instance
+        self.server_session_id = server_session_id or generate_server_session_id()
+        self.checkpoint_manager = checkpoint_manager or CheckpointManager(
+            server_session_id=self.server_session_id
+        )
     
     def create_translation(self, translation_id: str, config: Dict[str, Any]) -> None:
         """Create a new translation entry"""
@@ -124,13 +134,20 @@ class TranslationStateManager:
         with self._lock:
             summaries = []
             for tid, data in self._translations.items():
+                config = data.get('config', {})
+                stats = data.get('stats', {})
                 summaries.append({
                     "translation_id": tid,
                     "status": data.get('status'),
                     "progress": data.get('progress'),
-                    "start_time": data.get('stats', {}).get('start_time'),
-                    "output_filename": data.get('config', {}).get('output_filename'),
-                    "file_type": data.get('config', {}).get('file_type', 'txt')
+                    "start_time": stats.get('start_time'),
+                    "output_filename": config.get('output_filename'),
+                    "input_filename": config.get('input_filename'),
+                    "file_type": config.get('file_type', 'txt'),
+                    # Include stats for UI restoration
+                    "total_chunks": stats.get('total_chunks', 0),
+                    "completed_chunks": stats.get('completed_chunks', 0),
+                    "last_translation": data.get('last_translation')
                 })
             return sorted(summaries, key=lambda x: x.get('start_time', 0), reverse=True)
     

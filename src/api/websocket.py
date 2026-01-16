@@ -38,6 +38,14 @@ def emit_update(socketio, translation_id, data_to_emit, state_manager):
             if 'progress' not in data_to_emit and 'progress' in translation_data:
                 data_to_emit['progress'] = translation_data['progress']
 
+            # Store last translation for UI restoration after browser refresh
+            log_entry = data_to_emit.get('log_entry')
+            if (log_entry and log_entry.get('type') == 'llm_response' and
+                log_entry.get('data', {}).get('response')):
+                state_manager.set_translation_field(
+                    translation_id, 'last_translation', log_entry['data']['response']
+                )
+
             socketio.emit('translation_update', data_to_emit, namespace='/')
         except Exception as e:
             print(f"WebSocket emission error for {translation_id}: {e}")

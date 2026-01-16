@@ -11,6 +11,7 @@ import { MessageLogger } from '../ui/message-logger.js';
 import { DomHelpers } from '../ui/dom-helpers.js';
 import { StatusManager } from '../utils/status-manager.js';
 import { FileUpload } from '../files/file-upload.js';
+import { ProgressManager } from './progress-manager.js';
 
 const TRANSLATION_STATE_STORAGE_KEY = 'tbl_translation_state';
 
@@ -124,14 +125,25 @@ export const TranslationTracker = {
             const filesToProcess = StateManager.getState('files.toProcess') || [];
 
             for (const job of activeJobs) {
-                const matchingFile = filesToProcess.find(f =>
+                let matchingFile = filesToProcess.find(f =>
                     f.translationId === job.translation_id ||
                     f.filePath === job.input_file ||
                     f.name === job.input_file?.split('/').pop()
                 );
 
-                if (matchingFile) {
+                // If no matching file found, create a virtual file reference from server data
+                // This allows restoration after browser refresh even if filesToProcess is empty
+                if (!matchingFile && job.input_filename) {
+                    matchingFile = {
+                        name: job.input_filename,
+                        translationId: job.translation_id,
+                        status: 'Processing',
+                        type: job.file_type || 'txt',
+                        isVirtual: true  // Mark as restored from server
+                    };
+                }
 
+                if (matchingFile) {
                     // Restore state
                     StateManager.setState('translation.currentJob', {
                         fileRef: matchingFile,
@@ -140,13 +152,21 @@ export const TranslationTracker = {
                     StateManager.setState('translation.isBatchActive', true);
 
                     // Update UI
-                    this.updateFileStatusInList(matchingFile.name, 'Processing', job.translation_id);
                     DomHelpers.show('progressSection');
                     this.updateTranslationTitle(matchingFile);
 
-                    // Update progress if available
+                    // Update progress from server data
                     if (job.progress !== undefined) {
                         this.updateProgress(job.progress);
+                    } else if (job.total_chunks > 0) {
+                        // Calculate progress from chunks if available
+                        const progress = (job.completed_chunks / job.total_chunks) * 100;
+                        this.updateProgress(progress);
+                    }
+
+                    // Update last translation preview if available
+                    if (job.last_translation) {
+                        MessageLogger.updateTranslationPreview(job.last_translation);
                     }
 
                     // Update button states
@@ -157,11 +177,16 @@ export const TranslationTracker = {
                     }
                     DomHelpers.show('interruptBtn');
 
+                    // Only update file list if it's not a virtual file
+                    if (!matchingFile.isVirtual) {
+                        this.updateFileStatusInList(matchingFile.name, 'Processing', job.translation_id);
+                    }
+
                     break;
                 }
             }
-        } catch {
-            // Failed to restore active translation
+        } catch (error) {
+            console.warn('Failed to restore active translation:', error);
         }
     },
 
@@ -254,24 +279,13 @@ export const TranslationTracker = {
             );
             this.updateActiveTranslationsState();
         } else if (data.status === 'running') {
-            MessageLogger.resetProgressTracking(); // Reset when starting new translation
+            MessageLogger.resetProgressTracking();
             DomHelpers.show('progressSection');
+            DomHelpers.show('statsGrid');
             this.updateTranslationTitle(currentFile);
-
-            // Reset OpenRouter cost display for new translation
             this.resetOpenRouterCostDisplay();
 
-            if (currentFile.fileType === 'epub') {
-                MessageLogger.showMessage(`Translating EPUB file: ${currentFile.name}... This may take some time.`, 'info');
-                DomHelpers.hide('statsGrid');
-            } else if (currentFile.fileType === 'srt') {
-                MessageLogger.showMessage(`Translating SRT subtitle file: ${currentFile.name}...`, 'info');
-                DomHelpers.show('statsGrid');
-            } else {
-                MessageLogger.showMessage(`Translation in progress for ${currentFile.name}...`, 'info');
-                DomHelpers.show('statsGrid');
-            }
-
+            MessageLogger.showMessage(`Translation in progress for ${currentFile.name}...`, 'info');
             this.updateFileStatusInList(currentFile.name, 'Processing');
         }
     },
@@ -432,25 +446,7 @@ export const TranslationTracker = {
      * @param {Object} stats - Statistics object
      */
     updateStats(fileType, stats) {
-        if (fileType === 'epub') {
-            DomHelpers.hide('statsGrid');
-        } else if (fileType === 'srt') {
-            DomHelpers.show('statsGrid');
-            DomHelpers.setText('totalChunks', stats.total_subtitles || '0');
-            DomHelpers.setText('completedChunks', stats.completed_subtitles || '0');
-            DomHelpers.setText('failedChunks', stats.failed_subtitles || '0');
-        } else {
-            DomHelpers.show('statsGrid');
-            DomHelpers.setText('totalChunks', stats.total_chunks || '0');
-            DomHelpers.setText('completedChunks', stats.completed_chunks || '0');
-            DomHelpers.setText('failedChunks', stats.failed_chunks || '0');
-        }
-
-        if (stats.elapsed_time !== undefined) {
-            DomHelpers.setText('elapsedTime', stats.elapsed_time.toFixed(1) + 's');
-        }
-
-        // Update OpenRouter cost display if available
+        ProgressManager.updateStats(fileType, stats);
         this.updateOpenRouterCost(stats);
     },
 

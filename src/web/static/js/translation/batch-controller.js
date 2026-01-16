@@ -64,6 +64,7 @@ function getTranslationConfig(file) {
         openrouter_api_key: provider === 'openrouter' ? ApiKeyUtils.getValue('openrouterApiKey') : '',
         // Advanced settings (chunk_size, timeout, context_window, max_attempts, retry_delay)
         // are now controlled via .env only - server will use defaults from config.py
+        input_filename: file.name,  // Store original filename for UI restoration after browser refresh
         output_filename: file.outputFilename,
         file_type: file.fileType,
         prompt_options: promptOptions,

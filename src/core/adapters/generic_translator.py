@@ -57,6 +57,7 @@ class GenericTranslator:
         llm_provider: str,
         progress_callback: Optional[Callable] = None,
         log_callback: Optional[Callable] = None,
+        stats_callback: Optional[Callable] = None,
         check_interruption_callback: Optional[Callable] = None,
         bilingual_output: bool = False,
         **llm_kwargs
@@ -71,6 +72,7 @@ class GenericTranslator:
             llm_provider: LLM provider name (ollama, gemini, openai, openrouter)
             progress_callback: Optional callback for progress updates (receives percentage)
             log_callback: Optional callback for logging (receives type and message)
+            stats_callback: Optional callback for statistics updates (receives dict with total_chunks, completed_chunks, failed_chunks)
             check_interruption_callback: Optional callback to check if translation should be interrupted
             bilingual_output: If True, output will contain both original and translated text
             **llm_kwargs: Additional LLM configuration (endpoint, api_key, etc.)
@@ -100,6 +102,14 @@ class GenericTranslator:
             if log_callback:
                 log_callback("units_found", f"Found {total_units} translation units")
 
+            # Send initial stats with total_chunks
+            if stats_callback:
+                stats_callback({
+                    'total_chunks': total_units,
+                    'completed_chunks': 0,
+                    'failed_chunks': 0
+                })
+
             # 3. Check for checkpoint and resume
             resume_from = 0
             checkpoint_data = self.checkpoint_manager.load_checkpoint(self.translation_id)
@@ -109,6 +119,13 @@ class GenericTranslator:
                 if log_callback:
                     log_callback("checkpoint_resumed",
                         f"Resuming from unit {resume_from}/{total_units}")
+                # Update stats with resumed progress
+                if stats_callback:
+                    stats_callback({
+                        'total_chunks': total_units,
+                        'completed_chunks': resume_from,
+                        'failed_chunks': 0
+                    })
             else:
                 # 4. Create new translation job
                 self.checkpoint_manager.start_job(
@@ -216,6 +233,14 @@ class GenericTranslator:
                             completed_chunks=i + 1
                         )
 
+                        # Update stats
+                        if stats_callback:
+                            stats_callback({
+                                'total_chunks': total_units,
+                                'completed_chunks': i + 1,
+                                'failed_chunks': failed_count
+                            })
+
                         # Update context for next unit
                         last_context = (
                             translated_content[-200:]
@@ -246,6 +271,14 @@ class GenericTranslator:
                             failed_chunks=1
                         )
 
+                        # Update stats with failure
+                        if stats_callback:
+                            stats_callback({
+                                'total_chunks': total_units,
+                                'completed_chunks': i,
+                                'failed_chunks': failed_count
+                            })
+
                 except Exception as e:
                     if log_callback:
                         log_callback("unit_error",
@@ -262,6 +295,14 @@ class GenericTranslator:
                         total_chunks=total_units,
                         failed_chunks=1
                     )
+
+                    # Update stats with failure
+                    if stats_callback:
+                        stats_callback({
+                            'total_chunks': total_units,
+                            'completed_chunks': i,
+                            'failed_chunks': failed_count
+                        })
 
             # 7. Reconstruct output file
             if log_callback:

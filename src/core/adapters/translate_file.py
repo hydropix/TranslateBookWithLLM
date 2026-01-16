@@ -180,10 +180,6 @@ async def translate_file(
         'gemini_api_key': gemini_api_key,
         'openai_api_key': openai_api_key,
         'openrouter_api_key': openrouter_api_key,
-        'progress_callback': progress_callback,
-        'log_callback': log_callback,
-        'stats_callback': stats_callback,
-        'check_interruption_callback': check_interruption_callback,
         'prompt_options': prompt_options,
     }
 
@@ -193,6 +189,10 @@ async def translate_file(
         target_language=target_language,
         model_name=model_name,
         llm_provider=llm_provider,
+        progress_callback=progress_callback,
+        log_callback=log_callback,
+        stats_callback=stats_callback,
+        check_interruption_callback=check_interruption_callback,
         bilingual_output=bilingual_output,
         **llm_config
     )
