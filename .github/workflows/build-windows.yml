@@ -60,12 +60,31 @@ jobs:
         $readme = @"
         # TranslateBook Windows Executable
 
-        ## Installation
+        ## Quick Start
 
         1. Extract TranslateBook.exe to a folder of your choice
         2. Install Ollama from https://ollama.ai (required for local LLM)
-        3. Double-click TranslateBook.exe to start the server
-        4. Open your browser to http://localhost:5000
+        3. Download a translation model: ollama pull qwen3:14b
+        4. Double-click TranslateBook.exe to start the server
+        5. Open your browser to http://localhost:5000
+
+        ## Choosing the Best Model for Your Language
+
+        Different models perform better for different target languages!
+
+        📊 See our comprehensive benchmarks to find the best model for your target language:
+        👉 https://github.com/hydropix/TranslateBookWithLLM/wiki
+
+        Benchmarks include 11 models tested across 19 languages with accuracy, fluency, and style scores.
+
+        ### Quick Recommendations
+
+        | VRAM | Model | Best For |
+        |------|-------|----------|
+        | 8 GB | gemma3:12b | Spanish, Portuguese, European languages |
+        | 24 GB | mistral-small:24b | French |
+        | 24 GB | gemma3:27b | Japanese, Korean, Arabic, most languages |
+        | 24 GB | qwen3:30b-instruct | Chinese (Simplified/Traditional) |
 
         ## First Run
 
@@ -88,7 +107,12 @@ jobs:
         - Supported formats: .txt, .epub, .srt
         - Output files: TranslateBook_Data\translated_files\
 
-        For more information, visit: https://github.com/yourusername/TranslateBookWithLLM
+        ## Links
+
+        - 📚 Full Documentation: https://github.com/hydropix/TranslateBookWithLLM
+        - 📊 Model Benchmarks: https://github.com/hydropix/TranslateBookWithLLM/wiki
+        - 🐛 Report Issues: https://github.com/hydropix/TranslateBookWithLLM/issues
+        - 🌐 OpenRouter Models: https://openrouter.ai/models (200+ cloud models)
         "@
 
         $readme | Out-File -FilePath release\README.txt -Encoding UTF8
