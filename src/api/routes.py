@@ -35,7 +35,8 @@ def configure_routes(app, state_manager, output_dir, start_translation_job, sock
     """
 
     # Register config and health check routes
-    config_bp = create_config_blueprint()
+    # Pass server_session_id from state_manager to ensure consistency
+    config_bp = create_config_blueprint(server_session_id=state_manager.server_session_id)
     app.register_blueprint(config_bp)
 
     # Register translation management routes

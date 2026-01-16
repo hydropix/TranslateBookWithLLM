@@ -427,10 +427,10 @@ export const MessageLogger = {
 
         // Remove placeholder tags for cleaner preview (UI only, not in console logs)
         // NOTE: These patterns must stay synchronized with src/config.py
-        translatedText = translatedText.replace(/\[TAG\d+\]/g, '');  // HTML tag placeholders
-        translatedText = translatedText.replace(/\[id\d+\]/g, '');   // Technical content placeholders
+        translatedText = translatedText.replace(/\[TAG\d+\]/g, ' ');  // HTML tag placeholders
+        translatedText = translatedText.replace(/\[id\d+\]/g, ' ');   // Technical content placeholders
         // Also remove legacy Unicode format for backward compatibility
-        translatedText = translatedText.replace(/⟦TAG\d+⟧/g, '');
+        translatedText = translatedText.replace(/⟦TAG\d+⟧/g, ' ');
 
         // Remove common leading whitespace (indentation) from all lines
         const lines = translatedText.split('\n');
@@ -456,6 +456,16 @@ export const MessageLogger = {
         const previewHtml = `<div style="background: #ffffff; border-left: 3px solid #22c55e; padding: 15px; color: #000000; white-space: pre-wrap; line-height: 1.6;">${DomHelpers.escapeHtml(translatedText)}</div>`;
 
         DomHelpers.setHtml(previewElement, previewHtml);
+
+        // Update language indicator
+        const languagesElement = DomHelpers.getElement('previewLanguages');
+        if (languagesElement) {
+            const sourceLang = DomHelpers.getValue('sourceLang');
+            const targetLang = DomHelpers.getValue('targetLang');
+            if (sourceLang && targetLang) {
+                languagesElement.textContent = `${sourceLang} → ${targetLang}`;
+            }
+        }
     },
 
     /**
@@ -466,6 +476,11 @@ export const MessageLogger = {
         if (previewElement) {
             const placeholderHtml = '<div style="color: #6b7280; font-style: italic; padding: 10px;">No translation yet...</div>';
             DomHelpers.setHtml(previewElement, placeholderHtml);
+        }
+        // Clear language indicator
+        const languagesElement = DomHelpers.getElement('previewLanguages');
+        if (languagesElement) {
+            languagesElement.textContent = '';
         }
     }
 };

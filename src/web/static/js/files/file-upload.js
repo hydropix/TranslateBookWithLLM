@@ -29,11 +29,16 @@ function generateOutputFilename(file, pattern) {
     // Get target language from the form
     const targetLangSelect = DomHelpers.getElement('targetLang');
     const customTargetLang = DomHelpers.getElement('customTargetLang');
-    let targetLang = targetLangSelect?.value || 'Unknown';
+    let targetLang = targetLangSelect?.value || '';
 
     // If "Other" is selected, use the custom input value
-    if (targetLang === 'Other' && customTargetLang?.value) {
-        targetLang = customTargetLang.value;
+    if (targetLang === 'Other') {
+        targetLang = customTargetLang?.value?.trim() || '';
+    }
+
+    // Use "Translated" as fallback if no language specified
+    if (!targetLang) {
+        targetLang = 'Translated';
     }
 
     return pattern
@@ -59,7 +64,7 @@ function detectFileType(filename) {
  * Set language in select dropdown (case-insensitive match)
  * @param {string} selectId - Select element ID
  * @param {string} languageValue - Language value to set
- * @returns {boolean} True if language was set successfully
+ * @returns {boolean} True if language was set successfully (actual language, not "Other")
  */
 function setLanguageInSelect(selectId, languageValue) {
     const select = DomHelpers.getElement(selectId);
@@ -67,10 +72,18 @@ function setLanguageInSelect(selectId, languageValue) {
         return false;
     }
 
-    // Try to find matching option (case-insensitive)
+    // Skip "Other" as a language value - it's not a real language
+    if (languageValue === 'Other') {
+        return false;
+    }
+
+    // Try to find matching option (case-insensitive), excluding "Other"
     let matchedOption = null;
     for (let i = 0; i < select.options.length; i++) {
         const option = select.options[i];
+        // Skip "Other" option - we only match actual languages
+        if (option.value === 'Other') continue;
+
         if (option.value && option.value.toLowerCase() === languageValue.toLowerCase()) {
             matchedOption = option;
             break;
@@ -100,11 +113,29 @@ export const FileUpload = {
         this.setupDragDrop();
         this.setupFileInput();
         this.setupLanguageSyncListeners();
+        this.setupDefaultConfigListener();
         // Restore file queue from localStorage synchronously first
         // This ensures files are available immediately on page load
         this.restoreFileQueueSync();
         // Then verify files exist on server after a delay
         setTimeout(() => this.verifyAndCleanupFileQueue(), 1000);
+    },
+
+    /**
+     * Set up listener for default config loaded event
+     * This ensures file languages are synced after FormManager loads defaults
+     */
+    setupDefaultConfigListener() {
+        // Listen for the event (in case it fires after this setup)
+        window.addEventListener('defaultConfigLoaded', () => {
+            this.syncPendingFileLanguages();
+        });
+
+        // Also check after a delay in case the event already fired
+        // (FormManager.initialize runs before FileUpload.initialize)
+        setTimeout(() => {
+            this.syncPendingFileLanguages();
+        }, 500);
     },
 
     /**
@@ -314,16 +345,22 @@ export const FileUpload = {
         if (file.sourceLanguage) {
             const success = setLanguageInSelect('sourceLang', file.sourceLanguage);
             if (!success) {
-                // Language not in list, set to "Other" and fill custom input
+                // Language not in list or is "Other", set to "Other" and show custom input
                 const sourceLangSelect = DomHelpers.getElement('sourceLang');
                 const customSourceLang = DomHelpers.getElement('customSourceLang');
+                const sourceContainer = DomHelpers.getElement('customSourceLangContainer');
                 if (sourceLangSelect) {
                     sourceLangSelect.value = 'Other';
+                    // Trigger change event to ensure FormManager shows the container
                     sourceLangSelect.dispatchEvent(new Event('change', { bubbles: true }));
                 }
-                if (customSourceLang) {
+                // Also show the container directly (in case event handler is not yet set up)
+                if (sourceContainer) {
+                    sourceContainer.style.display = 'block';
+                }
+                // Only fill custom input if it's not literally "Other"
+                if (customSourceLang && file.sourceLanguage !== 'Other') {
                     customSourceLang.value = file.sourceLanguage;
-                    customSourceLang.dispatchEvent(new Event('input', { bubbles: true }));
                 }
             }
         }
@@ -332,17 +369,61 @@ export const FileUpload = {
         if (file.targetLanguage) {
             const success = setLanguageInSelect('targetLang', file.targetLanguage);
             if (!success) {
-                // Language not in list, set to "Other" and fill custom input
+                // Language not in list or is "Other", set to "Other" and show custom input
                 const targetLangSelect = DomHelpers.getElement('targetLang');
                 const customTargetLang = DomHelpers.getElement('customTargetLang');
+                const targetContainer = DomHelpers.getElement('customTargetLangContainer');
                 if (targetLangSelect) {
                     targetLangSelect.value = 'Other';
+                    // Trigger change event to ensure FormManager shows the container
                     targetLangSelect.dispatchEvent(new Event('change', { bubbles: true }));
                 }
-                if (customTargetLang) {
-                    customTargetLang.value = file.targetLanguage;
-                    customTargetLang.dispatchEvent(new Event('input', { bubbles: true }));
+                // Also show the container directly (in case event handler is not yet set up)
+                if (targetContainer) {
+                    targetContainer.style.display = 'block';
                 }
+                // Only fill custom input if it's not literally "Other"
+                if (customTargetLang && file.targetLanguage !== 'Other') {
+                    customTargetLang.value = file.targetLanguage;
+                }
+            }
+        }
+    },
+
+    /**
+     * Pre-populate a language field during restore
+     * If the language is not in the standard list, set select to "Other" and show container
+     * @param {string} selectId - Select element ID
+     * @param {string} inputId - Custom input element ID
+     * @param {string} containerId - Container element ID
+     * @param {string} languageValue - Language value to set
+     * @private
+     */
+    _prePopulateLanguageField(selectId, inputId, containerId, languageValue) {
+        if (!languageValue) return;
+
+        const select = DomHelpers.getElement(selectId);
+        const input = DomHelpers.getElement(inputId);
+        const container = DomHelpers.getElement(containerId);
+
+        if (!select || !input) return;
+
+        // Check if language is in the dropdown (case-insensitive)
+        let foundInList = false;
+        for (const option of select.options) {
+            if (option.value === 'Other' || !option.value) continue;
+            if (option.value.toLowerCase() === languageValue.toLowerCase()) {
+                foundInList = true;
+                break;
+            }
+        }
+
+        if (!foundInList) {
+            // Language not in list - set to "Other" and populate custom field
+            select.value = 'Other';
+            input.value = languageValue;
+            if (container) {
+                container.style.display = 'block';
             }
         }
     },
@@ -396,8 +477,54 @@ export const FileUpload = {
 
             StateManager.setState('files.toProcess', filesToRestore);
             this.updateFileDisplay();
+
+            // Find the last queued file and sync its languages to the interface
+            const lastQueuedFile = [...filesToRestore].reverse().find(f => f.status === 'Queued');
+            if (lastQueuedFile) {
+                lastUploadedFileName = lastQueuedFile.name;
+                // Store file for deferred sync (will be called after FormManager loads defaults)
+                this._pendingFileSync = lastQueuedFile;
+
+                // Pre-populate custom language fields and select "Other" if needed
+                // This ensures the UI state is correct before any other initialization
+                this._prePopulateLanguageField(
+                    'sourceLang',
+                    'customSourceLang',
+                    'customSourceLangContainer',
+                    lastQueuedFile.sourceLanguage
+                );
+                this._prePopulateLanguageField(
+                    'targetLang',
+                    'customTargetLang',
+                    'customTargetLangContainer',
+                    lastQueuedFile.targetLanguage
+                );
+            }
         } catch {
             // Failed to restore file queue
+        }
+    },
+
+    /**
+     * Sync pending file languages to interface (called after FormManager.loadDefaultConfig)
+     * This ensures file languages override browser-detected defaults
+     */
+    syncPendingFileLanguages() {
+        // Get the last queued file from state if _pendingFileSync is not set
+        // This handles the case where the event fired before restoreFileQueueSync ran
+        let fileToSync = this._pendingFileSync;
+
+        if (!fileToSync) {
+            const filesToProcess = StateManager.getState('files.toProcess') || [];
+            const lastQueuedFile = [...filesToProcess].reverse().find(f => f.status === 'Queued');
+            if (lastQueuedFile) {
+                fileToSync = lastQueuedFile;
+            }
+        }
+
+        if (fileToSync) {
+            this._syncFileToInterface(fileToSync);
+            this._pendingFileSync = null;
         }
     },
 
@@ -473,26 +600,26 @@ export const FileUpload = {
 
     /**
      * Get current source language from form
-     * @returns {string} Current source language
+     * @returns {string} Current source language (empty string if not set)
      */
     _getCurrentSourceLanguage() {
         let sourceLanguageVal = DomHelpers.getValue('sourceLang');
         if (sourceLanguageVal === 'Other') {
             sourceLanguageVal = DomHelpers.getValue('customSourceLang').trim();
         }
-        return sourceLanguageVal || 'Unknown';
+        return sourceLanguageVal || '';
     },
 
     /**
      * Get current target language from form
-     * @returns {string} Current target language
+     * @returns {string} Current target language (empty string if not set)
      */
     _getCurrentTargetLanguage() {
         let targetLanguageVal = DomHelpers.getValue('targetLang');
         if (targetLanguageVal === 'Other') {
             targetLanguageVal = DomHelpers.getValue('customTargetLang').trim();
         }
-        return targetLanguageVal || 'Unknown';
+        return targetLanguageVal || '';
     },
 
     /**

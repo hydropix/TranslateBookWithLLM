@@ -22,32 +22,26 @@ function updateProgressBar(percent) {
 
 /**
  * Update statistics display based on file type
+ * All file types (txt, epub, srt) show stats uniformly
  * @param {Object} stats - Statistics object from server
  * @param {string} fileType - File type ('txt', 'epub', 'srt')
  */
 function updateStatistics(stats, fileType) {
     if (!stats) return;
 
-    const statsGrid = DomHelpers.getElement('statsGrid');
+    DomHelpers.show('statsGrid');
 
-    if (fileType === 'epub') {
-        // Hide stats for EPUB (no chunk-based tracking)
-        DomHelpers.hide('statsGrid');
-    } else if (fileType === 'srt') {
-        // Show subtitle-specific stats
-        DomHelpers.show('statsGrid');
+    if (fileType === 'srt') {
         DomHelpers.setText('totalChunks', stats.total_subtitles || '0');
         DomHelpers.setText('completedChunks', stats.completed_subtitles || '0');
         DomHelpers.setText('failedChunks', stats.failed_subtitles || '0');
     } else {
-        // Show chunk-based stats (text files)
-        DomHelpers.show('statsGrid');
+        // txt and epub use the same chunk-based stats
         DomHelpers.setText('totalChunks', stats.total_chunks || '0');
         DomHelpers.setText('completedChunks', stats.completed_chunks || '0');
         DomHelpers.setText('failedChunks', stats.failed_chunks || '0');
     }
 
-    // Update elapsed time (common for all types)
     if (stats.elapsed_time !== undefined) {
         DomHelpers.setText('elapsedTime', stats.elapsed_time.toFixed(1) + 's');
     }
@@ -60,6 +54,15 @@ export const ProgressManager = {
      */
     updateProgress(percent) {
         updateProgressBar(percent);
+    },
+
+    /**
+     * Update statistics display
+     * @param {string} fileType - File type ('txt', 'epub', 'srt')
+     * @param {Object} stats - Statistics object from server
+     */
+    updateStats(fileType, stats) {
+        updateStatistics(stats, fileType);
     },
 
     /**

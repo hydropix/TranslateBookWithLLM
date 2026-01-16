@@ -17,12 +17,23 @@ import { TranslationTracker } from '../translation/translation-tracker.js';
  * @param {string} selectId - Select element ID
  * @param {string} customInputId - Custom input element ID
  * @param {string} defaultLanguage - Default language value
+ * @param {boolean} [forceOverwrite=false] - If true, overwrite even if "Other" is selected with a value
  */
-function setDefaultLanguage(selectId, customInputId, defaultLanguage) {
+function setDefaultLanguage(selectId, customInputId, defaultLanguage, forceOverwrite = false) {
     const select = DomHelpers.getElement(selectId);
     const customInput = DomHelpers.getElement(customInputId);
+    const containerId = customInputId + 'Container';
+    const container = DomHelpers.getElement(containerId);
 
     if (!select || !customInput) return;
+
+    // Don't overwrite if "Other" is already selected with a custom value (restored from file)
+    // This preserves custom languages across page reloads
+    if (!forceOverwrite && select.value === 'Other' && customInput.value.trim()) {
+        // Keep the existing "Other" selection and show the container
+        if (container) container.style.display = 'block';
+        return;
+    }
 
     // Check if the default language is in the dropdown options (excluding "Other")
     let languageFound = false;
@@ -33,7 +44,7 @@ function setDefaultLanguage(selectId, customInputId, defaultLanguage) {
         if (option.value.toLowerCase() === defaultLanguage.toLowerCase()) {
             select.value = option.value;
             languageFound = true;
-            DomHelpers.hide(customInput);
+            if (container) container.style.display = 'none';
             break;
         }
     }
@@ -42,10 +53,8 @@ function setDefaultLanguage(selectId, customInputId, defaultLanguage) {
     if (!languageFound) {
         select.value = 'Other';
         customInput.value = defaultLanguage;
-        // Show the custom input - need both class removal AND style change
-        // because HTML has inline style="display: none"
-        customInput.classList.remove('hidden');
-        customInput.style.display = 'block';
+        // Show the container (not just the input)
+        if (container) container.style.display = 'block';
     }
 }
 
@@ -112,16 +121,15 @@ export const FormManager = {
      * @param {HTMLSelectElement} selectElement - Source language select element
      */
     checkCustomSourceLanguage(selectElement) {
+        const container = DomHelpers.getElement('customSourceLangContainer');
         const customLangInput = DomHelpers.getElement('customSourceLang');
-        if (!customLangInput) return;
+        if (!container || !customLangInput) return;
 
         if (selectElement.value === 'Other') {
-            customLangInput.classList.remove('hidden');
-            customLangInput.style.display = 'block';
+            container.style.display = 'block';
             customLangInput.focus();
         } else {
-            customLangInput.classList.add('hidden');
-            customLangInput.style.display = 'none';
+            container.style.display = 'none';
         }
     },
 
@@ -130,16 +138,15 @@ export const FormManager = {
      * @param {HTMLSelectElement} selectElement - Target language select element
      */
     checkCustomTargetLanguage(selectElement) {
+        const container = DomHelpers.getElement('customTargetLangContainer');
         const customLangInput = DomHelpers.getElement('customTargetLang');
-        if (!customLangInput) return;
+        if (!container || !customLangInput) return;
 
         if (selectElement.value === 'Other') {
-            customLangInput.classList.remove('hidden');
-            customLangInput.style.display = 'block';
+            container.style.display = 'block';
             customLangInput.focus();
         } else {
-            customLangInput.classList.add('hidden');
-            customLangInput.style.display = 'none';
+            container.style.display = 'none';
         }
     },
 
@@ -309,8 +316,9 @@ export const FormManager = {
             // Set target language from browser detection
             setDefaultLanguage('targetLang', 'customTargetLang', browserLanguage);
 
-            // Source language is left empty (will be auto-detected from uploaded file)
-            // No need to set it from .env anymore
+            // Source language: preserve "Other" + custom value if already set (restored from file)
+            // Pass empty string as default - setDefaultLanguage will keep existing "Other" selection
+            setDefaultLanguage('sourceLang', 'customSourceLang', '')
 
             // Set other configuration values
             if (config.api_endpoint) {
@@ -324,8 +332,14 @@ export const FormManager = {
             // Store in state
             StateManager.setState('ui.defaultConfig', config);
 
+            // After loading defaults, dispatch event to sync any pending file languages
+            // This ensures restored file languages override browser-detected defaults
+            window.dispatchEvent(new CustomEvent('defaultConfigLoaded'));
+
         } catch {
             MessageLogger.showMessage('Failed to load default configuration', 'warning');
+            // Still dispatch event even on error so file languages can be synced
+            window.dispatchEvent(new CustomEvent('defaultConfigLoaded'));
         }
     },
 
@@ -376,8 +390,10 @@ export const FormManager = {
         DomHelpers.setDisabled('interruptBtn', false);
 
         // Reset language selectors
-        DomHelpers.hide('customSourceLang');
-        DomHelpers.hide('customTargetLang');
+        const sourceContainer = DomHelpers.getElement('customSourceLangContainer');
+        const targetContainer = DomHelpers.getElement('customTargetLangContainer');
+        if (sourceContainer) sourceContainer.style.display = 'none';
+        if (targetContainer) targetContainer.style.display = 'none';
         DomHelpers.getElement('sourceLang').selectedIndex = 0;
         DomHelpers.getElement('targetLang').selectedIndex = 0;
 
@@ -472,6 +488,8 @@ export const FormManager = {
                 text_cleanup: DomHelpers.getElement('textCleanup')?.checked || false,
                 refine: DomHelpers.getElement('refineTranslation')?.checked || false
             },
+            // Bilingual output (original + translation interleaved)
+            bilingual_output: DomHelpers.getElement('bilingualMode')?.checked || false,
             // TTS configuration
             tts_enabled: ttsEnabled,
             tts_voice: ttsEnabled ? (DomHelpers.getValue('ttsVoice') || '') : '',

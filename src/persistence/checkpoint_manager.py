@@ -15,16 +15,18 @@ class CheckpointManager:
     and file storage for uploaded files.
     """
 
-    def __init__(self, db_path: str = "data/jobs.db"):
+    def __init__(self, db_path: str = "data/jobs.db", server_session_id: Optional[str] = None):
         """
         Initialize checkpoint manager.
 
         Args:
             db_path: Path to SQLite database
+            server_session_id: Unique identifier for the current server session
         """
         self.db = Database(db_path)
         self.uploads_dir = Path("data/uploads")
         self.uploads_dir.mkdir(parents=True, exist_ok=True)
+        self.server_session_id = server_session_id
 
     def start_job(
         self,
@@ -49,8 +51,10 @@ class CheckpointManager:
         if input_file_path:
             self._preserve_input_file(translation_id, input_file_path, config)
 
-        # Create job in database with updated config
-        success = self.db.create_job(translation_id, file_type, config)
+        # Create job in database with updated config and server session ID
+        success = self.db.create_job(
+            translation_id, file_type, config, self.server_session_id
+        )
 
         return success
 
@@ -262,6 +266,146 @@ class CheckpointManager:
             job['output_filename'] = output_filename if output_filename != 'unknown' else 'unknown'
 
         return jobs
+
+    def reset_running_jobs_on_startup(self) -> int:
+        """
+        Reset jobs with 'running' status from previous server sessions to 'interrupted'.
+
+        Only resets jobs that have a different server_session_id, preserving
+        jobs that are actually running in the current session. This prevents
+        browser refreshes from interrupting active translations.
+
+        This should be called on server startup to handle jobs that were
+        interrupted by a server crash or restart. These jobs will then
+        appear in the resumable jobs list.
+
+        Returns:
+            Number of jobs reset
+        """
+        if not self.server_session_id:
+            # Fallback: if no session ID, don't reset anything to be safe
+            return 0
+        return self.db.reset_running_jobs(self.server_session_id)
+
+    def cleanup_old_jobs(self, max_age_days: int = 30) -> Tuple[int, int]:
+        """
+        Clean up old jobs and their associated files.
+
+        This removes jobs older than max_age_days and cleans up their
+        upload directories to prevent database and disk bloat.
+
+        Args:
+            max_age_days: Maximum age in days for jobs to keep (default 30)
+
+        Returns:
+            Tuple of (jobs_deleted, files_cleaned)
+        """
+        # Get list of old job IDs before deletion (for file cleanup)
+        old_jobs = []
+        try:
+            from datetime import datetime, timedelta
+            cutoff = datetime.now() - timedelta(days=max_age_days)
+
+            # Get jobs that will be deleted
+            all_jobs = self.db.get_resumable_jobs(max_age_days=9999)  # Get all
+            for job in all_jobs:
+                created_str = job.get('created_at', '')
+                if created_str:
+                    try:
+                        created = datetime.fromisoformat(created_str.replace('Z', '+00:00'))
+                        if created.replace(tzinfo=None) < cutoff:
+                            old_jobs.append(job['translation_id'])
+                    except (ValueError, TypeError):
+                        pass
+        except Exception as e:
+            print(f"Warning: Error getting old job list: {e}")
+
+        # Delete from database
+        jobs_deleted = self.db.cleanup_old_jobs(max_age_days)
+
+        # Clean up upload directories for deleted jobs
+        files_cleaned = 0
+        for job_id in old_jobs:
+            job_upload_dir = self.uploads_dir / job_id
+            if job_upload_dir.exists():
+                try:
+                    shutil.rmtree(job_upload_dir)
+                    files_cleaned += 1
+                except Exception as e:
+                    print(f"Warning: Could not delete upload directory for {job_id}: {e}")
+
+        return jobs_deleted, files_cleaned
+
+    def cleanup_orphan_uploads(self) -> int:
+        """
+        Clean up upload files/directories that don't have corresponding jobs in the database.
+
+        These are "orphan" items left behind from previous incomplete cleanups.
+        Handles:
+        - trans_xxx folders (job ID folders)
+        - hash_filename files (legacy upload files)
+
+        Returns:
+            Number of orphan items deleted
+        """
+        orphans_deleted = 0
+
+        if not self.uploads_dir.exists():
+            return 0
+
+        # Get all job IDs and preserved file paths from database
+        try:
+            import sqlite3
+            import json
+            conn = sqlite3.connect(self.db.db_path)
+            conn.row_factory = sqlite3.Row
+            cursor = conn.cursor()
+            cursor.execute("SELECT translation_id, config FROM translation_jobs")
+            db_job_ids = set()
+            preserved_files = set()  # Full file paths that are referenced
+            for row in cursor.fetchall():
+                db_job_ids.add(row['translation_id'])
+                config = json.loads(row['config'])
+                preserved_path = config.get('preserved_input_path', '')
+                if preserved_path:
+                    # Store the filename to check against orphan files
+                    preserved_files.add(Path(preserved_path).name)
+            conn.close()
+        except Exception as e:
+            print(f"Warning: Error getting job IDs: {e}")
+            return 0
+
+        # Check each item in uploads directory
+        for item in self.uploads_dir.iterdir():
+            item_name = item.name
+
+            # Skip test folders
+            if item_name.startswith('test_'):
+                continue
+
+            is_orphan = True
+
+            if item.is_dir():
+                # It's a folder - check if it's a job ID folder
+                if item_name.startswith('trans_'):
+                    if item_name in db_job_ids:
+                        is_orphan = False
+            else:
+                # It's a file - check if it's referenced by any job
+                if item_name in preserved_files:
+                    is_orphan = False
+
+            if is_orphan:
+                try:
+                    if item.is_dir():
+                        shutil.rmtree(item)
+                    else:
+                        item.unlink()
+                    orphans_deleted += 1
+                except Exception as e:
+                    print(f"Warning: Could not delete orphan {item_name}: {e}")
+
+        return orphans_deleted
 
     def mark_paused(self, translation_id: str) -> bool:
         """

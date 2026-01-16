@@ -50,6 +50,7 @@ async def translate_epub_file(
     prompt_options: Optional[Dict] = None,
     max_tokens_per_chunk: int = MAX_TOKENS_PER_CHUNK,
     max_attempts: int = None,
+    bilingual: bool = False,
 ) -> None:
     """
     Translate an EPUB file using LLM with simplified mode.
@@ -106,8 +107,6 @@ async def translate_epub_file(
         err_msg = f"ERROR: Input EPUB file '{input_filepath}' not found."
         if log_callback:
             log_callback("epub_input_file_not_found", err_msg)
-        else:
-            print(err_msg)
         return
 
     # Use default MAX_TRANSLATION_ATTEMPTS if not provided
@@ -252,7 +251,8 @@ async def translate_epub_file(
                 stats_callback=stats_callback,
                 check_interruption_callback=check_interruption_callback,
                 prompt_options=prompt_options,
-                restored_docs=restored_docs  # Pass restored docs to include in final output
+                restored_docs=restored_docs,  # Pass restored docs to include in final output
+                bilingual=bilingual
             )
 
             # 4. Save translated files
@@ -290,8 +290,6 @@ async def translate_epub_file(
                         stats_summary = translation_stats.log_summary(log_callback=None)
                         if stats_summary:
                             log_callback("epub_translation_stats", stats_summary)
-            else:
-                print(f"Translated EPUB saved: '{output_filepath}'")
 
         except Exception as e_epub:
             err_msg = f"MAJOR ERROR processing EPUB '{input_filepath}': {e_epub}"
@@ -301,10 +299,6 @@ async def translate_epub_file(
                 _log_error(log_callback, "epub_major_error", err_msg)
                 import traceback
                 _log_error(log_callback, "epub_major_error_traceback", traceback.format_exc())
-            else:
-                print(err_msg)
-                import traceback
-                traceback.print_exc()
 
 
 def _find_opf_file(temp_dir: str) -> Optional[str]:
@@ -426,12 +420,9 @@ def _create_llm_client(
     )
 
     if llm_client is None:
-        err_msg = "ERROR: Could not create LLM client."
         if log_callback:
             from .xhtml_translator import _log_error
-            _log_error(log_callback, "llm_client_error", err_msg)
-        else:
-            print(err_msg)
+            _log_error(log_callback, "llm_client_error", "ERROR: Could not create LLM client.")
 
     return llm_client
 
@@ -487,7 +478,8 @@ async def _translate_single_file(
     total_files: int,
     log_callback: Optional[Callable] = None,
     progress_callback: Optional[Callable] = None,
-    prompt_options: Optional[Dict] = None
+    prompt_options: Optional[Dict] = None,
+    bilingual: bool = False
 ) -> Tuple[Optional[etree._Element], str, bool, Optional['TranslationStats']]:
     """Translate a single XHTML file.
 
@@ -542,7 +534,8 @@ async def _translate_single_file(
             progress_callback=progress_callback,  # Pass through token-based wrapper directly
             context_manager=context_manager,
             max_retries=max_attempts,
-            prompt_options=prompt_options
+            prompt_options=prompt_options,
+            bilingual=bilingual
         )
 
         if success:
@@ -668,7 +661,8 @@ async def _process_all_content_files(
     stats_callback: Optional[Callable] = None,
     check_interruption_callback: Optional[Callable] = None,
     prompt_options: Optional[Dict] = None,
-    restored_docs: Optional[Dict[str, etree._Element]] = None
+    restored_docs: Optional[Dict[str, etree._Element]] = None,
+    bilingual: bool = False
 ) -> Dict:
     """Process all XHTML content files with accurate token-based progress tracking.
 
@@ -846,7 +840,8 @@ async def _process_all_content_files(
             total_files=total_files,
             log_callback=log_callback,
             progress_callback=file_progress_wrapper,  # Use our wrapper
-            prompt_options=prompt_options
+            prompt_options=prompt_options,
+            bilingual=bilingual
         )
 
         # Accumulate translation statistics
@@ -940,8 +935,6 @@ async def _process_all_content_files(
                     from .xhtml_translator import _log_error
                     _log_error(log_callback, "epub_checkpoint_save_error",
                                  f"⚠️ Warning: Could not save file to checkpoint: {content_href}: {e}")
-                else:
-                    print(f"Warning: Could not save file to checkpoint: {content_href}: {e}")
 
     # Final statistics aggregation
     final_stats = progress_tracker.get_stats()

@@ -246,14 +246,10 @@ function initializeState() {
 
 /**
  * Calculate and apply preview height based on MAX_TOKENS_PER_CHUNK
- * Formula: Fixed 300px height regardless of token count
- * @param {number} maxTokens - MAX_TOKENS_PER_CHUNK value (not used, kept for API compatibility)
+ * @param {number} maxTokens - MAX_TOKENS_PER_CHUNK value
  */
 function updatePreviewHeight(maxTokens = 450) {
-    // Fixed height of 300px
     const fixedHeight = 300;
-
-    // Apply to CSS variable
     document.documentElement.style.setProperty('--preview-height', `${fixedHeight}px`);
 }
 
@@ -377,7 +373,7 @@ function wireModuleEvents() {
 /**
  * Initialize all modules in proper order
  */
-function initializeModules() {
+async function initializeModules() {
 
     // 1. Core infrastructure
     initializeState();
@@ -399,7 +395,9 @@ function initializeModules() {
     FileManager.initialize();
 
     // 5. Translation modules
-    TranslationTracker.initialize();
+    // IMPORTANT: await TranslationTracker.initialize() because it's now async
+    // It needs to check server session before restoring state
+    await TranslationTracker.initialize();
     ProgressManager.reset();
     ResumeManager.initialize();
 
@@ -533,7 +531,6 @@ async function showTTSModal(filename, filepath) {
         providersInfo = providersInfo.providers || {};
         voicePrompts = voicePrompts.voice_prompts || [];
     } catch {
-        // TTS info load failed
     }
 
     const isChatterboxAvailable = providersInfo.chatterbox?.available || false;
@@ -828,10 +825,14 @@ if (typeof window !== 'undefined') {
  * Start application when DOM is ready
  */
 if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initializeModules);
+    document.addEventListener('DOMContentLoaded', async () => {
+        await initializeModules();
+    });
 } else {
-    // DOM already loaded
-    initializeModules();
+    // DOM already loaded - initialize immediately
+    (async () => {
+        await initializeModules();
+    })();
 }
 
 // ========================================

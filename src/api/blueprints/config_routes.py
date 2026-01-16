@@ -47,12 +47,18 @@ if DEBUG_MODE:
     logger.setLevel(logging.DEBUG)
 
 
-def create_config_blueprint():
-    """Create and configure the config blueprint"""
+def create_config_blueprint(server_session_id=None):
+    """Create and configure the config blueprint
+
+    Args:
+        server_session_id: Server session ID from state manager (optional, generates new if not provided)
+    """
     bp = Blueprint('config', __name__)
 
-    # Store server startup time to detect restarts
-    startup_time = int(time.time())
+    # Store server startup time/session ID to detect restarts
+    # Use provided session_id from state_manager if available, otherwise generate new
+    # Ensure it's an integer for consistency with health check response
+    startup_time = int(server_session_id) if server_session_id else int(time.time())
 
     @bp.route('/')
     def serve_interface():
@@ -73,7 +79,8 @@ def create_config_blueprint():
             "translate_module": "loaded",
             "ollama_default_endpoint": DEFAULT_OLLAMA_API_ENDPOINT,
             "supported_formats": ["txt", "epub", "srt"],
-            "startup_time": startup_time  # Used to detect server restarts
+            "startup_time": startup_time,  # Used to detect server restarts
+            "session_id": startup_time  # Alias for compatibility with LifecycleManager
         })
 
     @bp.route('/api/models', methods=['GET', 'POST'])
@@ -132,13 +139,7 @@ def create_config_blueprint():
             "gemini_api_key_configured": bool(GEMINI_API_KEY),
             "openai_api_key_configured": bool(OPENAI_API_KEY),
             "openrouter_api_key_configured": bool(OPENROUTER_API_KEY)
-            # Languages are no longer sent from server - handled by browser detection
         }
-
-        if DEBUG_MODE:
-            logger.debug(f"📤 /api/config response:")
-            logger.debug(f"   api_endpoint: {DEFAULT_OLLAMA_API_ENDPOINT}")
-            logger.debug(f"   default_model: {DEFAULT_MODEL}")
 
         return jsonify(config_response)
 
@@ -250,9 +251,6 @@ def create_config_blueprint():
             if api_key:
                 headers['Authorization'] = f'Bearer {api_key}'
 
-            if DEBUG_MODE:
-                logger.debug(f"📥 Fetching models from OpenAI-compatible endpoint: {models_url}")
-
             response = requests.get(models_url, headers=headers, timeout=10)
 
             if response.status_code == 200:
@@ -288,19 +286,11 @@ def create_config_blueprint():
                             "count": len(models)
                         })
 
-            # If we get here, either request failed or no models returned
-            # Fall back to static list
-            if DEBUG_MODE:
-                logger.debug(f"⚠️ No models returned from {base_url}, using fallback list")
-
         except requests.exceptions.ConnectionError as e:
-            error_msg = f"Connection error to {base_url}"
-            if DEBUG_MODE:
-                logger.debug(f"❌ OpenAI-compatible endpoint connection error: {error_msg}")
+            pass
 
         except Exception as e:
-            if DEBUG_MODE:
-                logger.debug(f"❌ OpenAI-compatible endpoint error: {e}")
+            pass
 
         # Fallback: return static OpenAI models
         model_ids = [m['id'] for m in openai_static_models]
@@ -368,30 +358,16 @@ def create_config_blueprint():
         """Get available models from Ollama API"""
         ollama_base_from_ui = request.args.get('api_endpoint', DEFAULT_OLLAMA_API_ENDPOINT)
 
-        if DEBUG_MODE:
-            logger.debug(f"📥 /api/models request for Ollama")
-            logger.debug(f"   api_endpoint from UI: {ollama_base_from_ui}")
-            logger.debug(f"   default endpoint: {DEFAULT_OLLAMA_API_ENDPOINT}")
-
         try:
             base_url = ollama_base_from_ui.split('/api/')[0]
             tags_url = f"{base_url}/api/tags"
 
-            if DEBUG_MODE:
-                logger.debug(f"   Connecting to: {tags_url}")
-
-            response = requests.get(tags_url, timeout=10)  # Increased timeout from 5 to 10
-
-            if DEBUG_MODE:
-                logger.debug(f"   Response status: {response.status_code}")
+            response = requests.get(tags_url, timeout=10)
 
             if response.status_code == 200:
                 data = response.json()
                 models_data = data.get('models', [])
                 model_names = [m.get('name') for m in models_data if m.get('name')]
-
-                if DEBUG_MODE:
-                    logger.debug(f"   Models found: {model_names}")
 
                 return jsonify({
                     "models": model_names,
@@ -399,28 +375,16 @@ def create_config_blueprint():
                     "status": "ollama_connected",
                     "count": len(model_names)
                 })
-            else:
-                if DEBUG_MODE:
-                    logger.debug(f"   ❌ Non-200 response: {response.status_code}")
-                    logger.debug(f"   Response body: {response.text[:500]}")
 
         except requests.exceptions.ConnectionError as e:
             error_msg = f"Connection refused to {tags_url}. Is Ollama running?"
-            if DEBUG_MODE:
-                logger.debug(f"   ❌ ConnectionError: {e}")
             print(f"❌ {error_msg}")
         except requests.exceptions.Timeout as e:
             error_msg = f"Timeout connecting to {tags_url} (10s)"
-            if DEBUG_MODE:
-                logger.debug(f"   ❌ Timeout: {e}")
             print(f"❌ {error_msg}")
         except requests.exceptions.RequestException as e:
-            if DEBUG_MODE:
-                logger.debug(f"   ❌ RequestException: {type(e).__name__}: {e}")
             print(f"❌ Could not connect to Ollama at {ollama_base_from_ui}: {e}")
         except Exception as e:
-            if DEBUG_MODE:
-                logger.debug(f"   ❌ Unexpected error: {type(e).__name__}: {e}")
             print(f"❌ Error retrieving models from {ollama_base_from_ui}: {e}")
 
         return jsonify({
@@ -470,8 +434,6 @@ def create_config_blueprint():
             })
 
         except Exception as e:
-            if DEBUG_MODE:
-                logger.debug(f"Error getting model warning: {e}")
             return jsonify({"warning": None, "behavior": None, "error": str(e)})
 
     def _get_env_file_path():
@@ -561,8 +523,6 @@ def create_config_blueprint():
             'DEFAULT_MODEL',
             'LLM_PROVIDER',
             'API_ENDPOINT'
-            # DEFAULT_SOURCE_LANGUAGE and DEFAULT_TARGET_LANGUAGE removed
-            # Languages are now auto-detected (source) and browser-detected (target)
         }
 
         try:
@@ -610,7 +570,6 @@ def create_config_blueprint():
             "default_model": DEFAULT_MODEL or "",
             "llm_provider": os.getenv('LLM_PROVIDER', 'ollama'),
             "api_endpoint": DEFAULT_OLLAMA_API_ENDPOINT or ""
-            # Languages are no longer stored in .env - auto-detected per session
         })
 
     return bp

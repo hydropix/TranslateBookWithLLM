@@ -38,6 +38,7 @@ async def translate_file(
     auto_adjust_context: bool = True,
     min_chunk_size: int = 5,
     prompt_options: Optional[Dict[str, Any]] = None,
+    bilingual_output: bool = False,
     **additional_config
 ) -> bool:
     """
@@ -70,6 +71,7 @@ async def translate_file(
         auto_adjust_context: Whether to automatically adjust context size
         min_chunk_size: Minimum chunk size for text splitting
         prompt_options: Optional prompt customization options
+        bilingual_output: If True, output will contain both original and translated text
         **additional_config: Additional configuration passed to the adapter
 
     Returns:
@@ -130,6 +132,7 @@ async def translate_file(
             translation_id=translation_id,
             resume_from_index=resume_from_index,
             prompt_options=prompt_options,
+            bilingual=bilingual_output,
             **additional_config
         )
         return True  # Legacy function doesn't return success status
@@ -177,10 +180,6 @@ async def translate_file(
         'gemini_api_key': gemini_api_key,
         'openai_api_key': openai_api_key,
         'openrouter_api_key': openrouter_api_key,
-        'progress_callback': progress_callback,
-        'log_callback': log_callback,
-        'stats_callback': stats_callback,
-        'check_interruption_callback': check_interruption_callback,
         'prompt_options': prompt_options,
     }
 
@@ -190,6 +189,11 @@ async def translate_file(
         target_language=target_language,
         model_name=model_name,
         llm_provider=llm_provider,
+        progress_callback=progress_callback,
+        log_callback=log_callback,
+        stats_callback=stats_callback,
+        check_interruption_callback=check_interruption_callback,
+        bilingual_output=bilingual_output,
         **llm_config
     )
 

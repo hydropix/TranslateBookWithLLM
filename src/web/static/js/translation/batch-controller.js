@@ -40,13 +40,14 @@ function getTranslationConfig(file) {
 
     const provider = DomHelpers.getValue('llmProvider');
 
-    // Build prompt options object
-    // Technical content protection is always enabled
     const promptOptions = {
         preserve_technical_content: true,
         text_cleanup: DomHelpers.getElement('textCleanup')?.checked || false,
         refine: DomHelpers.getElement('refineTranslation')?.checked || false
     };
+
+    // Get TTS configuration
+    const ttsEnabled = DomHelpers.getElement('ttsEnabled')?.checked || false;
 
     const config = {
         source_language: sourceLanguageVal,
@@ -59,18 +60,21 @@ function getTranslationConfig(file) {
         gemini_api_key: provider === 'gemini' ? ApiKeyUtils.getValue('geminiApiKey') : '',
         openai_api_key: provider === 'openai' ? ApiKeyUtils.getValue('openaiApiKey') : '',
         openrouter_api_key: provider === 'openrouter' ? ApiKeyUtils.getValue('openrouterApiKey') : '',
-        // Advanced settings (chunk_size, timeout, context_window, max_attempts, retry_delay)
-        // are now controlled via .env only - server will use defaults from config.py
+        input_filename: file.name,
         output_filename: file.outputFilename,
         file_type: file.fileType,
-        prompt_options: promptOptions
+        prompt_options: promptOptions,
+        bilingual_output: DomHelpers.getElement('bilingualMode')?.checked || false,
+        tts_enabled: ttsEnabled,
+        tts_voice: ttsEnabled ? (DomHelpers.getValue('ttsVoice') || '') : '',
+        tts_rate: ttsEnabled ? (DomHelpers.getValue('ttsRate') || '+0%') : '+0%',
+        tts_format: ttsEnabled ? (DomHelpers.getValue('ttsFormat') || 'opus') : 'opus',
+        tts_bitrate: ttsEnabled ? (DomHelpers.getValue('ttsBitrate') || '64k') : '64k'
     };
 
-    // Handle file input based on type
     if (file.fileType === 'epub' || file.fileType === 'srt') {
         config.file_path = file.filePath;
     } else {
-        // Text file
         if (file.content) {
             config.text = file.content;
         } else {
@@ -111,6 +115,14 @@ export const BatchController = {
      * Start batch translation
      */
     async startBatchTranslation() {
+        if (!TranslationTracker.isInitialized || !TranslationTracker.isInitialized()) {
+            await new Promise(resolve => setTimeout(resolve, 100));
+            if (!TranslationTracker.isInitialized || !TranslationTracker.isInitialized()) {
+                MessageLogger.showMessage('⚠️ System still initializing, please wait...', 'warning');
+                return;
+            }
+        }
+
         const isBatchActive = StateManager.getState('translation.isBatchActive') || false;
         const filesToProcess = StateManager.getState('files.toProcess') || [];
 
@@ -146,10 +158,26 @@ export const BatchController = {
             }
         }
 
-        // Mark batch as active
+        let filesUpdated = false;
+        for (const file of filesToProcess) {
+            if (file.status !== 'Queued') continue;
+
+            if (!file.sourceLanguage || file.sourceLanguage === 'Other') {
+                file.sourceLanguage = sourceLanguageVal;
+                filesUpdated = true;
+            }
+            if (!file.targetLanguage || file.targetLanguage === 'Other') {
+                file.targetLanguage = targetLanguageVal;
+                filesUpdated = true;
+            }
+        }
+
+        if (filesUpdated) {
+            StateManager.setState('files.toProcess', filesToProcess);
+        }
+
         StateManager.setState('translation.isBatchActive', true);
 
-        // Count queued files
         const queuedFilesCount = filesToProcess.filter(f => f.status === 'Queued').length;
 
         // Update UI
@@ -177,13 +205,12 @@ export const BatchController = {
      */
     async processNextFileInQueue() {
         const currentJob = StateManager.getState('translation.currentJob');
-        if (currentJob) return; // Already processing
+        if (currentJob) return;
 
         const filesToProcess = StateManager.getState('files.toProcess') || [];
         const fileToTranslate = filesToProcess.find(f => f.status === 'Queued');
 
         if (!fileToTranslate) {
-            // Batch completed
             StateManager.setState('translation.isBatchActive', false);
             StateManager.setState('translation.currentJob', null);
 
@@ -201,29 +228,24 @@ export const BatchController = {
             return;
         }
 
-        // Reset progress for new file
         ProgressManager.reset();
 
-        // Reset translation preview
         const lastTranslationPreview = DomHelpers.getElement('lastTranslationPreview');
         if (lastTranslationPreview) {
             lastTranslationPreview.innerHTML = '<div style="color: #6b7280; font-style: italic; padding: 10px;">No translation yet...</div>';
         }
 
-        // Show/hide stats based on file type
         if (fileToTranslate.fileType === 'epub') {
             DomHelpers.hide('statsGrid');
         } else {
             DomHelpers.show('statsGrid');
         }
 
-        // Update UI
         this.updateTranslationTitle(fileToTranslate);
         ProgressManager.show();
         MessageLogger.addLog(`▶️ Starting translation for: ${fileToTranslate.name} (${fileToTranslate.fileType.toUpperCase()})`);
         updateFileStatusInList(fileToTranslate.name, 'Preparing...');
 
-        // Validate API keys for cloud providers using shared utility
         const provider = DomHelpers.getValue('llmProvider');
         const endpoint = provider === 'openai' ? DomHelpers.getValue('openaiEndpoint') : '';
         const apiKeyValidation = ApiKeyUtils.validateForProvider(provider, endpoint);
@@ -247,14 +269,11 @@ export const BatchController = {
             return;
         }
 
-        // Get translation config
         const config = getTranslationConfig(fileToTranslate);
 
         try {
-            // Start translation
             const data = await ApiClient.startTranslation(config);
 
-            // Update state
             StateManager.setState('translation.currentJob', {
                 fileRef: fileToTranslate,
                 translationId: data.translation_id
@@ -263,10 +282,20 @@ export const BatchController = {
             fileToTranslate.translationId = data.translation_id;
             updateFileStatusInList(fileToTranslate.name, 'Submitted', data.translation_id);
 
-            // Remove file from processing list immediately when translation starts
+            DomHelpers.show('progressSection');
+            DomHelpers.show('interruptBtn');
+
+            requestAnimationFrame(() => {
+                const progressSection = DomHelpers.getElement('progressSection');
+                if (progressSection) {
+                    progressSection.style.display = 'block';
+                }
+            });
+
+            this.updateTranslationTitle(fileToTranslate);
+            MessageLogger.addLog(`⏳ Translation submitted for ${fileToTranslate.name}...`);
             this.removeFileFromProcessingList(fileToTranslate.name);
 
-            // Emit event
             const event = new CustomEvent('translationStarted', { detail: { file: fileToTranslate, translationId: data.translation_id } });
             window.dispatchEvent(event);
 

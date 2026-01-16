@@ -719,7 +719,9 @@ async def _translate_all_chunks(
 def _reconstruct_html(
     translated_chunks: List[str],
     global_tag_map: Dict[str, str],
-    tag_preserver: TagPreserver
+    tag_preserver: TagPreserver,
+    original_chunks: Optional[List[Dict]] = None,
+    bilingual: bool = False
 ) -> str:
     """Reconstruct full HTML from translated chunks.
 
@@ -727,13 +729,42 @@ def _reconstruct_html(
         translated_chunks: List of translated chunk texts
         global_tag_map: Global tag map
         tag_preserver: TagPreserver instance
+        original_chunks: Original chunks (required for bilingual mode)
+        bilingual: If True, interleave original and translated content
 
     Returns:
         Reconstructed HTML string
     """
-    full_translated_text = ''.join(translated_chunks)
-    final_html = tag_preserver.restore_tags(full_translated_text, global_tag_map)
-    return final_html
+    if bilingual and original_chunks:
+        # Bilingual mode: wrap each original/translation pair in styled divs
+        combined_parts = []
+        for i, (orig_chunk, trans_chunk) in enumerate(zip(original_chunks, translated_chunks)):
+            # Get original text from chunk (has local indices like [id0], [id1])
+            orig_text_local = orig_chunk.get('text', '')
+            global_indices = orig_chunk.get('global_indices', [])
+
+            # Restore global indices in original text before tag restoration
+            # The chunk text has local indices (0, 1, 2...) that need to be
+            # converted back to global indices before we can restore tags
+            orig_text_global = PlaceholderManager.restore_to_global(orig_text_local, global_indices)
+
+            # Restore tags in both original and translated
+            orig_restored = tag_preserver.restore_tags(orig_text_global, global_tag_map)
+            trans_restored = tag_preserver.restore_tags(trans_chunk, global_tag_map)
+
+            # Create bilingual block with inline styling (no CSS required)
+            bilingual_block = f'''<div class="bilingual-chunk" style="margin-bottom: 1.5em; padding-bottom: 1em; border-bottom: 1px dashed #ccc;">
+<div class="original" style="color: #666; font-size: 0.9em;">{orig_restored}</div>
+<div class="translation" style="margin-top: 0.5em;">{trans_restored}</div>
+</div>'''
+            combined_parts.append(bilingual_block)
+
+        return ''.join(combined_parts)
+    else:
+        # Standard mode: just join translated chunks
+        full_translated_text = ''.join(translated_chunks)
+        final_html = tag_preserver.restore_tags(full_translated_text, global_tag_map)
+        return final_html
 
 
 def _replace_body(
@@ -988,7 +1019,8 @@ async def translate_xhtml_simplified(
     context_manager: Optional[AdaptiveContextManager] = None,
     max_retries: int = 1,
     container: Optional[TranslationContainer] = None,
-    prompt_options: Optional[Dict] = None
+    prompt_options: Optional[Dict] = None,
+    bilingual: bool = False
 ) -> Tuple[bool, 'TranslationStats']:
     """
     Translate an XHTML document using the simplified approach.
@@ -1016,6 +1048,7 @@ async def translate_xhtml_simplified(
         max_retries: Maximum translation retry attempts per chunk
         container: Optional dependency injection container for components
         prompt_options: Optional dict with prompt customization options (e.g., refine=True)
+        bilingual: If True, output will contain both original and translated text
 
     Returns:
         Tuple of (success: bool, stats: TranslationStats)
@@ -1118,7 +1151,9 @@ async def translate_xhtml_simplified(
     final_html = _reconstruct_html(
         translated_chunks,
         global_tag_map,
-        tag_preserver
+        tag_preserver,
+        original_chunks=chunks if bilingual else None,
+        bilingual=bilingual
     )
 
     # 6. Replace body
