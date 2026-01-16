@@ -12,7 +12,24 @@ Translate books, subtitles, and documents using AI - locally or in the cloud.
 
 ---
 
-## Quick Start
+## 🚀 Quick Start
+
+### Windows Users - Download Executable
+
+**No Python installation required!**
+
+[![Download Windows Executable](https://img.shields.io/badge/Download-Windows%20Executable-blue?style=for-the-badge&logo=windows)](https://github.com/hydropix/TranslateBookWithLLM/releases/latest/download/TranslateBook-Windows.zip)
+
+1. Download and extract `TranslateBook-Windows.zip`
+2. Install [Ollama](https://ollama.com/) (for local AI models)
+3. Run `TranslateBook.exe`
+4. Open http://localhost:5000 in your browser
+
+> **Note:** First run creates a `TranslateBook_Data` folder with configuration files.
+
+---
+
+### Install from Source
 
 **Prerequisites:** [Python 3.8+](https://www.python.org/downloads/), [Ollama](https://ollama.com/), [Git](https://git-scm.com/)
 
