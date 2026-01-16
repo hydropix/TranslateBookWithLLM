@@ -377,7 +377,7 @@ function wireModuleEvents() {
 /**
  * Initialize all modules in proper order
  */
-function initializeModules() {
+async function initializeModules() {
 
     // 1. Core infrastructure
     initializeState();
@@ -399,7 +399,9 @@ function initializeModules() {
     FileManager.initialize();
 
     // 5. Translation modules
-    TranslationTracker.initialize();
+    // IMPORTANT: await TranslationTracker.initialize() because it's now async
+    // It needs to check server session before restoring state
+    await TranslationTracker.initialize();
     ProgressManager.reset();
     ResumeManager.initialize();
 
@@ -828,10 +830,14 @@ if (typeof window !== 'undefined') {
  * Start application when DOM is ready
  */
 if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initializeModules);
+    document.addEventListener('DOMContentLoaded', async () => {
+        await initializeModules();
+    });
 } else {
-    // DOM already loaded
-    initializeModules();
+    // DOM already loaded - initialize immediately
+    (async () => {
+        await initializeModules();
+    })();
 }
 
 // ========================================

@@ -47,12 +47,18 @@ if DEBUG_MODE:
     logger.setLevel(logging.DEBUG)
 
 
-def create_config_blueprint():
-    """Create and configure the config blueprint"""
+def create_config_blueprint(server_session_id=None):
+    """Create and configure the config blueprint
+
+    Args:
+        server_session_id: Server session ID from state manager (optional, generates new if not provided)
+    """
     bp = Blueprint('config', __name__)
 
-    # Store server startup time to detect restarts
-    startup_time = int(time.time())
+    # Store server startup time/session ID to detect restarts
+    # Use provided session_id from state_manager if available, otherwise generate new
+    # Ensure it's an integer for consistency with health check response
+    startup_time = int(server_session_id) if server_session_id else int(time.time())
 
     @bp.route('/')
     def serve_interface():
@@ -73,7 +79,8 @@ def create_config_blueprint():
             "translate_module": "loaded",
             "ollama_default_endpoint": DEFAULT_OLLAMA_API_ENDPOINT,
             "supported_formats": ["txt", "epub", "srt"],
-            "startup_time": startup_time  # Used to detect server restarts
+            "startup_time": startup_time,  # Used to detect server restarts
+            "session_id": startup_time  # Alias for compatibility with LifecycleManager
         })
 
     @bp.route('/api/models', methods=['GET', 'POST'])

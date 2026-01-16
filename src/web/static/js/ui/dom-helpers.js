@@ -56,7 +56,13 @@ export const DomHelpers = {
      */
     show(element) {
         const el = typeof element === 'string' ? this.getElement(element) : element;
-        if (el) el.classList.remove('hidden');
+        if (el) {
+            el.classList.remove('hidden');
+            // Force immediate display update to ensure visibility
+            if (el.style.display === 'none') {
+                el.style.display = '';
+            }
+        }
     },
 
     /**

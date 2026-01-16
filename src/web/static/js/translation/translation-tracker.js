@@ -12,20 +12,119 @@ import { DomHelpers } from '../ui/dom-helpers.js';
 import { StatusManager } from '../utils/status-manager.js';
 import { FileUpload } from '../files/file-upload.js';
 import { ProgressManager } from './progress-manager.js';
+import { LifecycleManager } from '../utils/lifecycle-manager.js';
 
-const TRANSLATION_STATE_STORAGE_KEY = 'tbl_translation_state';
+// Storage configuration with versioning
+const STORAGE_VERSION = 1;
+const STORAGE_KEY_PREFIX = 'tbl_translation_state';
+const TRANSLATION_STATE_STORAGE_KEY = `${STORAGE_KEY_PREFIX}_v${STORAGE_VERSION}`;
+
+/**
+ * Validate translation state structure
+ * @param {any} data - Data to validate
+ * @returns {boolean} True if valid
+ */
+function validateTranslationState(data) {
+    if (!data || typeof data !== 'object') return false;
+
+    // Check required fields
+    if (!('version' in data)) return false;
+    if (!('currentJob' in data)) return false;
+    if (!('isBatchActive' in data)) return false;
+    if (!('activeJobs' in data)) return false;
+    if (!('hasActive' in data)) return false;
+
+    // Validate types
+    if (typeof data.isBatchActive !== 'boolean') return false;
+    if (typeof data.hasActive !== 'boolean') return false;
+    if (!Array.isArray(data.activeJobs)) return false;
+
+    // Validate currentJob if present
+    if (data.currentJob !== null) {
+        if (typeof data.currentJob !== 'object') return false;
+        if (!('translationId' in data.currentJob)) return false;
+        if (!('fileRef' in data.currentJob)) return false;
+    }
+
+    return true;
+}
 
 export const TranslationTracker = {
+    // Debounce timer for saving state
+    _saveStateTimer: null,
+    _saveStateDebounceMs: 100,
+
     /**
      * Initialize translation tracker
      */
-    initialize() {
+    async initialize() {
+        // Clean up old storage versions
+        this.cleanupOldStorageVersions();
+
+        // Setup event listeners FIRST (they need to be ready before any state changes)
         this.setupEventListeners();
-        // First, try to restore from localStorage synchronously
-        this.restoreTranslationStateSync();
-        this.updateActiveTranslationsState();
-        // Then verify with server after a short delay to allow file queue to restore first
-        setTimeout(() => this.restoreActiveTranslation(), 1500);
+
+        // CRITICAL: Check server session BEFORE restoring state
+        // This prevents restoring state from a previous server session
+        try {
+            const serverWasRestarted = await LifecycleManager.getServerSessionCheck();
+
+            if (serverWasRestarted) {
+                // Server was restarted, localStorage was already cleaned by LifecycleManager
+                // Initialize with defaults
+                this.initializeDefaultTranslationState();
+                console.log('Server restart detected, starting with clean state');
+            } else {
+                // Same server session, safe to restore from localStorage
+                this.restoreTranslationStateSync();
+
+                // Verify with server immediately after restore
+                await Promise.all([
+                    this.updateActiveTranslationsState(),
+                    this.reconcileStateWithServer()
+                ]);
+            }
+        } catch (error) {
+            console.error('Failed to initialize translation state:', error);
+            MessageLogger.addLog('⚠️ Could not fully restore previous session state');
+
+            // Fallback: restore from localStorage anyway
+            this.restoreTranslationStateSync();
+        }
+
+        // Mark initialization as complete
+        this._initializationComplete = true;
+    },
+
+    /**
+     * Check if initialization is complete
+     * @returns {boolean} True if initialization is complete
+     */
+    isInitialized() {
+        return this._initializationComplete === true;
+    },
+
+    /**
+     * Clean up old localStorage versions
+     */
+    cleanupOldStorageVersions() {
+        try {
+            // Remove old non-versioned key
+            const oldKey = 'tbl_translation_state';
+            if (localStorage.getItem(oldKey)) {
+                localStorage.removeItem(oldKey);
+            }
+
+            // Remove any other versions (future-proofing)
+            for (let i = 0; i < STORAGE_VERSION; i++) {
+                const oldVersionKey = `${STORAGE_KEY_PREFIX}_v${i}`;
+                if (localStorage.getItem(oldVersionKey)) {
+                    localStorage.removeItem(oldVersionKey);
+                }
+            }
+        } catch (error) {
+            console.warn('Failed to cleanup old storage versions:', error);
+        }
     },
 
     /**
@@ -44,6 +143,23 @@ export const TranslationTracker = {
 
             const savedState = JSON.parse(stored);
 
+            // Validate structure
+            if (!validateTranslationState(savedState)) {
+                console.warn('Invalid translation state structure, resetting to defaults');
+                MessageLogger.addLog('⚠️ Previous session state was corrupted, starting fresh');
+                this.initializeDefaultTranslationState();
+                this.clearTranslationState(); // Clean up corrupted data
+                return;
+            }
+
+            // Check version compatibility
+            if (savedState.version !== STORAGE_VERSION) {
+                console.warn(`Storage version mismatch (found ${savedState.version}, expected ${STORAGE_VERSION}), resetting`);
+                this.initializeDefaultTranslationState();
+                this.clearTranslationState();
+                return;
+            }
+
             // Only restore if there's an active job saved
             if (savedState.isBatchActive && savedState.currentJob) {
                 StateManager.setState('translation.currentJob', savedState.currentJob);
@@ -61,13 +177,63 @@ export const TranslationTracker = {
                     translateBtn.disabled = true;
                     translateBtn.innerHTML = '⏳ Batch in Progress...';
                 }
+
+                MessageLogger.addLog('🔄 Restored previous translation session');
             } else {
                 // Saved state exists but no active job, initialize defaults
                 this.initializeDefaultTranslationState();
             }
         } catch (error) {
-            console.warn('Failed to restore translation state from localStorage:', error);
+            console.error('Failed to restore translation state from localStorage:', error);
+            MessageLogger.addLog('⚠️ Could not restore previous session, starting fresh');
             this.initializeDefaultTranslationState();
+        }
+    },
+
+    /**
+     * Reconcile local state with server state
+     * Checks if localStorage state matches server reality
+     */
+    async reconcileStateWithServer() {
+        try {
+            const currentJob = StateManager.getState('translation.currentJob');
+
+            // If we have a local job, verify it exists on server
+            if (currentJob && currentJob.translationId) {
+                try {
+                    const serverState = await ApiClient.getTranslationStatus(currentJob.translationId);
+
+                    // Check if server says job is finished but we think it's active
+                    if (serverState.status === 'completed' ||
+                        serverState.status === 'error' ||
+                        serverState.status === 'interrupted') {
+
+                        console.warn(`State desync detected: local shows active but server shows ${serverState.status}`);
+                        MessageLogger.addLog(`🔄 Syncing state: translation ${serverState.status} on server`);
+
+                        // Reset to idle state
+                        this.resetUIToIdle();
+                    } else if (serverState.status === 'running' || serverState.status === 'queued') {
+                        // Update progress from server
+                        if (serverState.progress !== undefined) {
+                            this.updateProgress(serverState.progress);
+                        }
+                    }
+                } catch (error) {
+                    // Job doesn't exist on server anymore
+                    if (error.status === 404) {
+                        console.warn('Job no longer exists on server, resetting UI');
+                        MessageLogger.addLog('⚠️ Translation job no longer exists, resetting');
+                        this.resetUIToIdle();
+                    }
+                }
+            }
+
+            // Also check for active jobs we might not know about
+            await this.restoreActiveTranslation();
+
+        } catch (error) {
+            console.warn('Failed to reconcile state with server:', error);
         }
     },
 
@@ -82,19 +248,45 @@ export const TranslationTracker = {
     },
 
     /**
-     * Save translation state to localStorage
+     * Save translation state to localStorage (debounced)
      */
     saveTranslationState() {
+        // Clear existing timer
+        if (this._saveStateTimer) {
+            clearTimeout(this._saveStateTimer);
+        }
+
+        // Debounce to avoid multiple rapid saves
+        this._saveStateTimer = setTimeout(() => {
+            this._performSaveTranslationState();
+        }, this._saveStateDebounceMs);
+    },
+
+    /**
+     * Perform the actual save to localStorage
+     * @private
+     */
+    _performSaveTranslationState() {
         try {
             const state = {
+                version: STORAGE_VERSION,
                 currentJob: StateManager.getState('translation.currentJob'),
                 isBatchActive: StateManager.getState('translation.isBatchActive'),
                 activeJobs: StateManager.getState('translation.activeJobs'),
-                hasActive: StateManager.getState('translation.hasActive')
+                hasActive: StateManager.getState('translation.hasActive'),
+                timestamp: Date.now()
             };
+
             localStorage.setItem(TRANSLATION_STATE_STORAGE_KEY, JSON.stringify(state));
         } catch (error) {
-            console.warn('Failed to save translation state to localStorage:', error);
+            console.error('Failed to save translation state to localStorage:', error);
+
+            // Check if it's a quota exceeded error
+            if (error.name === 'QuotaExceededError') {
+                MessageLogger.addLog('⚠️ Browser storage full, could not save translation state');
+            } else {
+                MessageLogger.addLog('⚠️ Failed to save translation state');
+            }
         }
     },
 
@@ -103,9 +295,15 @@ export const TranslationTracker = {
      */
     clearTranslationState() {
         try {
+            // Clear any pending save
+            if (this._saveStateTimer) {
+                clearTimeout(this._saveStateTimer);
+                this._saveStateTimer = null;
+            }
+
             localStorage.removeItem(TRANSLATION_STATE_STORAGE_KEY);
         } catch (error) {
-            console.warn('Failed to clear translation state from localStorage:', error);
+            console.error('Failed to clear translation state from localStorage:', error);
         }
     },
 

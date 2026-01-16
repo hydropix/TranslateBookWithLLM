@@ -11,8 +11,9 @@ from src.persistence.checkpoint_manager import CheckpointManager
 
 
 def generate_server_session_id() -> str:
-    """Generate a unique session ID for this server instance."""
-    return str(uuid.uuid4())
+    """Generate a unique session ID for this server instance using timestamp."""
+    import time
+    return str(int(time.time()))
 
 
 class TranslationStateManager:

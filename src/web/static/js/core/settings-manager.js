@@ -10,7 +10,29 @@ import { ApiClient } from './api-client.js';
 import { DomHelpers } from '../ui/dom-helpers.js';
 import { MessageLogger } from '../ui/message-logger.js';
 
-const STORAGE_KEY = 'tbl_user_preferences';
+// Storage configuration with versioning
+const STORAGE_VERSION = 1;
+const STORAGE_KEY_PREFIX = 'tbl_user_preferences';
+const STORAGE_KEY = `${STORAGE_KEY_PREFIX}_v${STORAGE_VERSION}`;
+
+/**
+ * Validate user preferences structure
+ * @param {any} data - Data to validate
+ * @returns {boolean} True if valid
+ */
+function validatePreferences(data) {
+    if (!data || typeof data !== 'object') return false;
+
+    // Check version
+    if (!('version' in data)) return false;
+
+    // Validate types for known fields (non-exhaustive, just critical ones)
+    if ('ttsEnabled' in data && typeof data.ttsEnabled !== 'boolean') return false;
+    if ('textCleanup' in data && typeof data.textCleanup !== 'boolean') return false;
+    if ('refineTranslation' in data && typeof data.refineTranslation !== 'boolean') return false;
+
+    return true;
+}
 
 /**
  * Flag to prevent localStorage from overriding .env default model
@@ -58,12 +80,50 @@ export const SettingsManager = {
      * Initialize settings manager - load saved preferences and setup auto-save
      */
     initialize() {
+        // Clean up old storage versions
+        this.cleanupOldStorageVersions();
+
         this.loadLocalPreferences();
         // Setup auto-save listeners after a short delay to avoid triggering during initial load
         setTimeout(() => {
             this._setupAutoSaveListeners();
             isInitializing = false;
         }, 500);
+    },
+
+    /**
+     * Clean up old localStorage versions
+     */
+    cleanupOldStorageVersions() {
+        try {
+            // Remove old non-versioned key
+            const oldKey = 'tbl_user_preferences';
+            if (localStorage.getItem(oldKey)) {
+                // Migrate data from old key before removing
+                const oldData = localStorage.getItem(oldKey);
+                if (oldData) {
+                    try {
+                        const parsed = JSON.parse(oldData);
+                        // Add version and save to new key
+                        parsed.version = STORAGE_VERSION;
+                        localStorage.setItem(STORAGE_KEY, JSON.stringify(parsed));
+                    } catch (e) {
+                        console.warn('Could not migrate old preferences:', e);
+                    }
+                }
+                localStorage.removeItem(oldKey);
+            }
+
+            // Remove any other versions (future-proofing)
+            for (let i = 0; i < STORAGE_VERSION; i++) {
+                const oldVersionKey = `${STORAGE_KEY_PREFIX}_v${i}`;
+                if (localStorage.getItem(oldVersionKey)) {
+                    localStorage.removeItem(oldVersionKey);
+                }
+            }
+        } catch (error) {
+            console.warn('Failed to cleanup old storage versions:', error);
+        }
     },
 
     /**
@@ -140,8 +200,30 @@ export const SettingsManager = {
     getLocalPreferences() {
         try {
             const stored = localStorage.getItem(STORAGE_KEY);
-            return stored ? JSON.parse(stored) : {};
-        } catch {
+
+            if (!stored) return {};
+
+            const parsed = JSON.parse(stored);
+
+            // Validate structure
+            if (!validatePreferences(parsed)) {
+                console.warn('Invalid preferences structure, resetting to defaults');
+                localStorage.removeItem(STORAGE_KEY);
+                return {};
+            }
+
+            // Check version compatibility
+            if (parsed.version !== STORAGE_VERSION) {
+                console.warn(`Preferences version mismatch (found ${parsed.version}, expected ${STORAGE_VERSION})`);
+                // Could implement migration here in the future
+                localStorage.removeItem(STORAGE_KEY);
+                return {};
+            }
+
+            return parsed;
+        } catch (error) {
+            console.error('Failed to load preferences from localStorage:', error);
+            MessageLogger.addLog('⚠️ Could not load saved preferences');
             return {};
         }
     },
@@ -153,10 +235,23 @@ export const SettingsManager = {
     saveLocalPreferences(prefs) {
         try {
             const current = this.getLocalPreferences();
-            const updated = { ...current, ...prefs };
+            const updated = {
+                ...current,
+                ...prefs,
+                version: STORAGE_VERSION,
+                timestamp: Date.now()
+            };
+
             localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
-        } catch {
-            // Preference save failed silently
+        } catch (error) {
+            console.error('Failed to save preferences to localStorage:', error);
+
+            // Check if it's a quota exceeded error
+            if (error.name === 'QuotaExceededError') {
+                MessageLogger.addLog('⚠️ Browser storage full, could not save preferences');
+            } else {
+                MessageLogger.addLog('⚠️ Failed to save preferences');
+            }
         }
     },
 

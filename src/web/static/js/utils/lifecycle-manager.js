@@ -10,13 +10,19 @@ import { ApiClient } from '../core/api-client.js';
 import { WebSocketManager } from '../core/websocket-manager.js';
 import { MessageLogger } from '../ui/message-logger.js';
 
-const SERVER_SESSION_KEY = 'tbl_server_session_id';
+// Storage configuration with versioning
+const STORAGE_VERSION = 1;
+const SERVER_SESSION_KEY = `tbl_server_session_id_v${STORAGE_VERSION}`;
+const TRANSLATION_STATE_STORAGE_KEY = `tbl_translation_state_v${STORAGE_VERSION}`;
 
 export const LifecycleManager = {
     /**
      * Initialize lifecycle manager
      */
     initialize() {
+        // Clean up old storage versions
+        this.cleanupOldStorageVersions();
+
         this.setupPageLoadHandler();
         this.setupBeforeUnloadHandler();
         this.setupPageHideHandler();
@@ -25,9 +31,46 @@ export const LifecycleManager = {
     },
 
     /**
+     * Clean up old localStorage versions
+     */
+    cleanupOldStorageVersions() {
+        try {
+            // Remove old non-versioned keys
+            const oldKeys = [
+                'tbl_server_session_id',
+                'tbl_translation_state'
+            ];
+
+            oldKeys.forEach(oldKey => {
+                if (localStorage.getItem(oldKey)) {
+                    localStorage.removeItem(oldKey);
+                }
+            });
+
+            // Remove any other versions (future-proofing)
+            for (let i = 0; i < STORAGE_VERSION; i++) {
+                const oldSessionKey = `tbl_server_session_id_v${i}`;
+                const oldTranslationKey = `tbl_translation_state_v${i}`;
+
+                if (localStorage.getItem(oldSessionKey)) {
+                    localStorage.removeItem(oldSessionKey);
+                }
+                if (localStorage.getItem(oldTranslationKey)) {
+                    localStorage.removeItem(oldTranslationKey);
+                }
+            }
+        } catch (error) {
+            console.warn('Failed to cleanup old storage versions:', error);
+        }
+    },
+
+    /**
      * Set up page load handler
      */
     setupPageLoadHandler() {
+        // IMPORTANT: This handler is registered but we call checkServerRestart
+        // earlier in the initialization sequence via getServerSessionCheck()
+        // to ensure it runs BEFORE translation state restoration
         window.addEventListener('load', async () => {
             try {
                 // Health check
@@ -38,8 +81,8 @@ export const LifecycleManager = {
                     MessageLogger.addLog(`Supported file formats: ${healthData.supported_formats.join(', ')}`);
                 }
 
-                // Check if server was restarted
-                await this.checkServerRestart(healthData);
+                // Note: checkServerRestart is now called synchronously during initialization
+                // via getServerSessionCheck() to ensure proper ordering
 
                 // Initialize WebSocket connection
                 this.initializeConnection();
@@ -55,8 +98,24 @@ export const LifecycleManager = {
     },
 
     /**
+     * Get server session check promise (to be called early in initialization)
+     * This ensures server restart detection happens BEFORE state restoration
+     * @returns {Promise<boolean>} True if server was restarted
+     */
+    async getServerSessionCheck() {
+        try {
+            const healthData = await ApiClient.healthCheck();
+            return await this.checkServerRestart(healthData);
+        } catch (error) {
+            console.warn('Could not check server session:', error);
+            return false;
+        }
+    },
+
+    /**
      * Check if server was restarted and clean up stale state
      * @param {Object} healthData - Health check response data
+     * @returns {boolean} True if server was restarted
      */
     async checkServerRestart(healthData) {
         try {
@@ -65,7 +124,7 @@ export const LifecycleManager = {
 
             if (!serverSessionId) {
                 // Server doesn't provide session ID, skip check
-                return;
+                return false;
             }
 
             const lastSessionId = localStorage.getItem(SERVER_SESSION_KEY);
@@ -76,24 +135,48 @@ export const LifecycleManager = {
                 MessageLogger.addLog('⚠️ Server restart detected. Clearing active translation state.');
 
                 // Clear translation state (the translation job no longer exists)
-                const TRANSLATION_STATE_STORAGE_KEY = 'tbl_translation_state';
                 localStorage.removeItem(TRANSLATION_STATE_STORAGE_KEY);
 
-                // Reset translation state in memory
+                // Reset translation state in memory (critical for UI sync)
                 StateManager.setState('translation.currentJob', null);
                 StateManager.setState('translation.isBatchActive', false);
                 StateManager.setState('translation.activeJobs', []);
                 StateManager.setState('translation.hasActive', false);
 
+                // Hide UI elements immediately
+                try {
+                    const progressSection = document.getElementById('progressSection');
+                    const interruptBtn = document.getElementById('interruptBtn');
+                    const translateBtn = document.getElementById('translateBtn');
+
+                    if (progressSection) progressSection.style.display = 'none';
+                    if (interruptBtn) interruptBtn.style.display = 'none';
+                    if (translateBtn) {
+                        translateBtn.disabled = false;
+                        translateBtn.innerHTML = '▶️ Start Translation Batch';
+                    }
+                } catch (uiError) {
+                    console.warn('Could not reset UI elements:', uiError);
+                }
+
                 // Note: We keep the file queue (tbl_file_queue) as files might still exist on disk
                 // The FileUpload module will verify which files still exist
+
+                // Store new session ID
+                localStorage.setItem(SERVER_SESSION_KEY, String(serverSessionId));
+
+                return true; // Server was restarted
             }
 
-            // Store current session ID
-            localStorage.setItem(SERVER_SESSION_KEY, serverSessionId);
+            // Store current session ID (first time or same session)
+            localStorage.setItem(SERVER_SESSION_KEY, String(serverSessionId));
+
+            return false; // Server was not restarted
 
         } catch (error) {
-            console.warn('Error checking server restart:', error);
+            console.error('Error checking server restart:', error);
+            MessageLogger.addLog('⚠️ Could not verify server session state');
+            return false;
         }
     },
 

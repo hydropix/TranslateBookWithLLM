@@ -123,6 +123,17 @@ export const BatchController = {
      * Start batch translation
      */
     async startBatchTranslation() {
+        // Wait for TranslationTracker to be fully initialized
+        if (!TranslationTracker.isInitialized || !TranslationTracker.isInitialized()) {
+            console.warn('TranslationTracker not yet initialized, waiting...');
+            // Wait a bit and try again
+            await new Promise(resolve => setTimeout(resolve, 100));
+            if (!TranslationTracker.isInitialized || !TranslationTracker.isInitialized()) {
+                MessageLogger.showMessage('⚠️ System still initializing, please wait...', 'warning');
+                return;
+            }
+        }
+
         const isBatchActive = StateManager.getState('translation.isBatchActive') || false;
         const filesToProcess = StateManager.getState('files.toProcess') || [];
 
@@ -294,6 +305,25 @@ export const BatchController = {
 
             fileToTranslate.translationId = data.translation_id;
             updateFileStatusInList(fileToTranslate.name, 'Submitted', data.translation_id);
+
+            // Show progress section immediately (don't wait for WebSocket)
+            // Use requestAnimationFrame to ensure immediate DOM update
+            DomHelpers.show('progressSection');
+            DomHelpers.show('interruptBtn');
+
+            // Force immediate DOM render
+            requestAnimationFrame(() => {
+                const progressSection = DomHelpers.getElement('progressSection');
+                if (progressSection) {
+                    progressSection.style.display = 'block';
+                }
+            });
+
+            // Update title immediately
+            this.updateTranslationTitle(fileToTranslate);
+
+            // Show initial message
+            MessageLogger.addLog(`⏳ Translation submitted for ${fileToTranslate.name}...`);
 
             // Remove file from processing list immediately when translation starts
             this.removeFileFromProcessingList(fileToTranslate.name);
