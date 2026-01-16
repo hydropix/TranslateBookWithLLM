@@ -246,14 +246,10 @@ function initializeState() {
 
 /**
  * Calculate and apply preview height based on MAX_TOKENS_PER_CHUNK
- * Formula: Fixed 300px height regardless of token count
- * @param {number} maxTokens - MAX_TOKENS_PER_CHUNK value (not used, kept for API compatibility)
+ * @param {number} maxTokens - MAX_TOKENS_PER_CHUNK value
  */
 function updatePreviewHeight(maxTokens = 450) {
-    // Fixed height of 300px
     const fixedHeight = 300;
-
-    // Apply to CSS variable
     document.documentElement.style.setProperty('--preview-height', `${fixedHeight}px`);
 }
 
@@ -535,7 +531,6 @@ async function showTTSModal(filename, filepath) {
         providersInfo = providersInfo.providers || {};
         voicePrompts = voicePrompts.voice_prompts || [];
     } catch {
-        // TTS info load failed
     }
 
     const isChatterboxAvailable = providersInfo.chatterbox?.available || false;

@@ -68,12 +68,8 @@ export const LifecycleManager = {
      * Set up page load handler
      */
     setupPageLoadHandler() {
-        // IMPORTANT: This handler is registered but we call checkServerRestart
-        // earlier in the initialization sequence via getServerSessionCheck()
-        // to ensure it runs BEFORE translation state restoration
         window.addEventListener('load', async () => {
             try {
-                // Health check
                 const healthData = await ApiClient.healthCheck();
                 MessageLogger.addLog('Server health check OK.');
 
@@ -81,10 +77,6 @@ export const LifecycleManager = {
                     MessageLogger.addLog(`Supported file formats: ${healthData.supported_formats.join(', ')}`);
                 }
 
-                // Note: checkServerRestart is now called synchronously during initialization
-                // via getServerSessionCheck() to ensure proper ordering
-
-                // Initialize WebSocket connection
                 this.initializeConnection();
 
             } catch (error) {
@@ -119,31 +111,24 @@ export const LifecycleManager = {
      */
     async checkServerRestart(healthData) {
         try {
-            // Get server session ID (could be startup timestamp or unique ID)
             const serverSessionId = healthData.session_id || healthData.startup_time;
 
             if (!serverSessionId) {
-                // Server doesn't provide session ID, skip check
                 return false;
             }
 
             const lastSessionId = localStorage.getItem(SERVER_SESSION_KEY);
 
             if (lastSessionId && lastSessionId !== String(serverSessionId)) {
-                // Server was restarted! Clean up translation state only
-                console.warn('Server restart detected. Cleaning up translation state...');
                 MessageLogger.addLog('⚠️ Server restart detected. Clearing active translation state.');
 
-                // Clear translation state (the translation job no longer exists)
                 localStorage.removeItem(TRANSLATION_STATE_STORAGE_KEY);
 
-                // Reset translation state in memory (critical for UI sync)
                 StateManager.setState('translation.currentJob', null);
                 StateManager.setState('translation.isBatchActive', false);
                 StateManager.setState('translation.activeJobs', []);
                 StateManager.setState('translation.hasActive', false);
 
-                // Hide UI elements immediately
                 try {
                     const progressSection = document.getElementById('progressSection');
                     const interruptBtn = document.getElementById('interruptBtn');
@@ -159,19 +144,14 @@ export const LifecycleManager = {
                     console.warn('Could not reset UI elements:', uiError);
                 }
 
-                // Note: We keep the file queue (tbl_file_queue) as files might still exist on disk
-                // The FileUpload module will verify which files still exist
-
-                // Store new session ID
                 localStorage.setItem(SERVER_SESSION_KEY, String(serverSessionId));
 
-                return true; // Server was restarted
+                return true;
             }
 
-            // Store current session ID (first time or same session)
             localStorage.setItem(SERVER_SESSION_KEY, String(serverSessionId));
 
-            return false; // Server was not restarted
+            return false;
 
         } catch (error) {
             console.error('Error checking server restart:', error);
@@ -191,38 +171,24 @@ export const LifecycleManager = {
         }
     },
 
-    /**
-     * Set up beforeunload handler
-     * Note: No confirmation popup needed - checkpoint system saves all progress automatically
-     */
     setupBeforeUnloadHandler() {
-        // No-op: checkpoint system handles saving, no need to warn user
     },
 
-    /**
-     * Set up pagehide handler (interrupt translation if user confirms closure)
-     */
     setupPageHideHandler() {
         window.addEventListener('pagehide', (e) => {
             const isBatchActive = StateManager.getState('translation.isBatchActive');
             const currentJob = StateManager.getState('translation.currentJob');
 
-            // If there's an active translation, interrupt it before page closes
             if (isBatchActive && currentJob && currentJob.translationId) {
-                // Use sendBeacon for reliable delivery even during page unload
                 const interruptUrl = `${ApiClient.API_BASE_URL}/api/translation/${currentJob.translationId}/interrupt`;
 
-                // sendBeacon is specifically designed to work during page unload
-                // It queues the request and sends it even after the page is gone
                 if (navigator.sendBeacon) {
-                    // Create a Blob with proper content type for POST request
                     const blob = new Blob(['{}'], { type: 'application/json' });
                     navigator.sendBeacon(interruptUrl, blob);
                 } else {
-                    // Fallback: try synchronous XMLHttpRequest (older browsers)
                     try {
                         const xhr = new XMLHttpRequest();
-                        xhr.open('POST', interruptUrl, false); // false = synchronous
+                        xhr.open('POST', interruptUrl, false);
                         xhr.setRequestHeader('Content-Type', 'application/json');
                         xhr.send('{}');
                     } catch (error) {
@@ -233,30 +199,18 @@ export const LifecycleManager = {
         });
     },
 
-    /**
-     * Set up page visibility change handler
-     */
     setupVisibilityChangeHandler() {
         document.addEventListener('visibilitychange', () => {
-            if (document.hidden) {
-                console.log('Page hidden');
-            } else {
-                console.log('Page visible');
-                // Refresh state when page becomes visible again
+            if (!document.hidden) {
                 this.checkStateConsistency();
             }
         });
     },
 
-    /**
-     * Periodic state consistency check
-     * Runs to detect and fix UI state inconsistencies
-     */
     async checkStateConsistency() {
         const isBatchActive = StateManager.getState('translation.isBatchActive');
         const currentJob = StateManager.getState('translation.currentJob');
 
-        // Only check if we think there's an active batch
         if (!isBatchActive || !currentJob) {
             return;
         }
@@ -267,12 +221,9 @@ export const LifecycleManager = {
             const data = await ApiClient.getTranslationStatus(tidToCheck);
             const serverStatus = data.status;
 
-            // Check if server says the job is done but UI still shows it as active
             if (serverStatus === 'completed' || serverStatus === 'error' || serverStatus === 'interrupted') {
-                console.warn(`Server reports job ${tidToCheck} is ${serverStatus}, but UI still shows active. Syncing state.`);
                 MessageLogger.addLog(`🔄 Detected state desync: job ${serverStatus} on server but UI still active. Syncing...`);
 
-                // Trigger the appropriate UI update via event
                 window.dispatchEvent(new CustomEvent('translationUpdate', {
                     detail: {
                         translation_id: tidToCheck,
@@ -283,16 +234,11 @@ export const LifecycleManager = {
                 }));
             }
         } catch (error) {
-            // Job doesn't exist anymore on server
             if (error.message && error.message.includes('404')) {
-                console.warn(`Job ${tidToCheck} not found on server. Resetting UI.`);
                 MessageLogger.addLog(`⚠️ Translation job no longer exists on server. Resetting UI.`);
-
-                // Reset UI via event
                 window.dispatchEvent(new CustomEvent('resetUIToIdle'));
             } else {
                 console.error('Error checking state consistency:', error);
-                // Don't reset on network errors - could just be temporary
             }
         }
     },

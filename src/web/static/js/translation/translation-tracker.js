@@ -70,15 +70,10 @@ export const TranslationTracker = {
             const serverWasRestarted = await LifecycleManager.getServerSessionCheck();
 
             if (serverWasRestarted) {
-                // Server was restarted, localStorage was already cleaned by LifecycleManager
-                // Initialize with defaults
                 this.initializeDefaultTranslationState();
-                console.log('Server restart detected, starting with clean state');
             } else {
-                // Same server session, safe to restore from localStorage
                 this.restoreTranslationStateSync();
 
-                // Verify with server immediately after restore
                 await Promise.all([
                     this.updateActiveTranslationsState(),
                     this.reconcileStateWithServer()
@@ -136,42 +131,34 @@ export const TranslationTracker = {
             const stored = localStorage.getItem(TRANSLATION_STATE_STORAGE_KEY);
 
             if (!stored) {
-                // No saved state, initialize defaults
                 this.initializeDefaultTranslationState();
                 return;
             }
 
             const savedState = JSON.parse(stored);
 
-            // Validate structure
             if (!validateTranslationState(savedState)) {
-                console.warn('Invalid translation state structure, resetting to defaults');
                 MessageLogger.addLog('⚠️ Previous session state was corrupted, starting fresh');
-                this.initializeDefaultTranslationState();
-                this.clearTranslationState(); // Clean up corrupted data
-                return;
-            }
-
-            // Check version compatibility
-            if (savedState.version !== STORAGE_VERSION) {
-                console.warn(`Storage version mismatch (found ${savedState.version}, expected ${STORAGE_VERSION}), resetting`);
                 this.initializeDefaultTranslationState();
                 this.clearTranslationState();
                 return;
             }
 
-            // Only restore if there's an active job saved
+            if (savedState.version !== STORAGE_VERSION) {
+                this.initializeDefaultTranslationState();
+                this.clearTranslationState();
+                return;
+            }
+
             if (savedState.isBatchActive && savedState.currentJob) {
                 StateManager.setState('translation.currentJob', savedState.currentJob);
                 StateManager.setState('translation.isBatchActive', savedState.isBatchActive);
                 StateManager.setState('translation.activeJobs', savedState.activeJobs || []);
                 StateManager.setState('translation.hasActive', savedState.hasActive || false);
 
-                // Show progress section
                 DomHelpers.show('progressSection');
                 DomHelpers.show('interruptBtn');
 
-                // Update translate button
                 const translateBtn = DomHelpers.getElement('translateBtn');
                 if (translateBtn) {
                     translateBtn.disabled = true;
@@ -180,7 +167,6 @@ export const TranslationTracker = {
 
                 MessageLogger.addLog('🔄 Restored previous translation session');
             } else {
-                // Saved state exists but no active job, initialize defaults
                 this.initializeDefaultTranslationState();
             }
         } catch (error) {
@@ -203,33 +189,25 @@ export const TranslationTracker = {
                 try {
                     const serverState = await ApiClient.getTranslationStatus(currentJob.translationId);
 
-                    // Check if server says job is finished but we think it's active
                     if (serverState.status === 'completed' ||
                         serverState.status === 'error' ||
                         serverState.status === 'interrupted') {
 
-                        console.warn(`State desync detected: local shows active but server shows ${serverState.status}`);
                         MessageLogger.addLog(`🔄 Syncing state: translation ${serverState.status} on server`);
-
-                        // Reset to idle state
                         this.resetUIToIdle();
                     } else if (serverState.status === 'running' || serverState.status === 'queued') {
-                        // Update progress from server
                         if (serverState.progress !== undefined) {
                             this.updateProgress(serverState.progress);
                         }
                     }
                 } catch (error) {
-                    // Job doesn't exist on server anymore
                     if (error.status === 404) {
-                        console.warn('Job no longer exists on server, resetting UI');
                         MessageLogger.addLog('⚠️ Translation job no longer exists, resetting');
                         this.resetUIToIdle();
                     }
                 }
             }
 
-            // Also check for active jobs we might not know about
             await this.restoreActiveTranslation();
 
         } catch (error) {
@@ -337,37 +315,31 @@ export const TranslationTracker = {
                         translationId: job.translation_id,
                         status: 'Processing',
                         type: job.file_type || 'txt',
-                        isVirtual: true  // Mark as restored from server
+                        isVirtual: true
                     };
                 }
 
                 if (matchingFile) {
-                    // Restore state
                     StateManager.setState('translation.currentJob', {
                         fileRef: matchingFile,
                         translationId: job.translation_id
                     });
                     StateManager.setState('translation.isBatchActive', true);
 
-                    // Update UI
                     DomHelpers.show('progressSection');
                     this.updateTranslationTitle(matchingFile);
 
-                    // Update progress from server data
                     if (job.progress !== undefined) {
                         this.updateProgress(job.progress);
                     } else if (job.total_chunks > 0) {
-                        // Calculate progress from chunks if available
                         const progress = (job.completed_chunks / job.total_chunks) * 100;
                         this.updateProgress(progress);
                     }
 
-                    // Update last translation preview if available
                     if (job.last_translation) {
                         MessageLogger.updateTranslationPreview(job.last_translation);
                     }
 
-                    // Update button states
                     const translateBtn = DomHelpers.getElement('translateBtn');
                     if (translateBtn) {
                         translateBtn.disabled = true;
@@ -375,7 +347,6 @@ export const TranslationTracker = {
                     }
                     DomHelpers.show('interruptBtn');
 
-                    // Only update file list if it's not a virtual file
                     if (!matchingFile.isVirtual) {
                         this.updateFileStatusInList(matchingFile.name, 'Processing', job.translation_id);
                     }
@@ -388,11 +359,7 @@ export const TranslationTracker = {
         }
     },
 
-    /**
-     * Set up event listeners
-     */
     setupEventListeners() {
-        // Listen for state changes and auto-save to localStorage
         StateManager.subscribe('translation.currentJob', () => {
             this.saveTranslationState();
         });
@@ -419,7 +386,6 @@ export const TranslationTracker = {
         const currentJob = StateManager.getState('translation.currentJob');
 
         if (!currentJob || data.translation_id !== currentJob.translationId) {
-            // Check if we should reset UI for finished jobs
             if (data.translation_id && !currentJob) {
                 if (data.status === 'completed' || data.status === 'error' || data.status === 'interrupted') {
                     this.resetUIToIdle();
@@ -430,30 +396,25 @@ export const TranslationTracker = {
 
         const currentFile = currentJob.fileRef;
 
-        // Handle logs
         if (data.log) {
             MessageLogger.addLog(`[${currentFile.name}] ${data.log}`);
         }
 
-        // Handle progress
         if (data.progress !== undefined) {
             this.updateProgress(data.progress);
         }
 
-        // Handle stats
         if (data.stats) {
             this.updateStats(currentFile.fileType, data.stats);
         }
 
-        // Handle structured log entries for translation preview
         if (data.log_entry && data.log_entry.type === 'llm_response' &&
             data.log_entry.data && data.log_entry.data.response) {
             MessageLogger.updateTranslationPreview(data.log_entry.data.response);
         }
 
-        // Handle status changes
         if (data.status === 'completed') {
-            MessageLogger.resetProgressTracking(); // Reset before showing completion message
+            MessageLogger.resetProgressTracking();
             this.finishCurrentFileTranslation(
                 `✅ ${currentFile.name}: Translation completed!`,
                 'success',
@@ -461,7 +422,7 @@ export const TranslationTracker = {
             );
             this.updateActiveTranslationsState();
         } else if (data.status === 'interrupted') {
-            MessageLogger.resetProgressTracking(); // Reset before showing interruption message
+            MessageLogger.resetProgressTracking();
             this.finishCurrentFileTranslation(
                 `ℹ️ ${currentFile.name}: Translation interrupted.`,
                 'info',
@@ -469,7 +430,7 @@ export const TranslationTracker = {
             );
             this.updateActiveTranslationsState();
         } else if (data.status === 'error') {
-            MessageLogger.resetProgressTracking(); // Reset before showing error message
+            MessageLogger.resetProgressTracking();
             this.finishCurrentFileTranslation(
                 `❌ ${currentFile.name}: Error - ${data.error || 'Unknown error.'}`,
                 'error',
@@ -737,21 +698,14 @@ export const TranslationTracker = {
             (resultData.status === 'interrupted' ? 'Interrupted' : 'Error')
         );
 
-        // Note: File is now removed from the list when translation starts,
-        // not when it completes (see batch-controller.js)
-
-        // Clear current job
         StateManager.setState('translation.currentJob', null);
 
-        // Only continue to next file if translation completed successfully (NOT if interrupted)
         if (resultData.status === 'completed') {
             this.processNextFileInQueue();
         } else if (resultData.status === 'interrupted') {
-            // User stopped the translation - stop the entire batch
             MessageLogger.addLog('🛑 Batch processing stopped by user.');
             this.resetUIToIdle();
         } else {
-            // Error case - continue to next file
             this.processNextFileInQueue();
         }
     },
@@ -858,19 +812,12 @@ export const TranslationTracker = {
         }
     },
 
-    /**
-     * Reset UI state to idle (no active translation)
-     */
     resetUIToIdle() {
-
-        // Reset state variables
         StateManager.setState('translation.isBatchActive', false);
         StateManager.setState('translation.currentJob', null);
 
-        // Clear saved state from localStorage
         this.clearTranslationState();
 
-        // Reset UI elements
         DomHelpers.hide('interruptBtn');
         DomHelpers.setDisabled('interruptBtn', false);
         DomHelpers.setText('interruptBtn', '⏹️ Interrupt Current & Stop Batch');
@@ -879,15 +826,12 @@ export const TranslationTracker = {
         DomHelpers.setDisabled('translateBtn', filesToProcess.length === 0 || !StatusManager.isConnected());
         DomHelpers.setText('translateBtn', '▶️ Start Translation Batch');
 
-        // Hide progress section if no files to process
         if (filesToProcess.length === 0) {
             DomHelpers.hide('progressSection');
         }
 
-        // Update active translations state
         this.updateActiveTranslationsState();
 
-        // Reload resumable jobs to show any newly created checkpoints
         if (window.loadResumableJobs) {
             window.loadResumableJobs();
         }
