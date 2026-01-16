@@ -2,15 +2,8 @@ name: Build Windows Executable
 
 on:
   push:
-    branches:
-      - main
-      - dev
     tags:
       - 'v*'
-  pull_request:
-    branches:
-      - main
-      - dev
   workflow_dispatch:
 
 permissions:
@@ -76,15 +69,6 @@ jobs:
         👉 https://github.com/hydropix/TranslateBookWithLLM/wiki
 
         Benchmarks include 11 models tested across 19 languages with accuracy, fluency, and style scores.
-
-        ### Quick Recommendations
-
-        | VRAM | Model | Best For |
-        |------|-------|----------|
-        | 8 GB | gemma3:12b | Spanish, Portuguese, European languages |
-        | 24 GB | mistral-small:24b | French |
-        | 24 GB | gemma3:27b | Japanese, Korean, Arabic, most languages |
-        | 24 GB | qwen3:30b-instruct | Chinese (Simplified/Traditional) |
 
         ## First Run
 
