@@ -29,7 +29,7 @@ Translate books, subtitles, and documents using AI - locally or in the cloud.
 
 ---
 
-### Install from Source
+### For the Bearded Ones - Install from Source
 
 **Prerequisites:** [Python 3.8+](https://www.python.org/downloads/), [Ollama](https://ollama.com/), [Git](https://git-scm.com/)
 
