@@ -181,11 +181,11 @@ Some models (DeepSeek R1, Qwen3, QwQ, etc.) produce internal reasoning within `<
 **Note**: The placeholder format is now `[id0]`, `[id1]`, etc. (not `⟦TAG0⟧`).
 
 **Solutions**:
-1. The system has a 3-phase fallback:
+1. The system has a 3-phase fallback that handles most cases automatically:
    - **Phase 1**: Normal translation with placeholder preservation
    - **Phase 2**: Token alignment to reinsert missing placeholders
    - **Phase 3**: Proportional fallback based on position
-2. Use a larger model with better instruction-following
+2. If there are many formatting errors in the output file, use a more capable LLM
 3. Enable adaptive context: `AUTO_ADJUST_CONTEXT=true`
 
 ### "Formatting lost" (bold, italic, styles)
