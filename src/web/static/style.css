@@ -1468,6 +1468,39 @@ html.dark .file-icon {
     background: rgba(90, 142, 232, 0.1);
 }
 
+html.dark .sponsor-section iframe {
+    display: none;
+}
+
+html.dark .sponsor-section .sponsor-link {
+    display: inline-flex;
+}
+
+.sponsor-section .sponsor-link {
+    display: none;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 1rem 2rem;
+    background: var(--background-light);
+    box-shadow: 5px 5px 10px var(--shadow-dark), -5px -5px 10px var(--shadow-light);
+    border: 1px solid var(--border-light);
+    border-radius: 1rem;
+    color: var(--text-dark);
+    text-decoration: none;
+    font-weight: 600;
+    transition: all 0.3s;
+}
+
+.sponsor-section .sponsor-link:hover {
+    transform: translateY(-2px);
+    box-shadow: 6px 6px 12px var(--shadow-dark), -6px -6px 12px var(--shadow-light);
+    color: #db61a2;
+}
+
+.sponsor-section .sponsor-link .material-symbols-outlined {
+    color: #db61a2;
+}
+
 html.dark .file-info {
     color: var(--text-light);
 }

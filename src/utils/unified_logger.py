@@ -164,36 +164,39 @@ class UnifiedLogger:
         if 'model' in data:
             output.append(f"{Colors.GRAY}Model: {data['model']}{Colors.ENDC}")
         
-        # Full prompt - handle both legacy 'prompt' and new 'system_prompt'/'user_prompt' formats
-        output.append(f"\n{Colors.ORANGE}RAW PROMPT (INPUT):{Colors.ENDC}")
-        if 'system_prompt' in data or 'user_prompt' in data:
-            if data.get('system_prompt'):
-                output.append(f"{Colors.GRAY}[SYSTEM]{Colors.ENDC}")
-                output.append(f"{Colors.ORANGE}{data.get('system_prompt', '')}{Colors.ENDC}")
-            if data.get('user_prompt'):
-                output.append(f"{Colors.GRAY}[USER]{Colors.ENDC}")
-                output.append(f"{Colors.ORANGE}{data.get('user_prompt', '')}{Colors.ENDC}")
-        else:
-            output.append(f"{Colors.ORANGE}{data.get('prompt', '')}{Colors.ENDC}")
+        # Full prompt only in debug mode for console
+        # (UI always receives the full data via web_callback)
+        if self.min_level == LogLevel.DEBUG:
+            output.append(f"\n{Colors.ORANGE}RAW PROMPT (INPUT):{Colors.ENDC}")
+            if 'system_prompt' in data or 'user_prompt' in data:
+                if data.get('system_prompt'):
+                    output.append(f"{Colors.GRAY}[SYSTEM]{Colors.ENDC}")
+                    output.append(f"{Colors.ORANGE}{data.get('system_prompt', '')}{Colors.ENDC}")
+                if data.get('user_prompt'):
+                    output.append(f"{Colors.GRAY}[USER]{Colors.ENDC}")
+                    output.append(f"{Colors.ORANGE}{data.get('user_prompt', '')}{Colors.ENDC}")
+            else:
+                output.append(f"{Colors.ORANGE}{data.get('prompt', '')}{Colors.ENDC}")
 
         return '\n'.join(output)
     
     def _format_llm_response(self, data: Dict[str, Any]) -> str:
         """Format LLM response with full details"""
-        output = []
+        # In non-debug mode, return empty string (no output)
+        # Token usage is already logged separately
+        if self.min_level != LogLevel.DEBUG:
+            return ""
 
+        # Debug mode: show full details
+        output = []
         timestamp = self._format_timestamp()
         output.append(f"{Colors.GREEN}[{timestamp}] LLM RESPONSE (OUTPUT){Colors.ENDC}")
 
-        # Execution time (en gris)
         if 'execution_time' in data:
             output.append(f"{Colors.GRAY}Execution time: {data['execution_time']:.2f} seconds{Colors.ENDC}")
 
-        # Full response only in debug mode for console
-        # (UI always receives the full data via web_callback)
-        if self.min_level == LogLevel.DEBUG:
-            output.append(f"\n{Colors.GREEN}RAW RESPONSE:{Colors.ENDC}")
-            output.append(f"{Colors.GREEN}{data.get('response', '')}{Colors.ENDC}")
+        output.append(f"\n{Colors.GREEN}RAW RESPONSE:{Colors.ENDC}")
+        output.append(f"{Colors.GREEN}{data.get('response', '')}{Colors.ENDC}")
 
         return '\n'.join(output)
     
@@ -282,13 +285,13 @@ class UnifiedLogger:
         return '\n'.join(output)
 
     def _format_token_usage(self, message: str, data: Dict[str, Any]) -> str:
-        """Format token usage information from Ollama"""
+        """Format token usage information with progress"""
         prompt_tokens = data.get('prompt_tokens', 0)
         response_tokens = data.get('response_tokens', 0)
         total_tokens = data.get('total_tokens', 0)
         num_ctx = data.get('num_ctx', 0)
 
-        # Calculate usage percentage
+        # Calculate context usage percentage
         usage_pct = (total_tokens / num_ctx * 100) if num_ctx > 0 else 0
 
         # Color based on usage level
@@ -297,8 +300,17 @@ class UnifiedLogger:
         else:
             color = Colors.GRAY
 
-        return (f"{color}[TOKENS] prompt={prompt_tokens}, response={response_tokens}, "
-                f"total={total_tokens}/{num_ctx} ({usage_pct:.1f}% used){Colors.ENDC}")
+        # Build progress prefix if translation is in progress
+        progress_str = ""
+        if self.translation_state['in_progress']:
+            current = self.translation_state['current_chunk']
+            total = self.translation_state['total_chunks']
+            if total > 0:
+                progress_pct = current / total * 100
+                progress_str = f"[{current}/{total} {progress_pct:.0f}%] "
+
+        return (f"{color}{progress_str}tokens: {prompt_tokens}+{response_tokens}="
+                f"{total_tokens}/{num_ctx}{Colors.ENDC}")
 
     def log(self, level: LogLevel, message: str,
             log_type: LogType = LogType.GENERAL,
@@ -386,6 +398,13 @@ class UnifiedLogger:
     def update_total_chunks(self, total: int):
         """Update total chunks count"""
         self.translation_state['total_chunks'] = total
+
+    def update_progress(self, completed: int, total: int):
+        """Update progress from stats callback"""
+        self.translation_state['current_chunk'] = completed
+        self.translation_state['total_chunks'] = total
+        if total > 0:
+            self.translation_state['in_progress'] = True
     
     def create_legacy_callback(self):
         """

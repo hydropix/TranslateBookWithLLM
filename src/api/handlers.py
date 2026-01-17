@@ -140,6 +140,12 @@ async def perform_actual_translation(translation_id, config, state_manager, outp
             state_manager.set_translation_field(translation_id, 'stats', current_stats)
             emit_update(socketio, translation_id, {'stats': current_stats}, state_manager)
 
+            # Update logger progress for CLI display
+            completed = current_stats.get('completed_chunks', 0)
+            total = current_stats.get('total_chunks', 0)
+            if total > 0:
+                logger.update_progress(completed, total)
+
     def _openrouter_cost_callback(cost_data):
         """Callback to update OpenRouter cost information in real-time"""
         if state_manager.exists(translation_id):

@@ -42,12 +42,8 @@ class LLMClient:
     @context_window.setter
     def context_window(self, value: int):
         """Set the context window size on the provider"""
-        old_value = self.context_window
         if self._provider and hasattr(self._provider, 'context_window'):
             self._provider.context_window = value
-            print(f"[DEBUG] Updated provider context_window: {old_value} → {value}")
-        else:
-            print(f"[DEBUG] Provider not ready, storing in kwargs: {old_value} → {value}")
         self.provider_kwargs['context_window'] = value
 
     async def make_request(self, prompt: str, model: Optional[str] = None,

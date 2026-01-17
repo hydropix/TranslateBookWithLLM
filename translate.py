@@ -94,6 +94,13 @@ if __name__ == "__main__":
     # Create legacy callback for backward compatibility
     log_callback = logger.create_legacy_callback()
 
+    # Create stats callback to update logger progress
+    def stats_callback(stats: dict):
+        completed = stats.get('completed_chunks', 0)
+        total = stats.get('total_chunks', 0)
+        if total > 0:
+            logger.update_progress(completed, total)
+
     # Build prompt_options from CLI arguments
     # Technical content protection is now always enabled
     prompt_options = {
@@ -121,7 +128,7 @@ if __name__ == "__main__":
             translation_id=translation_id,
             progress_callback=None,
             log_callback=log_callback,
-            stats_callback=None,
+            stats_callback=stats_callback,
             check_interruption_callback=None,
             llm_api_endpoint=args.api_endpoint,
             gemini_api_key=args.gemini_api_key,

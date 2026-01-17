@@ -475,7 +475,6 @@ async def translate_chunk_with_fallback(
         else:
             # Track placeholder error
             stats.placeholder_errors += 1
-            _log_error(log_callback, "placeholder_mismatch", f"✗ Attempt {attempt + 1}/{max_retries}: Placeholder validation failed")
             stats.retry_attempts += 1
             # Continue to next retry attempt
 
@@ -488,7 +487,10 @@ async def translate_chunk_with_fallback(
         try:
             stats.token_alignment_used += 1  # Track Phase 2 usage
             if log_callback:
-                log_callback("phase2_start", "⚙️ Phase 2: Using token alignment fallback (proportional tag repositioning)...")
+                log_callback("phase2_warning",
+                    f"⚠️ Placeholder validation failed after {max_retries} attempts - using fallback")
+                log_callback("phase2_hint",
+                    "💡 Tip: A more capable LLM model may better preserve placeholders and avoid layout issues")
 
             # 1. Extract clean text (without placeholders)
             from src.common.placeholder_format import PlaceholderFormat
