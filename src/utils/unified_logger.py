@@ -189,9 +189,11 @@ class UnifiedLogger:
         if 'execution_time' in data:
             output.append(f"{Colors.GRAY}Execution time: {data['execution_time']:.2f} seconds{Colors.ENDC}")
 
-        # Full response
-        output.append(f"\n{Colors.GREEN}RAW RESPONSE:{Colors.ENDC}")
-        output.append(f"{Colors.GREEN}{data.get('response', '')}{Colors.ENDC}")
+        # Full response only in debug mode for console
+        # (UI always receives the full data via web_callback)
+        if self.min_level == LogLevel.DEBUG:
+            output.append(f"\n{Colors.GREEN}RAW RESPONSE:{Colors.ENDC}")
+            output.append(f"{Colors.GREEN}{data.get('response', '')}{Colors.ENDC}")
 
         return '\n'.join(output)
     
