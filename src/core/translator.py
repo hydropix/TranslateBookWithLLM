@@ -455,7 +455,7 @@ async def generate_translation_request(main_content, context_before, context_aft
 
 
 async def translate_chunks(chunks, source_language, target_language, model_name,
-                          api_endpoint, progress_callback=None, log_callback=None,
+                          api_endpoint, log_callback=None,
                           stats_callback=None, check_interruption_callback=None,
                           llm_provider="ollama", gemini_api_key=None, openai_api_key=None,
                           openrouter_api_key=None,
@@ -470,9 +470,7 @@ async def translate_chunks(chunks, source_language, target_language, model_name,
         source_language (str): Source language
         target_language (str): Target language
         model_name (str): LLM model name
-        api_endpoint (str): API endpoint
-        progress_callback (callable): Progress update callback
-        log_callback (callable): Logging callback
+        api_endpoint (str): API endpoint        log_callback (callable): Logging callback
         stats_callback (callable): Statistics update callback
         check_interruption_callback (callable): Interruption check callback
         context_window (int): Initial context window size (num_ctx) - will be adapted
@@ -613,9 +611,6 @@ async def translate_chunks(chunks, source_language, target_language, model_name,
                 break
 
             # Update progress (token-based)
-            if progress_callback:
-                progress_callback(progress_tracker.get_progress_percent())
-
             # Log progress summary periodically
             if log_callback and i > 0 and i % 5 == 0:
                 log_callback("", "info", {
@@ -866,7 +861,6 @@ async def refine_chunks(
     target_language: str,
     model_name: str,
     api_endpoint: str,
-    progress_callback=None,
     log_callback=None,
     stats_callback=None,
     check_interruption_callback=None,
@@ -891,9 +885,7 @@ async def refine_chunks(
         original_chunks: Original chunk dictionaries (for context structure)
         target_language: Target language name
         model_name: LLM model name
-        api_endpoint: API endpoint
-        progress_callback: Progress update callback
-        log_callback: Logging callback
+        api_endpoint: API endpoint        log_callback: Logging callback
         stats_callback: Statistics update callback
         check_interruption_callback: Interruption check callback
         llm_provider: LLM provider name
@@ -992,9 +984,6 @@ async def refine_chunks(
                 break
 
             # Progress update (token-based)
-            if progress_callback:
-                progress_callback(progress_tracker.get_progress_percent())
-
             # Measure refinement time for this chunk
             chunk_start_time = time.time()
 

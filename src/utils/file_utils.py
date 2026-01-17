@@ -63,7 +63,7 @@ async def translate_text_file_with_callbacks(input_filepath, output_filepath,
                                              source_language="English", target_language="Chinese",
                                              model_name=DEFAULT_MODEL,
                                              cli_api_endpoint=API_ENDPOINT,
-                                             progress_callback=None, log_callback=None, stats_callback=None,
+                                             log_callback=None, stats_callback=None,
                                              check_interruption_callback=None,
                                              llm_provider="ollama", gemini_api_key=None, openai_api_key=None,
                                              openrouter_api_key=None,
@@ -86,9 +86,7 @@ async def translate_text_file_with_callbacks(input_filepath, output_filepath,
         source_language (str): Source language
         target_language (str): Target language
         model_name (str): LLM model name
-        cli_api_endpoint (str): API endpoint
-        progress_callback (callable): Progress callback
-        log_callback (callable): Logging callback
+        cli_api_endpoint (str): API endpoint        log_callback (callable): Logging callback
         stats_callback (callable): Statistics callback
         check_interruption_callback (callable): Interruption check callback
         max_tokens_per_chunk (int): Maximum tokens per chunk
@@ -191,11 +189,9 @@ async def translate_text_file_with_callbacks(input_filepath, output_filepath,
                 log_callback("txt_empty_output_created", f"Empty output file '{output_filepath}' created.")
         except Exception as e:
             err_msg = f"ERROR: Saving empty file '{output_filepath}': {e}"
-            if log_callback: 
+            if log_callback:
                 log_callback("txt_empty_save_error", err_msg)
-        if progress_callback: 
-            progress_callback(100)
-        return
+            return
 
     if log_callback:
         log_callback("txt_translation_info_lang", f"Translating from {source_language} to {target_language}.")
@@ -222,9 +218,7 @@ async def translate_text_file_with_callbacks(input_filepath, output_filepath,
         source_language,
         target_language,
         model_name,
-        cli_api_endpoint,
-        progress_callback=progress_callback,
-        log_callback=log_callback,
+        cli_api_endpointlog_callback=log_callback,
         stats_callback=stats_callback,
         check_interruption_callback=check_interruption_callback,
         llm_provider=llm_provider,
@@ -255,7 +249,6 @@ async def translate_text_file_with_callbacks(input_filepath, output_filepath,
             target_language=target_language,
             model_name=model_name,
             api_endpoint=cli_api_endpoint,
-            progress_callback=progress_callback,
             log_callback=log_callback,
             stats_callback=stats_callback,
             check_interruption_callback=check_interruption_callback,
@@ -271,10 +264,6 @@ async def translate_text_file_with_callbacks(input_filepath, output_filepath,
     elif enable_refinement and was_interrupted:
         if log_callback:
             log_callback("refinement_skipped", "⏭️ Refinement pass skipped (translation was interrupted)")
-
-    if progress_callback:
-        progress_callback(100)
-
     # Add signature footer if enabled
     from src.config import ATTRIBUTION_ENABLED, GENERATOR_NAME, GENERATOR_SOURCE
 
@@ -305,7 +294,7 @@ async def translate_srt_file_with_callbacks(input_filepath, output_filepath,
                                            source_language="English", target_language="Chinese",
                                            model_name=DEFAULT_MODEL,
                                            cli_api_endpoint=API_ENDPOINT,
-                                           progress_callback=None, log_callback=None, stats_callback=None,
+                                           log_callback=None, stats_callback=None,
                                            check_interruption_callback=None,
                                            llm_provider="ollama", gemini_api_key=None, openai_api_key=None,
                                            openrouter_api_key=None,
@@ -325,9 +314,7 @@ async def translate_srt_file_with_callbacks(input_filepath, output_filepath,
         source_language (str): Source language
         target_language (str): Target language
         model_name (str): LLM model name
-        cli_api_endpoint (str): API endpoint
-        progress_callback (callable): Progress callback
-        log_callback (callable): Logging callback
+        cli_api_endpoint (str): API endpoint        log_callback (callable): Logging callback
         stats_callback (callable): Statistics callback
         check_interruption_callback (callable): Interruption check callback
         prompt_options (dict): Optional prompt customization options (not yet used for SRT)
@@ -459,9 +446,7 @@ async def translate_srt_file_with_callbacks(input_filepath, output_filepath,
         source_language,
         target_language,
         model_name,
-        cli_api_endpoint,
-        progress_callback=progress_callback,
-        log_callback=log_callback,
+        cli_api_endpointlog_callback=log_callback,
         stats_callback=stats_callback,
         check_interruption_callback=check_interruption_callback,
         llm_provider=llm_provider,
@@ -500,16 +485,12 @@ async def translate_srt_file_with_callbacks(input_filepath, output_filepath,
             log_callback("srt_save_error", err_msg)
         else:
             print(err_msg)
-    
-    if progress_callback:
-        progress_callback(100)
-
 
 async def translate_file(input_filepath, output_filepath,
                         source_language="English", target_language="Chinese",
                         model_name=DEFAULT_MODEL,
                         cli_api_endpoint=API_ENDPOINT,
-                        progress_callback=None, log_callback=None, stats_callback=None,
+                        log_callback=None, stats_callback=None,
                         check_interruption_callback=None,
                         llm_provider="ollama", gemini_api_key=None, openai_api_key=None,
                         openrouter_api_key=None,
@@ -529,9 +510,7 @@ async def translate_file(input_filepath, output_filepath,
         source_language (str): Source language
         target_language (str): Target language
         model_name (str): LLM model name
-        cli_api_endpoint (str): API endpoint
-        progress_callback (callable): Progress callback
-        log_callback (callable): Logging callback
+        cli_api_endpoint (str): API endpoint        log_callback (callable): Logging callback
         stats_callback (callable): Statistics callback
         check_interruption_callback (callable): Interruption check callback
         prompt_options (dict): Optional prompt customization options
@@ -553,8 +532,7 @@ async def translate_file(input_filepath, output_filepath,
         await translate_epub_file(input_filepath, output_filepath,
                                   source_language, target_language,
                                   model_name,
-                                  cli_api_endpoint,
-                                  progress_callback, log_callback, stats_callback,
+                                  cli_api_endpoint, log_callback, stats_callback,
                                   check_interruption_callback=check_interruption_callback,
                                   llm_provider=llm_provider,
                                   gemini_api_key=gemini_api_key,
@@ -566,8 +544,7 @@ async def translate_file(input_filepath, output_filepath,
             input_filepath, output_filepath,
             source_language, target_language,
             model_name,
-            cli_api_endpoint,
-            progress_callback, log_callback, stats_callback,
+            cli_api_endpoint, log_callback, stats_callback,
             check_interruption_callback=check_interruption_callback,
             llm_provider=llm_provider,
             gemini_api_key=gemini_api_key,
@@ -581,8 +558,7 @@ async def translate_file(input_filepath, output_filepath,
             input_filepath, output_filepath,
             source_language, target_language,
             model_name,
-            cli_api_endpoint,
-            progress_callback, log_callback, stats_callback,
+            cli_api_endpoint, log_callback, stats_callback,
             check_interruption_callback=check_interruption_callback,
             llm_provider=llm_provider,
             gemini_api_key=gemini_api_key,
@@ -694,7 +670,6 @@ async def generate_tts_for_translation(
     target_language: str,
     tts_config: 'TTSConfig',
     log_callback: Optional[Callable] = None,
-    progress_callback: Optional[Callable] = None
 ) -> Tuple[bool, str, Optional[str]]:
     """
     Generate TTS audio from a translated file.
@@ -707,8 +682,6 @@ async def generate_tts_for_translation(
         target_language: Target language (for voice selection)
         tts_config: TTS configuration object
         log_callback: Optional logging callback
-        progress_callback: Optional progress callback
-
     Returns:
         Tuple of (success: bool, message: str, audio_path: Optional[str])
     """
@@ -747,8 +720,7 @@ async def generate_tts_for_translation(
         def tts_progress(current, total, message):
             if log_callback:
                 log_callback("tts_progress", f"TTS: {message} ({current}/{total})")
-            if progress_callback:
-                # Pass all arguments to the callback
+            if progress_callback:  # Pass all arguments to the callback
                 progress_callback(current, total, message)
 
         # Generate audio

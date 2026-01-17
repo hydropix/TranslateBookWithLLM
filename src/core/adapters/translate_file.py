@@ -25,7 +25,6 @@ async def translate_file(
     llm_provider: str,
     checkpoint_manager: Any,
     translation_id: str,
-    progress_callback: Optional[Callable] = None,
     log_callback: Optional[Callable] = None,
     stats_callback: Optional[Callable] = None,
     check_interruption_callback: Optional[Callable] = None,
@@ -58,7 +57,6 @@ async def translate_file(
         llm_provider: LLM provider name (ollama, gemini, openai, openrouter)
         checkpoint_manager: CheckpointManager instance for resume capability
         translation_id: Unique identifier for this translation job
-        progress_callback: Optional callback for progress updates (receives percentage)
         log_callback: Optional callback for logging (receives type and message)
         stats_callback: Optional callback for statistics updates
         check_interruption_callback: Optional callback to check if translation should be interrupted
@@ -117,7 +115,6 @@ async def translate_file(
             target_language=target_language,
             model_name=model_name,
             cli_api_endpoint=llm_api_endpoint,
-            progress_callback=progress_callback,
             log_callback=log_callback,
             stats_callback=stats_callback,
             check_interruption_callback=check_interruption_callback,
@@ -163,7 +160,6 @@ async def translate_file(
             llm_client=llm_client,
             max_tokens_per_chunk=context_window or 450,
             log_callback=log_callback,
-            progress_callback=progress_callback,
             stats_callback=stats_callback,
             prompt_options=prompt_options,
             max_retries=1,
@@ -223,7 +219,6 @@ async def translate_file(
         target_language=target_language,
         model_name=model_name,
         llm_provider=llm_provider,
-        progress_callback=progress_callback,
         log_callback=log_callback,
         stats_callback=stats_callback,
         check_interruption_callback=check_interruption_callback,

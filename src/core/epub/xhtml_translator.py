@@ -673,7 +673,6 @@ async def _translate_all_chunks(
     context_manager: Optional[AdaptiveContextManager],
     placeholder_format: Tuple[str, str],
     log_callback: Optional[Callable] = None,
-    progress_callback: Optional[Callable] = None,
     stats_callback: Optional[Callable] = None
 ) -> Tuple[List[str], TranslationMetrics]:
     """Translate all chunks with fallback.
@@ -687,9 +686,7 @@ async def _translate_all_chunks(
         max_retries: Maximum retry attempts per chunk
         context_manager: Optional context window manager
         placeholder_format: Tuple of (prefix, suffix) for placeholders
-        log_callback: Optional callback for progress
-        progress_callback: Optional callback for progress percentage
-        stats_callback: Optional callback for stats updates
+        log_callback: Optional callback for progress        stats_callback: Optional callback for stats updates
 
     Returns:
         Tuple of (translated_chunks, statistics)
@@ -723,9 +720,6 @@ async def _translate_all_chunks(
         translated_chunks.append(translated)
 
         # Report progress after completing each chunk
-        if progress_callback:
-            progress_callback(((i + 1) / len(chunks)) * 100)
-
         # Report stats after completing each chunk
         if stats_callback:
             stats_callback(stats.to_dict())
@@ -854,23 +848,16 @@ def _replace_body(
 def _report_statistics(
     stats: TranslationMetrics,
     log_callback: Optional[Callable] = None,
-    progress_callback: Optional[Callable] = None
 ) -> None:
     """Report translation statistics.
 
     Args:
         stats: TranslationMetrics instance
-        log_callback: Optional callback for logging
-        progress_callback: Optional callback for progress percentage
-    """
+        log_callback: Optional callback for logging    """
     stats.log_summary(log_callback)
 
     if log_callback:
         log_callback("translation_complete", "Body translation complete")
-
-    if progress_callback:
-        progress_callback(100)
-
 
 async def _refine_epub_chunks(
     translated_chunks: List[str],
@@ -881,7 +868,6 @@ async def _refine_epub_chunks(
     context_manager: Optional[AdaptiveContextManager],
     placeholder_format: Tuple[str, str],
     log_callback: Optional[Callable],
-    progress_callback: Optional[Callable],
     prompt_options: Optional[Dict]
 ) -> List[str]:
     """
@@ -899,9 +885,7 @@ async def _refine_epub_chunks(
         llm_client: LLM client instance
         context_manager: Optional context manager
         placeholder_format: Placeholder format tuple (prefix, suffix)
-        log_callback: Optional logging callback
-        progress_callback: Optional progress callback
-        prompt_options: Prompt options dict
+        log_callback: Optional logging callback        prompt_options: Prompt options dict
 
     Returns:
         List of refined chunk texts
@@ -1013,9 +997,6 @@ async def _refine_epub_chunks(
             _log_error(log_callback, "epub_refinement_error", f"Chunk {idx + 1}/{total_chunks}: error during refinement: {e}")
 
         # Update progress
-        if progress_callback:
-            progress_callback(((idx + 1) / total_chunks) * 100)
-
     if log_callback:
         successful_refinements = sum(1 for orig, ref in zip(translated_chunks, refined_chunks) if orig != ref)
         log_callback("epub_refinement_complete",
@@ -1032,7 +1013,6 @@ async def translate_xhtml_simplified(
     llm_client: Any,
     max_tokens_per_chunk: Optional[int] = None,
     log_callback: Optional[Callable] = None,
-    progress_callback: Optional[Callable] = None,
     context_manager: Optional[AdaptiveContextManager] = None,
     max_retries: int = 1,
     container: Optional[TranslationContainer] = None,
@@ -1059,9 +1039,7 @@ async def translate_xhtml_simplified(
         model_name: LLM model name
         llm_client: LLM client
         max_tokens_per_chunk: Maximum tokens per chunk (defaults to MAX_TOKENS_PER_CHUNK from config/.env)
-        log_callback: Optional logging callback
-        progress_callback: Optional progress callback (0-100)
-        context_manager: Optional AdaptiveContextManager for handling context overflow
+        log_callback: Optional logging callback        context_manager: Optional AdaptiveContextManager for handling context overflow
         max_retries: Maximum translation retry attempts per chunk
         container: Optional dependency injection container for components
         prompt_options: Optional dict with prompt customization options (e.g., refine=True)
@@ -1130,8 +1108,7 @@ async def translate_xhtml_simplified(
         max_retries=max_retries,
         context_manager=context_manager,
         placeholder_format=placeholder_format,
-        log_callback=log_callback,
-        progress_callback=progress_callback  # Pass through to parent's token tracker
+        log_callback=log_callback  # Pass through to parent's token tracker
     )
 
     # 4.5. Refinement (optional)
@@ -1148,8 +1125,7 @@ async def translate_xhtml_simplified(
             llm_client=llm_client,
             context_manager=context_manager,
             placeholder_format=placeholder_format,
-            log_callback=log_callback,
-            progress_callback=progress_callback,  # Pass through to parent's token tracker
+            log_callback=log_callback,  # Pass through to parent's token tracker
             prompt_options=prompt_options
         )
 
@@ -1176,6 +1152,6 @@ async def translate_xhtml_simplified(
     xml_success = _replace_body(body_element, final_html, log_callback)
 
     # 7. Report stats
-    _report_statistics(stats, log_callback, progress_callback)
+    _report_statistics(stats, log_callback)
 
     return xml_success, stats

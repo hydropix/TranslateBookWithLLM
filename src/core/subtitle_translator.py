@@ -15,7 +15,7 @@ from .epub import TagPreserver
 
 async def translate_subtitles(subtitles: List[Dict[str, str]], source_language: str,
                             target_language: str, model_name: str, api_endpoint: str,
-                            progress_callback=None, log_callback=None,
+                            log_callback=None,
                             stats_callback=None, check_interruption_callback=None, custom_instructions="",
                             llm_provider="ollama", gemini_api_key=None, openai_api_key=None,
                             openrouter_api_key=None,
@@ -29,9 +29,7 @@ async def translate_subtitles(subtitles: List[Dict[str, str]], source_language: 
         source_language (str): Source language
         target_language (str): Target language
         model_name (str): LLM model name
-        api_endpoint (str): API endpoint
-        progress_callback (callable): Progress update callback
-        log_callback (callable): Logging callback
+        api_endpoint (str): API endpoint        log_callback (callable): Logging callback
         stats_callback (callable): Statistics update callback
         check_interruption_callback (callable): Interruption check callback
         
@@ -62,10 +60,7 @@ async def translate_subtitles(subtitles: List[Dict[str, str]], source_language: 
                 else:
                     tqdm.write(f"\nTranslation interrupted at subtitle {idx+1}/{total_subtitles}")
                 break
-            
-            if progress_callback and total_subtitles > 0:
-                progress_callback(((idx + 1) / total_subtitles) * 100)
-            
+
             text_to_translate = subtitle['text'].strip()
             
             if not text_to_translate:
@@ -136,7 +131,6 @@ async def translate_subtitles(subtitles: List[Dict[str, str]], source_language: 
                 model_name=model_name,
                 llm_client=llm_client,
                 log_callback=log_callback,
-                progress_callback=progress_callback,
                 prompt_options=prompt_options,
                 post_processing_instructions=post_processing_instructions
             )
@@ -162,7 +156,6 @@ async def _refine_subtitle_translations(
     model_name: str,
     llm_client,
     log_callback=None,
-    progress_callback=None,
     prompt_options=None,
     post_processing_instructions=""
 ) -> Dict[int, str]:
@@ -177,9 +170,7 @@ async def _refine_subtitle_translations(
         target_language: Target language
         model_name: LLM model name
         llm_client: LLM client instance
-        log_callback: Optional logging callback
-        progress_callback: Optional progress callback
-        prompt_options: Optional prompt options dict
+        log_callback: Optional logging callback        prompt_options: Optional prompt options dict
         post_processing_instructions: Additional refinement instructions
 
     Returns:
@@ -246,16 +237,13 @@ async def _refine_subtitle_translations(
                 log_callback("srt_refinement_error", f"Subtitle {idx + 1}: error during refinement: {e}")
 
         # Update progress
-        if progress_callback:
-            progress_callback(((i + 1) / total_subtitles) * 100)
-
     return refined_translations
 
 
 async def translate_subtitles_in_blocks(subtitle_blocks: List[List[Dict[str, str]]],
                                       source_language: str, target_language: str,
                                       model_name: str, api_endpoint: str,
-                                      progress_callback=None, log_callback=None,
+                                      log_callback=None,
                                       stats_callback=None, check_interruption_callback=None,
                                       custom_instructions="", llm_provider="ollama",
                                       gemini_api_key=None, openai_api_key=None,
@@ -273,9 +261,7 @@ async def translate_subtitles_in_blocks(subtitle_blocks: List[List[Dict[str, str
         source_language: Source language
         target_language: Target language
         model_name: LLM model name
-        api_endpoint: API endpoint
-        progress_callback: Progress update callback
-        log_callback: Logging callback
+        api_endpoint: API endpoint        log_callback: Logging callback
         stats_callback: Statistics update callback
         check_interruption_callback: Interruption check callback
         custom_instructions: Additional translation instructions
@@ -356,9 +342,6 @@ async def translate_subtitles_in_blocks(subtitle_blocks: List[List[Dict[str, str
                     checkpoint_manager.mark_paused(translation_id)
                 break
 
-            if progress_callback and total_blocks > 0:
-                progress_callback(((block_idx + 1) / total_blocks) * 100)
-            
             # Prepare subtitle blocks with indices
             subtitle_tuples = []
             block_indices = []  # Global indices (original)
@@ -624,7 +607,6 @@ async def translate_subtitles_in_blocks(subtitle_blocks: List[List[Dict[str, str
                 model_name=model_name,
                 llm_client=llm_client,
                 log_callback=log_callback,
-                progress_callback=progress_callback,
                 prompt_options=prompt_options,
                 post_processing_instructions=post_processing_instructions
             )

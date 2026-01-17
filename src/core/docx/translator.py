@@ -19,7 +19,6 @@ async def translate_docx_file(
     llm_client: Any,
     max_tokens_per_chunk: int = 450,
     log_callback: Optional[Callable] = None,
-    progress_callback: Optional[Callable] = None,
     stats_callback: Optional[Callable] = None,
     prompt_options: Optional[Dict] = None,
     max_retries: int = 1,
@@ -46,9 +45,7 @@ async def translate_docx_file(
         model_name: LLM model name
         llm_client: LLM client instance
         max_tokens_per_chunk: Max tokens per chunk
-        log_callback: Logging callback function
-        progress_callback: Progress callback function
-        stats_callback: Statistics callback function (called after each chunk)
+        log_callback: Logging callback function        stats_callback: Statistics callback function (called after each chunk)
         prompt_options: Prompt options (refinement, etc.)
         max_retries: Max translation retries
         context_manager: Adaptive context manager (optional)
@@ -70,7 +67,6 @@ async def translate_docx_file(
         llm_client=llm_client,
         max_tokens_per_chunk=max_tokens_per_chunk,
         log_callback=log_callback,
-        progress_callback=progress_callback,
         context_manager=context_manager,
         max_retries=max_retries,
         prompt_options=prompt_options,

@@ -162,7 +162,6 @@ class GenericTranslationOrchestrator(Generic[SourceT, ResultT]):
         llm_client: Any,
         max_tokens_per_chunk: int = 450,
         log_callback: Optional[Callable] = None,
-        progress_callback: Optional[Callable] = None,
         context_manager: Optional[Any] = None,
         max_retries: int = 1,
         prompt_options: Optional[Dict] = None,
@@ -178,9 +177,7 @@ class GenericTranslationOrchestrator(Generic[SourceT, ResultT]):
             model_name: Modèle LLM
             llm_client: Client LLM
             max_tokens_per_chunk: Tokens max par chunk
-            log_callback: Callback de logging
-            progress_callback: Callback de progression
-            context_manager: Gestionnaire de contexte adaptatif
+            log_callback: Callback de logging            context_manager: Gestionnaire de contexte adaptatif
             max_retries: Tentatives max de traduction
             prompt_options: Options de prompt (refinement, etc.)
             stats_callback: Callback pour mises à jour des statistiques en temps réel
@@ -239,7 +236,6 @@ class GenericTranslationOrchestrator(Generic[SourceT, ResultT]):
             context_manager=context_manager,
             placeholder_format=placeholder_format,
             log_callback=log_callback,
-            progress_callback=progress_callback,
             stats_callback=stats_callback
         )
 
@@ -260,7 +256,6 @@ class GenericTranslationOrchestrator(Generic[SourceT, ResultT]):
                 context_manager=context_manager,
                 placeholder_format=placeholder_format,
                 log_callback=log_callback,
-                progress_callback=progress_callback,
                 prompt_options=prompt_options
             )
             if refined_result:
@@ -282,7 +277,4 @@ class GenericTranslationOrchestrator(Generic[SourceT, ResultT]):
         # 8. Report stats
         if log_callback:
             stats.log_summary(log_callback)
-        if progress_callback:
-            progress_callback(100)
-
         return result, stats

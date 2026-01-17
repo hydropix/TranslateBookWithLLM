@@ -36,7 +36,6 @@ async def translate_epub_file(
     target_language: str = "Chinese",
     model_name: str = DEFAULT_MODEL,
     cli_api_endpoint: str = API_ENDPOINT,
-    progress_callback: Optional[Callable] = None,
     log_callback: Optional[Callable] = None,
     stats_callback: Optional[Callable] = None,
     check_interruption_callback: Optional[Callable] = None,
@@ -76,7 +75,6 @@ async def translate_epub_file(
         target_language: Target language
         model_name: LLM model name
         cli_api_endpoint: API endpoint
-        progress_callback: Progress callback (0-100)
         log_callback: Logging callback
         stats_callback: Statistics callback
         check_interruption_callback: Interruption check callback
@@ -178,7 +176,6 @@ async def translate_epub_file(
                 resume_from_index=resume_from_index,
                 checkpoint_manager=checkpoint_manager,
                 log_callback=log_callback,
-                progress_callback=progress_callback,
                 stats_callback=stats_callback,
                 check_interruption_callback=check_interruption_callback,
                 prompt_options=prompt_options,
@@ -202,9 +199,7 @@ async def translate_epub_file(
             _repackage_epub(
                 temp_dir=temp_dir,
                 output_filepath=output_filepath,
-                log_callback=log_callback,
-                progress_callback=progress_callback
-            )
+                log_callback=log_callback)
 
             # 7. Final summary
             if log_callback:
@@ -453,7 +448,6 @@ async def _translate_single_xhtml_file(
     max_attempts: int,
     context_manager: Optional[AdaptiveContextManager],
     log_callback: Optional[Callable],
-    progress_callback: Optional[Callable],
     prompt_options: Optional[Dict],
     stats_callback: Optional[Callable] = None
 ) -> Tuple[Optional[etree._Element], bool, Any]:
@@ -470,9 +464,7 @@ async def _translate_single_xhtml_file(
         max_tokens_per_chunk: Max tokens per chunk
         max_attempts: Max translation attempts
         context_manager: Optional context manager
-        log_callback: Logging callback
-        progress_callback: Progress callback
-        prompt_options: Prompt options
+        log_callback: Logging callback        prompt_options: Prompt options
 
     Returns:
         (doc_root, success, stats)
@@ -503,7 +495,6 @@ async def _translate_single_xhtml_file(
             llm_client=llm_client,
             max_tokens_per_chunk=max_tokens_per_chunk,
             log_callback=log_callback,
-            progress_callback=progress_callback,
             context_manager=context_manager,
             max_retries=max_attempts,
             prompt_options=prompt_options,
@@ -601,7 +592,6 @@ async def _process_all_content_files(
     resume_from_index: int = 0,
     checkpoint_manager=None,
     log_callback: Optional[Callable] = None,
-    progress_callback: Optional[Callable] = None,
     stats_callback: Optional[Callable] = None,
     check_interruption_callback: Optional[Callable] = None,
     prompt_options: Optional[Dict] = None,
@@ -624,9 +614,7 @@ async def _process_all_content_files(
         translation_id: Optional translation ID
         resume_from_index: Index to resume from
         checkpoint_manager: Optional checkpoint manager
-        log_callback: Optional logging callback
-        progress_callback: Optional progress callback
-        stats_callback: Optional stats callback
+        log_callback: Optional logging callback        stats_callback: Optional stats callback
         check_interruption_callback: Optional interruption check callback
         prompt_options: Optional prompt options
         restored_docs: Restored documents from checkpoint
@@ -685,27 +673,6 @@ async def _process_all_content_files(
             log_callback("epub_file_translate_start",
                          f"Translating file {file_idx + 1}/{total_files}: {content_href} ({chunks_in_this_file} chunks)")
 
-        # Create progress wrapper for this file
-        def create_progress_wrapper(chunks_before, chunks_in_file, total):
-            def wrapper(file_progress_percent: float):
-                """Convert file-level progress to global chunk-based progress"""
-                if total == 0 or chunks_in_file == 0:
-                    return
-
-                # Calculate global progress
-                chunks_completed_in_file = (file_progress_percent / 100.0) * chunks_in_file
-                global_chunks_completed = chunks_before + chunks_completed_in_file
-                global_progress = (global_chunks_completed / total) * 100.0
-
-                if progress_callback:
-                    progress_callback(min(global_progress, 100.0))
-
-            return wrapper
-
-        file_progress_wrapper = create_progress_wrapper(
-            completed_chunks_global, chunks_in_this_file, total_chunks
-        )
-
         # Create stats wrapper that reports global statistics
         def create_stats_wrapper(chunks_before):
             def wrapper(file_stats_dict: Dict):
@@ -737,7 +704,6 @@ async def _process_all_content_files(
             max_attempts=max_attempts,
             context_manager=context_manager,
             log_callback=log_callback,
-            progress_callback=file_progress_wrapper,
             prompt_options=prompt_options,
             stats_callback=file_stats_wrapper
         )
@@ -783,9 +749,6 @@ async def _process_all_content_files(
             )
 
     # Final progress
-    if progress_callback:
-        progress_callback(100)
-
     return {
         'parsed_docs': parsed_xhtml_docs,
         'completed_files': completed_files,
@@ -889,12 +852,8 @@ def _repackage_epub(
     temp_dir: str,
     output_filepath: str,
     log_callback: Optional[Callable] = None,
-    progress_callback: Optional[Callable] = None
 ) -> None:
     """Repackage the EPUB file."""
-    if progress_callback:
-        progress_callback(95)
-
     with zipfile.ZipFile(output_filepath, 'w', zipfile.ZIP_DEFLATED) as epub_zip:
         # Add mimetype first (uncompressed)
         mimetype_path = os.path.join(temp_dir, 'mimetype')
@@ -908,10 +867,6 @@ def _repackage_epub(
                     file_path_abs = os.path.join(root_path, file_item)
                     arcname = os.path.relpath(file_path_abs, temp_dir)
                     epub_zip.write(file_path_abs, arcname)
-
-    if progress_callback:
-        progress_callback(100)
-
 
 def _update_epub_metadata(
     opf_tree: etree._ElementTree,

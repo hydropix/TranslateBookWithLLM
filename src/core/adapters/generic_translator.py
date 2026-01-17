@@ -55,7 +55,6 @@ class GenericTranslator:
         target_language: str,
         model_name: str,
         llm_provider: str,
-        progress_callback: Optional[Callable] = None,
         log_callback: Optional[Callable] = None,
         stats_callback: Optional[Callable] = None,
         check_interruption_callback: Optional[Callable] = None,
@@ -70,7 +69,6 @@ class GenericTranslator:
             target_language: Target language name
             model_name: LLM model identifier
             llm_provider: LLM provider name (ollama, gemini, openai, openrouter)
-            progress_callback: Optional callback for progress updates (receives percentage)
             log_callback: Optional callback for logging (receives type and message)
             stats_callback: Optional callback for statistics updates (receives dict with total_chunks, completed_chunks, failed_chunks)
             check_interruption_callback: Optional callback to check if translation should be interrupted
@@ -184,11 +182,6 @@ class GenericTranslator:
                     # Mark as paused/interrupted
                     self.checkpoint_manager.mark_paused(self.translation_id)
                     return False
-
-                # Update progress
-                if progress_callback:
-                    progress_percentage = (i / total_units) * 100
-                    progress_callback(progress_percentage)
 
                 if log_callback:
                     log_callback("unit_start",
