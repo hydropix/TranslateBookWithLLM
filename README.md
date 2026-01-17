@@ -2,7 +2,13 @@
 
 Translate books, subtitles, and documents using AI - locally or in the cloud.
 
-Formats: **EPUB**, **SRT**, **TXT** 
+**No size limit.** Process documents of any length - from a single page to thousand-page novels. The intelligent chunking system handles unlimited content while preserving context between segments.
+
+**Perfect preservation.** Your documents come out exactly as they went in: EPUB formatting, styles, and structure remain intact. SRT timecodes stay perfectly synchronized. Every tag, every timestamp, every formatting detail is preserved.
+
+**Resume anytime.** Interrupted translation? Pick up exactly where you left off. The checkpoint system saves progress automatically.
+
+Formats: **EPUB**, **SRT**, **TXT**
 
 Providers: **Ollama** (local), **OpenRouter**, **OpenAI** (compatible like LM Studio), **Gemini**
 
