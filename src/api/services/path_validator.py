@@ -1,6 +1,7 @@
 """
 Path validation utilities for secure file operations
 """
+import os
 from typing import Tuple
 
 
@@ -23,9 +24,23 @@ class PathValidator:
         if not filename:
             return False, "Filename cannot be empty"
 
-        # Prevent directory traversal
-        if '..' in filename or filename.startswith('/') or filename.startswith('\\'):
+        # Prevent directory traversal - check for path separators with '..'
+        # This allows '...' or '....' but blocks '../' or '..\' patterns
+        if filename.startswith('/') or filename.startswith('\\'):
+            return False, "Invalid filename: absolute path not allowed"
+
+        # Check for directory traversal patterns
+        # Block: ../ or ..\ (with separators)
+        if '/../' in filename or '\\..\\' in filename or '/..' in filename or '\\..' in filename:
             return False, "Invalid filename: directory traversal not allowed"
+
+        # Also check if the normalized filename contains path separators
+        # This catches cases like "foo/../bar" or "foo/bar"
+        if os.path.sep in filename or ('/' in filename or '\\' in filename):
+            # Exception: allow if it's just the filename itself (no actual traversal)
+            # Use os.path.basename to check if it's a pure filename
+            if os.path.basename(filename) != filename:
+                return False, "Invalid filename: path separators not allowed"
 
         # Check filename length
         if len(filename) > PathValidator.MAX_FILENAME_LENGTH:

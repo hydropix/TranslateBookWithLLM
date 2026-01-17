@@ -4,7 +4,7 @@ Centralized file type detection
 import os
 from typing import Literal
 
-FileType = Literal["txt", "epub", "srt"]
+FileType = Literal["txt", "epub", "srt", "docx"]
 
 
 def detect_file_type(file_path: str) -> FileType:
@@ -28,8 +28,10 @@ def detect_file_type(file_path: str) -> FileType:
         return "epub"
     elif ext == '.srt':
         return "srt"
+    elif ext == '.docx':
+        return "docx"
     else:
-        raise ValueError(f"Unsupported file type: {ext}. Supported types: .txt, .epub, .srt")
+        raise ValueError(f"Unsupported file type: {ext}. Supported types: .txt, .epub, .srt, .docx")
 
 
 def generate_output_filename(input_path: str, target_language: str) -> str:

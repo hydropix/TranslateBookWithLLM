@@ -212,8 +212,8 @@ async def _make_llm_request_with_adaptive_context(
                         tqdm.write(f"\n📐 Context: {client.context_window} → {new_ctx}")
                 client.context_window = new_ctx
 
-            llm_response = await client.make_request(
-                prompt_pair.user, model, system_prompt=prompt_pair.system
+            llm_response = await client.generate(
+                prompt_pair.user, system_prompt=prompt_pair.system
             )
             execution_time = time.time() - start_time
 

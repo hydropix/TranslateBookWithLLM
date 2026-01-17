@@ -311,87 +311,92 @@ class OllamaProvider(LLMProvider):
                 async with client.stream("POST", self.api_endpoint, json=payload, timeout=timeout) as response:
                     response.raise_for_status()
 
-                    async for line in response.aiter_lines():
-                        if not line.strip():
-                            continue
+                    try:
+                        async for line in response.aiter_lines():
+                            if not line.strip():
+                                continue
 
-                        try:
-                            chunk_data = json.loads(line)
-                        except json.JSONDecodeError:
-                            continue
+                            try:
+                                chunk_data = json.loads(line)
+                            except json.JSONDecodeError:
+                                continue
 
-                        # Get prompt tokens from first chunk (Ollama sends this once)
-                        if chunk_data.get("prompt_eval_count"):
-                            prompt_tokens = chunk_data["prompt_eval_count"]
-                            # Recalculate max completion tokens based on actual prompt size
-                            max_completion_tokens = int((self.context_window - prompt_tokens) * 0.90)
+                            # Get prompt tokens from first chunk (Ollama sends this once)
+                            if chunk_data.get("prompt_eval_count"):
+                                prompt_tokens = chunk_data["prompt_eval_count"]
+                                # Recalculate max completion tokens based on actual prompt size
+                                max_completion_tokens = int((self.context_window - prompt_tokens) * 0.90)
 
-                        # Accumulate content
-                        message = chunk_data.get("message", {})
-                        if message.get("content"):
-                            content_chunks.append(message["content"])
-                        if message.get("thinking"):
-                            thinking_chunks.append(message["thinking"])
+                            # Accumulate content
+                            message = chunk_data.get("message", {})
+                            if message.get("content"):
+                                content_chunks.append(message["content"])
+                            if message.get("thinking"):
+                                thinking_chunks.append(message["thinking"])
 
-                        # Update completion token count
-                        if chunk_data.get("eval_count"):
-                            completion_tokens = chunk_data["eval_count"]
+                            # Update completion token count
+                            if chunk_data.get("eval_count"):
+                                completion_tokens = chunk_data["eval_count"]
 
-                        # Check for context overflow during streaming
-                        # This catches the case where Ollama keeps generating past the limit
-                        current_completion_len = len("".join(content_chunks)) + len("".join(thinking_chunks))
+                            # Check for context overflow during streaming
+                            # This catches the case where Ollama keeps generating past the limit
+                            current_completion_len = len("".join(content_chunks)) + len("".join(thinking_chunks))
 
-                        # Heuristic: ~4 chars per token on average
-                        estimated_tokens = current_completion_len // 3
+                            # Heuristic: ~4 chars per token on average
+                            estimated_tokens = current_completion_len // 3
 
-                        if estimated_tokens > max_completion_tokens:
-                            exceeded_context = True
-                            if self.log_callback:
-                                RED = '\033[91m'
-                                RESET = '\033[0m'
-                                print(f"\n{RED}[STREAM ABORT] Estimated {estimated_tokens} tokens exceeds "
-                                      f"safe limit {max_completion_tokens} (context: {self.context_window}){RESET}")
-                            break
-
-                        # Also check for repetition in real-time during streaming
-                        current_content = "".join(content_chunks)
-                        current_thinking = "".join(thinking_chunks)
-
-                        # Only check periodically (every ~500 chars) to avoid overhead
-                        # Use streaming thresholds (slightly more sensitive for early detection)
-                        if len(current_content) > 500 and len(current_content) % 500 < 50:
-                            if detect_repetition_loop(
-                                current_content,
-                                min_repetitions=REPETITION_MIN_COUNT_STREAMING,
-                                is_thinking_content=False
-                            ):
+                            if estimated_tokens > max_completion_tokens:
                                 exceeded_context = True
                                 if self.log_callback:
                                     RED = '\033[91m'
                                     RESET = '\033[0m'
-                                    print(f"\n{RED}[STREAM ABORT] Repetition loop detected in content{RESET}")
+                                    print(f"\n{RED}[STREAM ABORT] Estimated {estimated_tokens} tokens exceeds "
+                                          f"safe limit {max_completion_tokens} (context: {self.context_window}){RESET}")
                                 break
 
-                        # For thinking content, use more lenient detection
-                        if len(current_thinking) > 800 and len(current_thinking) % 500 < 50:
-                            if detect_repetition_loop(
-                                current_thinking,
-                                min_repetitions=REPETITION_MIN_COUNT_STREAMING,
-                                is_thinking_content=True
-                            ):
-                                exceeded_context = True
-                                if self.log_callback:
-                                    RED = '\033[91m'
-                                    RESET = '\033[0m'
-                                    print(f"\n{RED}[STREAM ABORT] Repetition loop detected in thinking{RESET}")
-                                break
+                            # Also check for repetition in real-time during streaming
+                            current_content = "".join(content_chunks)
+                            current_thinking = "".join(thinking_chunks)
 
-                        # Check if stream is done
-                        if chunk_data.get("done"):
-                            # Get final token counts
-                            prompt_tokens = chunk_data.get("prompt_eval_count", prompt_tokens)
-                            completion_tokens = chunk_data.get("eval_count", completion_tokens)
-                            break
+                            # Only check periodically (every ~500 chars) to avoid overhead
+                            # Use streaming thresholds (slightly more sensitive for early detection)
+                            if len(current_content) > 500 and len(current_content) % 500 < 50:
+                                if detect_repetition_loop(
+                                    current_content,
+                                    min_repetitions=REPETITION_MIN_COUNT_STREAMING,
+                                    is_thinking_content=False
+                                ):
+                                    exceeded_context = True
+                                    if self.log_callback:
+                                        RED = '\033[91m'
+                                        RESET = '\033[0m'
+                                        print(f"\n{RED}[STREAM ABORT] Repetition loop detected in content{RESET}")
+                                    break
+
+                            # For thinking content, use more lenient detection
+                            if len(current_thinking) > 800 and len(current_thinking) % 500 < 50:
+                                if detect_repetition_loop(
+                                    current_thinking,
+                                    min_repetitions=REPETITION_MIN_COUNT_STREAMING,
+                                    is_thinking_content=True
+                                ):
+                                    exceeded_context = True
+                                    if self.log_callback:
+                                        RED = '\033[91m'
+                                        RESET = '\033[0m'
+                                        print(f"\n{RED}[STREAM ABORT] Repetition loop detected in thinking{RESET}")
+                                    break
+
+                            # Check if stream is done
+                            if chunk_data.get("done"):
+                                # Get final token counts
+                                prompt_tokens = chunk_data.get("prompt_eval_count", prompt_tokens)
+                                completion_tokens = chunk_data.get("eval_count", completion_tokens)
+                                break
+                    finally:
+                        # Ensure the stream is properly closed and all data is consumed
+                        # This prevents "Task was destroyed but it is pending" errors
+                        await response.aclose()
 
                 # If we exceeded context, raise error for retry with larger context
                 if exceeded_context:

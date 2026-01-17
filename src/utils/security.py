@@ -35,7 +35,7 @@ class SecureFileHandler:
     """Secure file upload and validation handler"""
     
     # Allowed file extensions
-    ALLOWED_EXTENSIONS: Set[str] = {'.txt', '.epub', '.srt'}
+    ALLOWED_EXTENSIONS: Set[str] = {'.txt', '.epub', '.srt', '.docx'}
     
     # Allowed MIME types
     ALLOWED_MIME_TYPES: Set[str] = {
@@ -44,6 +44,7 @@ class SecureFileHandler:
         'application/zip',  # Some EPUB files are detected as zip
         'application/x-subrip',  # SRT files
         'text/srt',  # Alternative MIME type for SRT
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',  # DOCX files
     }
     
     # Maximum file size (100MB)
@@ -230,6 +231,8 @@ class SecureFileHandler:
                 return self._validate_epub_file(file_path)
             elif file_ext == '.srt':
                 return self._validate_srt_file(file_path)
+            elif file_ext == '.docx':
+                return self._validate_docx_file(file_path)
             else:
                 return FileValidationResult(
                     is_valid=False,
@@ -407,11 +410,69 @@ class SecureFileHandler:
                 )
             
             return FileValidationResult(is_valid=True, warnings=warnings)
-            
+
         except Exception as e:
             return FileValidationResult(
                 is_valid=False,
                 error_message=f"SRT file validation failed: {str(e)}"
+            )
+
+    def _validate_docx_file(self, file_path: Path) -> FileValidationResult:
+        """Validate DOCX file structure"""
+        warnings = []
+
+        try:
+            import zipfile
+
+            # Check if it's a valid ZIP file (DOCX is a ZIP archive)
+            if not zipfile.is_zipfile(file_path):
+                return FileValidationResult(
+                    is_valid=False,
+                    error_message="DOCX file is not a valid ZIP archive"
+                )
+
+            # Basic DOCX structure validation
+            with zipfile.ZipFile(file_path, 'r') as docx_zip:
+                file_list = docx_zip.namelist()
+
+                # Check for required DOCX files
+                has_content_types = '[Content_Types].xml' in file_list
+                has_rels = any(f.startswith('_rels/') for f in file_list)
+                has_word = any(f.startswith('word/') for f in file_list)
+
+                if not has_content_types:
+                    warnings.append("Missing [Content_Types].xml file")
+                if not has_rels:
+                    warnings.append("Missing _rels directory")
+                if not has_word:
+                    return FileValidationResult(
+                        is_valid=False,
+                        error_message="Invalid DOCX: missing word/ directory"
+                    )
+
+                # Check for potential zip bombs (too many files)
+                if len(file_list) > 10000:
+                    return FileValidationResult(
+                        is_valid=False,
+                        error_message="DOCX contains too many files (potential zip bomb)"
+                    )
+
+                # Check for suspicious file extensions in DOCX
+                suspicious_exts = {'.exe', '.bat', '.cmd', '.scr', '.com', '.pif', '.jar'}
+                for file_name in file_list:
+                    file_ext = Path(file_name).suffix.lower()
+                    if file_ext in suspicious_exts:
+                        return FileValidationResult(
+                            is_valid=False,
+                            error_message=f"DOCX contains suspicious file: {file_name}"
+                        )
+
+            return FileValidationResult(is_valid=True, warnings=warnings)
+
+        except Exception as e:
+            return FileValidationResult(
+                is_valid=False,
+                error_message=f"DOCX validation failed: {str(e)}"
             )
 
     def _cleanup_temp_file(self, temp_path: Path) -> None:

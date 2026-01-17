@@ -137,6 +137,40 @@ async def translate_file(
         )
         return True  # Legacy function doesn't return success status
 
+    # DOCX translation using EPUB pipeline (Phase 1 implementation)
+    # Similar to EPUB, DOCX requires HTML chunking, tag preservation, etc.
+    # This reuses the EPUB pipeline for rapid deployment
+    if ext == '.docx':
+        from src.core.docx.translator import translate_docx_file
+        from src.core.llm import create_llm_provider
+
+        # Create LLM client
+        llm_client = create_llm_provider(
+            provider_type=llm_provider,
+            endpoint=llm_api_endpoint,
+            model=model_name,
+            gemini_api_key=gemini_api_key,
+            openai_api_key=openai_api_key,
+            openrouter_api_key=openrouter_api_key
+        )
+
+        result = await translate_docx_file(
+            input_filepath=input_filepath,
+            output_filepath=output_filepath,
+            source_language=source_language,
+            target_language=target_language,
+            model_name=model_name,
+            llm_client=llm_client,
+            max_tokens_per_chunk=context_window or 450,
+            log_callback=log_callback,
+            progress_callback=progress_callback,
+            stats_callback=stats_callback,
+            prompt_options=prompt_options,
+            max_retries=1,
+            context_manager=None
+        )
+        return result['success']
+
     # Map file extensions to adapters
     adapter_map = {
         '.txt': TxtAdapter,
@@ -146,7 +180,7 @@ async def translate_file(
 
     adapter_class = adapter_map.get(ext)
     if not adapter_class:
-        supported = ', '.join(['.txt', '.srt', '.epub'])  # Include .epub in supported formats
+        supported = ', '.join(['.txt', '.srt', '.epub', '.docx'])  # Include .epub and .docx in supported formats
         raise UnsupportedFormatError(
             f"Unsupported file format: {ext}. Supported formats: {supported}"
         )
@@ -214,6 +248,7 @@ def get_file_type_from_path(filepath: str) -> str:
         '.txt': 'txt',
         '.srt': 'srt',
         '.epub': 'epub',
+        '.docx': 'docx',
     }
 
     return type_map.get(ext, 'unknown')
@@ -266,6 +301,7 @@ async def build_translated_output(
         'txt': TxtAdapter,
         'srt': SrtAdapter,
         'epub': EpubAdapter,
+        # Note: docx doesn't support checkpoint reconstruction yet
     }
 
     adapter_class = adapter_map.get(file_type)

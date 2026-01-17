@@ -65,7 +65,7 @@ class TranslationMetrics:
             attempt: Attempt number (0 = first try)
             chunk_size: Size of chunk in tokens
         """
-        self.total_chunks += 1
+        # Note: total_chunks is initialized in _translate_all_chunks, not incremented here
 
         if attempt == 0:
             self.successful_first_try += 1
@@ -84,7 +84,7 @@ class TranslationMetrics:
         Args:
             chunk_size: Size of chunk in tokens
         """
-        self.total_chunks += 1
+        # Note: total_chunks is initialized in _translate_all_chunks, not incremented here
         self.fallback_used += 1
         self._update_chunk_stats(chunk_size)
 
@@ -94,7 +94,7 @@ class TranslationMetrics:
         Args:
             chunk_size: Size of chunk in tokens
         """
-        self.total_chunks += 1
+        # Note: total_chunks is initialized in _translate_all_chunks, not incremented here
         self.failed_chunks += 1
         self._update_chunk_stats(chunk_size)
 
@@ -142,6 +142,7 @@ class TranslationMetrics:
         """Convert metrics to dictionary for serialization."""
         return {
             "total_chunks": self.total_chunks,
+            "completed_chunks": self.successful_first_try + self.successful_after_retry,
             "successful_first_try": self.successful_first_try,
             "successful_after_retry": self.successful_after_retry,
             "fallback_used": self.fallback_used,

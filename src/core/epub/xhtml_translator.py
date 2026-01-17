@@ -419,7 +419,8 @@ async def translate_chunk_with_fallback(
     Returns:
         Translated text with global placeholders restored
     """
-    stats.total_chunks += 1
+    # Note: total_chunks is initialized in _translate_all_chunks before the loop
+    # We don't increment it here to avoid overwriting the initial count
 
     # Initialize placeholder manager
     placeholder_mgr = PlaceholderManager()
@@ -672,7 +673,8 @@ async def _translate_all_chunks(
     context_manager: Optional[AdaptiveContextManager],
     placeholder_format: Tuple[str, str],
     log_callback: Optional[Callable] = None,
-    progress_callback: Optional[Callable] = None
+    progress_callback: Optional[Callable] = None,
+    stats_callback: Optional[Callable] = None
 ) -> Tuple[List[str], TranslationMetrics]:
     """Translate all chunks with fallback.
 
@@ -687,12 +689,21 @@ async def _translate_all_chunks(
         placeholder_format: Tuple of (prefix, suffix) for placeholders
         log_callback: Optional callback for progress
         progress_callback: Optional callback for progress percentage
+        stats_callback: Optional callback for stats updates
 
     Returns:
         Tuple of (translated_chunks, statistics)
     """
     stats = TranslationMetrics()
     translated_chunks = []
+
+    # Initialize total_chunks at the start (not incrementally during processing)
+    # This ensures stats_callback can report the total immediately
+    stats.total_chunks = len(chunks)
+
+    # Report initial stats with total_chunks set
+    if stats_callback:
+        stats_callback(stats.to_dict())
 
     for i, chunk in enumerate(chunks):
         translated = await translate_chunk_with_fallback(
@@ -714,6 +725,10 @@ async def _translate_all_chunks(
         # Report progress after completing each chunk
         if progress_callback:
             progress_callback(((i + 1) / len(chunks)) * 100)
+
+        # Report stats after completing each chunk
+        if stats_callback:
+            stats_callback(stats.to_dict())
 
     return translated_chunks, stats
 
