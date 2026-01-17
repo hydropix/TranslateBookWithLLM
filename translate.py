@@ -74,8 +74,8 @@ if __name__ == "__main__":
     # Validate API keys for providers
     if args.provider == "gemini" and not args.gemini_api_key:
         parser.error("--gemini_api_key is required when using gemini provider")
-    if args.provider == "openai" and not args.openai_api_key:
-        parser.error("--openai_api_key is required when using openai provider")
+    # Note: OpenAI API key is optional for local servers (llama.cpp, LM Studio, vLLM, etc.)
+    # Only required for OpenAI cloud API
     if args.provider == "openrouter" and not args.openrouter_api_key:
         parser.error("--openrouter_api_key is required when using openrouter provider")
 
