@@ -196,8 +196,9 @@ export const TranslationTracker = {
                         MessageLogger.addLog(`🔄 Syncing state: translation ${serverState.status} on server`);
                         this.resetUIToIdle();
                     } else if (serverState.status === 'running' || serverState.status === 'queued') {
-                        if (serverState.progress !== undefined) {
-                            this.updateProgress(serverState.progress);
+                        // Calculate progress from stats if available
+                        if (serverState.stats) {
+                            this.updateStats(currentJob.fileRef.fileType, serverState.stats);
                         }
                     }
                 } catch (error) {
@@ -329,11 +330,15 @@ export const TranslationTracker = {
                     DomHelpers.show('progressSection');
                     this.updateTranslationTitle(matchingFile);
 
-                    if (job.progress !== undefined) {
-                        this.updateProgress(job.progress);
-                    } else if (job.total_chunks > 0) {
-                        const progress = (job.completed_chunks / job.total_chunks) * 100;
-                        this.updateProgress(progress);
+                    // Calculate progress from stats (job contains total_chunks, completed_chunks, etc.)
+                    if (job.total_chunks > 0) {
+                        const stats = {
+                            total_chunks: job.total_chunks,
+                            completed_chunks: job.completed_chunks || 0,
+                            failed_chunks: job.failed_chunks || 0,
+                            elapsed_time: job.elapsed_time
+                        };
+                        this.updateStats(matchingFile.fileType, stats);
                     }
 
                     if (job.last_translation) {
@@ -400,10 +405,8 @@ export const TranslationTracker = {
             MessageLogger.addLog(`[${currentFile.name}] ${data.log}`);
         }
 
-        if (data.progress !== undefined) {
-            this.updateProgress(data.progress);
-        }
-
+        // Progress is now calculated from stats in ProgressManager.update()
+        // No need to call updateProgress() separately
         if (data.stats) {
             this.updateStats(currentFile.fileType, data.stats);
         }
@@ -605,7 +608,8 @@ export const TranslationTracker = {
      * @param {Object} stats - Statistics object
      */
     updateStats(fileType, stats) {
-        ProgressManager.updateStats(fileType, stats);
+        // Use ProgressManager.update() which calculates progress from stats
+        ProgressManager.update({ stats: stats }, fileType);
         this.updateOpenRouterCost(stats);
     },
 

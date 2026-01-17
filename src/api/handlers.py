@@ -125,13 +125,6 @@ async def perform_actual_translation(translation_id, config, state_manager, outp
             else:
                 logger.info(message_content)
 
-    def _update_translation_progress_callback(progress_percent):
-        if state_manager.exists(translation_id):
-            if not state_manager.get_translation_field(translation_id, 'interrupted'):
-                state_manager.set_translation_field(translation_id, 'progress', progress_percent)
-            progress = state_manager.get_translation_field(translation_id, 'progress')
-            emit_update(socketio, translation_id, {'progress': progress}, state_manager)
-
     def _update_translation_stats_callback(new_stats_dict):
         if state_manager.exists(translation_id):
             state_manager.update_stats(translation_id, new_stats_dict)
@@ -230,7 +223,6 @@ async def perform_actual_translation(translation_id, config, state_manager, outp
             llm_provider=config.get('llm_provider', 'ollama'),
             checkpoint_manager=checkpoint_manager,
             translation_id=translation_id,
-            progress_callback=_update_translation_progress_callback,
             log_callback=_log_message_callback,
             stats_callback=_update_translation_stats_callback,
             check_interruption_callback=should_interrupt_current_task,
@@ -273,7 +265,6 @@ async def perform_actual_translation(translation_id, config, state_manager, outp
             state_manager.set_translation_field(translation_id, 'status', 'interrupted')
             _log_message_callback("summary_interrupted", f"🛑 Translation interrupted - partial result saved ({elapsed_time:.2f}s)")
             final_status_payload['status'] = 'interrupted'
-            final_status_payload['progress'] = state_manager.get_translation_field(translation_id, 'progress') or 0
 
             # Mark checkpoint as interrupted in database
             checkpoint_manager.mark_interrupted(translation_id)
@@ -339,8 +330,6 @@ async def perform_actual_translation(translation_id, config, state_manager, outp
             _log_message_callback("summary_completed", f"✅ Translation completed in {elapsed_time:.2f}s{stats_summary}")
 
             final_status_payload['status'] = 'completed'
-            _update_translation_progress_callback(100)
-            final_status_payload['progress'] = 100
 
             # Cleanup completed job checkpoint (automatic immediate cleanup)
             checkpoint_manager.cleanup_completed_job(translation_id)
@@ -369,7 +358,6 @@ async def perform_actual_translation(translation_id, config, state_manager, outp
             _log_message_callback("summary_error_final", f"❌ Translation finished with errors ({elapsed_time:.2f}s)")
             final_status_payload['status'] = 'error'
             final_status_payload['error'] = state_manager.get_translation_field(translation_id, 'error') or 'Unknown error during finalization.'
-            final_status_payload['progress'] = state_manager.get_translation_field(translation_id, 'progress') or 0
 
         # Stats are now included in the consolidated completion message above
 
@@ -417,10 +405,9 @@ async def perform_actual_translation(translation_id, config, state_manager, outp
             state_manager.set_translation_field(translation_id, 'error', critical_error_msg)
             
             emit_update(socketio, translation_id, {
-                'error': critical_error_msg, 
+                'error': critical_error_msg,
                 'status': 'error',
-                'result': state_manager.get_translation_field(translation_id, 'result') or f"Translation failed: {critical_error_msg}",
-                'progress': state_manager.get_translation_field(translation_id, 'progress') or 0
+                'result': state_manager.get_translation_field(translation_id, 'result') or f"Translation failed: {critical_error_msg}"
             }, state_manager)
 
 

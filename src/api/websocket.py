@@ -35,8 +35,7 @@ def emit_update(socketio, translation_id, data_to_emit, state_manager):
             if 'stats' not in data_to_emit and 'stats' in translation_data:
                 data_to_emit['stats'] = translation_data['stats']
 
-            if 'progress' not in data_to_emit and 'progress' in translation_data:
-                data_to_emit['progress'] = translation_data['progress']
+            # Progress is now calculated client-side from stats, no longer sent from backend
 
             # Store last translation for UI restoration after browser refresh
             log_entry = data_to_emit.get('log_entry')

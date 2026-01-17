@@ -162,18 +162,29 @@ export const ProgressManager = {
     /**
      * Update progress and statistics together
      * @param {Object} data - Update data from server
-     * @param {number} data.progress - Progress percentage
      * @param {Object} data.stats - Statistics object
      * @param {string} fileType - File type ('txt', 'epub', 'srt')
      */
     update(data, fileType) {
-        if (data.progress !== undefined) {
-            updateProgressBar(data.progress);
-        }
-
+        // Calculate progress from stats (client-side calculation)
         if (data.stats) {
+            const completed = fileType === 'srt'
+                ? (data.stats.completed_subtitles || 0)
+                : (data.stats.completed_chunks || 0);
+            const total = fileType === 'srt'
+                ? (data.stats.total_subtitles || 0)
+                : (data.stats.total_chunks || 0);
+
+            // Calculate progress percentage
+            const progress = total > 0 ? (completed / total) * 100 : 0;
+            updateProgressBar(progress);
+
+            // Update statistics display
             updateStatistics(data.stats, fileType);
         }
+
+        // Backward compatibility: ignore data.progress if present
+        // (The calculation above takes precedence)
     },
 
     /**
