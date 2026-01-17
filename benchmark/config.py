@@ -46,7 +46,7 @@ DEFAULT_QUICK_LANGUAGES = [
 ]
 
 # Default evaluator model
-DEFAULT_EVALUATOR_MODEL = "anthropic/claude-haiku-4.5"
+DEFAULT_EVALUATOR_MODEL = "google/gemini-3-flash-preview"
 
 # Score thresholds for visual indicators
 SCORE_THRESHOLDS = {

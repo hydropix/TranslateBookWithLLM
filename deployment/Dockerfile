@@ -1,4 +1,4 @@
-FROM python:3.9-slim
+FROM python:3.11-slim
 
 WORKDIR /app
 
@@ -11,11 +11,15 @@ RUN apt-get update && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
-COPY ../requirements.txt .
-
+# Copy requirements and install dependencies
+COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY . .
+# Copy application files
+COPY src/ /app/src/
+COPY prompts/ /app/prompts/
+COPY translation_api.py /app/
+COPY translate.py /app/
 
 # Create necessary directories
 RUN mkdir -p /app/translated_files /app/logs /app/data/uploads

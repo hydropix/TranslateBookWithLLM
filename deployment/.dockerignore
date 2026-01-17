@@ -9,31 +9,63 @@ __pycache__/
 *.egg-info/
 dist/
 build/
+venv/
+env/
+.venv/
 
 # Environment
 .env
 .env.*
 !.env.example
+!.env.docker.example
 
 # IDE
 .idea/
 .vscode/
 *.swp
 *.swo
+*.sublime-*
 
 # Project specific
 translated_files/
 DoNotCommit/
+logs/
+data/
+*.log
 
 # Git
 .git/
 .gitignore
+.gitattributes
 
 # Testing
 .pytest_cache/
 .coverage
 htmlcov/
+tests/
+*.spec
+
+# Documentation
+*.md
+!README.md
+docs/
 
 # OS
 .DS_Store
 Thumbs.db
+desktop.ini
+
+# Deployment files (no need to copy these into the image)
+deployment/
+Dockerfile
+docker-compose.yml
+.dockerignore
+
+# Build artifacts
+*.exe
+*.msi
+build/
+dist/
+
+# Plans (as per CLAUDE.md instructions)
+plan/

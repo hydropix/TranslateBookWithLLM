@@ -8,8 +8,16 @@ This script tests the EPUBCoverExtractor module by:
 1. Extracting cover from the provided EPUB file
 2. Saving thumbnail to data/thumbnails/
 3. Displaying result information
+
+NOTE: This is a standalone script, not a pytest test.
+      Run it directly with an EPUB file path as argument.
 """
 import sys
+
+# Skip this file when running pytest
+if 'pytest' in sys.modules:
+    import pytest
+    pytest.skip("Standalone script, not a pytest test", allow_module_level=True)
 from pathlib import Path
 
 # Add project root to path

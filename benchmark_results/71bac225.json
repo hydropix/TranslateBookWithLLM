@@ -1,0 +1,1649 @@
+{
+  "run_id": "71bac225",
+  "started_at": "2026-01-16T22:47:57.359608",
+  "completed_at": "2026-01-16T22:54:08.594060",
+  "models": [
+    "google/gemini-2.0-flash-001"
+  ],
+  "languages": [
+    "fr",
+    "de",
+    "es",
+    "it",
+    "pt",
+    "pl",
+    "zh-Hans",
+    "zh-Hant",
+    "ja",
+    "ko",
+    "vi",
+    "th",
+    "hi",
+    "bn",
+    "ta",
+    "ru",
+    "uk",
+    "ar",
+    "he"
+  ],
+  "evaluator_model": "anthropic/claude-haiku-4.5",
+  "results": [
+    {
+      "source_text_id": "pride_prejudice",
+      "target_language": "fr",
+      "model": "google/gemini-2.0-flash-001",
+      "translated_text": "C'est une vérité universellement reconnue qu'un célibataire fortuné doit être en quête d'une épouse. Si peu que soient connus les sentiments ou les opinions d'un tel homme à son arrivée dans une nouvelle contrée, cette vérité est si bien ancrée dans l'esprit des familles des environs qu'il est aussitôt considéré comme la propriété légitime de l'une ou l'autre de leurs filles.",
+      "scores": {
+        "accuracy": 9.0,
+        "fluency": 9.0,
+        "style": 9.0,
+        "overall": 9.0,
+        "feedback": "The translation faithfully preserves Austen's ironic meaning and formal tone, with excellent lexical choices ('universellement reconnue,' 'propriété légitime') that capture the original's satirical voice. Minor stylistic variations ('nouvelle contrée' vs. 'neighbourhood') are natural adaptations that maintain fluency without compromising the source's wit."
+      },
+      "translation_time_ms": 1586,
+      "evaluation_time_ms": 2788,
+      "timestamp": "2026-01-16T22:47:58.947314",
+      "error": null
+    },
+    {
+      "source_text_id": "dorian_gray",
+      "target_language": "fr",
+      "model": "google/gemini-2.0-flash-001",
+      "translated_text": "Le studio embaumait la rose, et quand la légère brise d’été agitait les arbres du jardin, le lourd parfum du lilas, ou l’arôme plus délicat de l’épine rose, pénétrait par la porte ouverte. Du coin du divan de sacs de selle persans sur lequel il était allongé, fumant, comme à son habitude, d’innombrables cigarettes, Lord Henry Wotton pouvait juste apercevoir la lueur des fleurs d’un cytise, douces comme le miel et couleur de miel.",
+      "scores": {
+        "accuracy": 8.0,
+        "fluency": 8.0,
+        "style": 7.0,
+        "overall": 8.0,
+        "feedback": "The translation preserves the sensory richness and aesthetic focus of Wilde's prose with strong vocabulary choices like 'embaumait' and 'arôme.' Minor accuracy issues include 'embaumait la rose' (perfumed with rose) being slightly less precise than 'filled with the rich odour of roses,' and 'cytise' for laburnum is botanically correct but less evocative than the original's poetic description. The flowing, luxurious tone is well-maintained overall."
+      },
+      "translation_time_ms": 1215,
+      "evaluation_time_ms": 1785,
+      "timestamp": "2026-01-16T22:48:02.952601",
+      "error": null
+    },
+    {
+      "source_text_id": "study_scarlet",
+      "target_language": "fr",
+      "model": "google/gemini-2.0-flash-001",
+      "translated_text": "« Vous avez été en Afghanistan, je crois. » « Comment diable savez-vous cela ? » demandai-je, stupéfait. « N'y faites pas attention, » dit-il, en riant sous cape. « La question qui nous occupe maintenant est celle de l'hémoglobine. Vous saisissez sans doute toute l'importance de ma découverte ? » « C'est intéressant, chimiquement, sans aucun doute, » répondis-je, « mais pratiquement… » « Mais enfin, mon cher, c'est la découverte médico-légale la plus importante de ces dernières années. Ne voyez-vous pas que cela nous donne un test infaillible pour les taches de sang ? »",
+      "scores": {
+        "accuracy": 9.0,
+        "fluency": 9.0,
+        "style": 8.0,
+        "overall": 9.0,
+        "feedback": "The translation faithfully preserves the meaning and dialogue flow with excellent naturalness in French. Minor stylistic considerations: 'en riant sous cape' captures the tone well, though 'chuckling to himself' could also be 'riant tout seul'; 'mon cher' adds a touch of formality that slightly shifts Holmes's character voice compared to the original's more clinical tone."
+      },
+      "translation_time_ms": 1309,
+      "evaluation_time_ms": 1665,
+      "timestamp": "2026-01-16T22:48:06.048110",
+      "error": null
+    },
+    {
+      "source_text_id": "walden",
+      "target_language": "fr",
+      "model": "google/gemini-2.0-flash-001",
+      "translated_text": "Je suis allé au bois parce que je désirais vivre délibérément, n’affronter que les faits essentiels de la vie et voir si je ne pouvais apprendre ce qu’elle avait à enseigner, et non pas, quand viendrait ma mort, découvrir que je n’avais pas vécu. Je ne voulais pas vivre ce qui n’était pas la vie, tant la vie est précieuse ; je ne voulais pas non plus pratiquer la résignation, à moins que ce ne soit tout à fait nécessaire. Je voulais vivre intensément et sucer toute la moelle de la vie.",
+      "scores": {
+        "accuracy": 9.0,
+        "fluency": 8.0,
+        "style": 8.0,
+        "overall": 8.0,
+        "feedback": "The translation faithfully preserves Thoreau's meaning and philosophical intent with only minor deviations (e.g., 'vivre intensément' for 'live deep' is slightly interpretive). The French flows naturally despite some slightly formal constructions, and the contemplative, declarative style is well-maintained, though the rhythmic intensity of the original is marginally diminished."
+      },
+      "translation_time_ms": 1782,
+      "evaluation_time_ms": 2443,
+      "timestamp": "2026-01-16T22:48:09.496599",
+      "error": null
+    },
+    {
+      "source_text_id": "moby_dick",
+      "target_language": "fr",
+      "model": "google/gemini-2.0-flash-001",
+      "translated_text": "Appelez-moi Ismaël. Il y a quelques années — peu importe la date exacte — me trouvant avec peu ou point d'argent en poche, et rien de particulier qui pût m'intéresser à terre, je pensai que j'allais naviguer un peu, et voir la partie liquide du globe. C'est une manie que j'ai, celle de chasser le spleen et de régulariser ma circulation. Aussitôt que je sens ma bouche prendre un pli amer ; aussitôt que je sens un novembre humide et bruineux s'installer dans mon âme, j'estime qu'il est grand temps de prendre la mer au plus vite.",
+      "scores": {
+        "accuracy": 8.0,
+        "fluency": 8.0,
+        "style": 8.0,
+        "overall": 8.0,
+        "feedback": "The translation faithfully preserves Melville's meaning and philosophical tone, with excellent choices like 'spleen' (maintaining the original term) and 'novembre humide et bruineux' capturing the atmospheric quality. Minor deviations include 'manie' (habit/quirk) being slightly less nuanced than 'way,' and 'partie liquide' being more literal than poetic, but overall the archaic literary style and introspective voice are well maintained in French."
+      },
+      "translation_time_ms": 1281,
+      "evaluation_time_ms": 2802,
+      "timestamp": "2026-01-16T22:48:13.222596",
+      "error": null
+    },
+    {
+      "source_text_id": "pride_prejudice",
+      "target_language": "de",
+      "model": "google/gemini-2.0-flash-001",
+      "translated_text": "Es ist eine allgemein anerkannte Wahrheit, dass ein Junggeselle im Besitz eines ansehnlichen Vermögens unbedingt eine Frau braucht. Wie wenig auch immer die Gefühle oder Ansichten eines solchen Mannes bei seinem ersten Auftreten in einer Nachbarschaft bekannt sein mögen, diese Wahrheit ist so fest in den Köpfen der umliegenden Familien verankert, dass er als rechtmäßiges Eigentum der einen oder anderen ihrer Töchter betrachtet wird.",
+      "scores": {
+        "accuracy": 9.0,
+        "fluency": 8.0,
+        "style": 8.0,
+        "overall": 8.0,
+        "feedback": "The translation accurately preserves Austen's meaning and ironic tone, with excellent handling of the opening's famous paradox. Minor fluency issues like 'unbedingt eine Frau braucht' (must need a wife) slightly softens the original's sharper 'must be in want of,' and the phrasing occasionally feels slightly more formal than the English original, but overall it captures the satirical voice and narrative style effectively."
+      },
+      "translation_time_ms": 938,
+      "evaluation_time_ms": 2963,
+      "timestamp": "2026-01-16T22:48:16.963986",
+      "error": null
+    },
+    {
+      "source_text_id": "dorian_gray",
+      "target_language": "de",
+      "model": "google/gemini-2.0-flash-001",
+      "translated_text": "Das Atelier war erfüllt vom üppigen Duft der Rosen, und wenn der leichte Sommerwind in den Bäumen des Gartens spielte, wehte durch die offene Tür der schwere Duft des Flieders oder das zartere Parfüm des rosablühenden Weißdorns. Aus der Ecke des Diwans mit persischen Satteltaschen, auf dem er lag und wie gewöhnlich unzählige Zigaretten rauchte, konnte Lord Henry Wotton gerade noch das Schimmern der honigsüßen und honigfarbenen Blüten eines Goldregens erkennen.",
+      "scores": {
+        "accuracy": 9.0,
+        "fluency": 8.0,
+        "style": 8.0,
+        "overall": 8.0,
+        "feedback": "The translation preserves the sensory richness and aesthetic focus of Wilde's prose with excellent accuracy, capturing the layered descriptions of scents and visual imagery. Minor fluency issues arise from the slightly awkward construction of the final clause and the compound adjectives, which read more mechanically than Wilde's flowing original, though the overall style and tone remain well-maintained."
+      },
+      "translation_time_ms": 1291,
+      "evaluation_time_ms": 2703,
+      "timestamp": "2026-01-16T22:48:21.219612",
+      "error": null
+    },
+    {
+      "source_text_id": "study_scarlet",
+      "target_language": "de",
+      "model": "google/gemini-2.0-flash-001",
+      "translated_text": "„Sie waren also in Afghanistan, wie ich feststelle.“ „Wie um alles in der Welt wissen Sie das?“, fragte ich erstaunt. „Nur keine Umstände“, sagte er und kicherte vor sich hin. „Die Frage ist nun: Hämoglobin. Sie erkennen zweifellos die Bedeutung meiner Entdeckung?“ „Es ist chemisch zweifellos interessant“, antwortete ich, „aber praktisch …“ „Mein lieber Mann, es ist die praktischste gerichtsmedizinische Entdeckung seit Jahren. Sehen Sie denn nicht, dass sie uns einen unfehlbaren Test für Blutflecken liefert?“",
+      "scores": {
+        "accuracy": 8.0,
+        "fluency": 8.0,
+        "style": 7.0,
+        "overall": 8.0,
+        "feedback": "The translation accurately conveys the meaning and maintains the Victorian-era dialogue well, with natural German phrasing. Minor deviations include 'Nur keine Umstände' (a slightly different idiom than 'Never mind') and 'Mein lieber Mann' adding formality not present in the original 'Why, man,' which slightly shifts tone."
+      },
+      "translation_time_ms": 2063,
+      "evaluation_time_ms": 2141,
+      "timestamp": "2026-01-16T22:48:25.987429",
+      "error": null
+    },
+    {
+      "source_text_id": "walden",
+      "target_language": "de",
+      "model": "google/gemini-2.0-flash-001",
+      "translated_text": "Ich ging in die Wälder, weil ich bewusst leben wollte, um mich nur den wesentlichen Tatsachen des Lebens zu stellen und zu sehen, ob ich nicht lernen konnte, was es zu lehren hatte, und nicht, wenn ich sterben würde, entdecken müsste, dass ich nicht gelebt hatte. Ich wollte nicht das leben, was nicht Leben war, denn Leben ist so kostbar; noch wollte ich mich in Resignation üben, es sei denn, es war unbedingt notwendig. Ich wollte tief leben und all das Mark des Lebens aussaugen.",
+      "scores": {
+        "accuracy": 8.0,
+        "fluency": 7.0,
+        "style": 8.0,
+        "overall": 8.0,
+        "feedback": "The translation preserves Thoreau's meaning and philosophical intent very well, with accurate rendering of key concepts like 'deliberately' (bewusst), 'essential facts' (wesentlichen Tatsachen), and the vivid 'suck out all the marrow' (all das Mark aussaugen). Minor fluency issues include slightly awkward phrasing in 'um mich nur den wesentlichen Tatsachen zu stellen' and the somewhat stiff construction of the conditional clause, which slightly diminishes the natural flow compared to the origina"
+      },
+      "translation_time_ms": 1247,
+      "evaluation_time_ms": 2374,
+      "timestamp": "2026-01-16T22:48:29.376874",
+      "error": null
+    },
+    {
+      "source_text_id": "moby_dick",
+      "target_language": "de",
+      "model": "google/gemini-2.0-flash-001",
+      "translated_text": "Nennt mich Ismael. Vor einiger Zeit – wie lange genau, spielt keine Rolle – da ich wenig oder gar kein Geld im Portemonnaie hatte und mich an Land nichts sonderlich fesselte, beschloss ich, ein wenig zur See zu fahren und den wässrigen Teil der Welt kennenzulernen. Es ist eine Art von mir, Trübsinn zu vertreiben und den Kreislauf in Schwung zu bringen. Immer wenn ich merke, dass ich grimmig um den Mund werde, immer wenn es ein feuchter, nieseliger November in meiner Seele ist, halte ich es für höchste Zeit, so bald wie möglich aufs Meer zu kommen.",
+      "scores": {
+        "accuracy": 8.0,
+        "fluency": 7.0,
+        "style": 7.0,
+        "overall": 7.0,
+        "feedback": "The translation preserves the meaning well and captures most of Melville's philosophical tone, though 'Nennt mich' (imperative plural) slightly shifts the intimate directness of 'Call me,' and some archaic flavor is lost in modernized phrasing like 'Portemonnaie' and 'Kreislauf.' The poetic metaphors remain largely intact but read somewhat more straightforward than the original's lyrical quality."
+      },
+      "translation_time_ms": 1147,
+      "evaluation_time_ms": 1768,
+      "timestamp": "2026-01-16T22:48:32.899116",
+      "error": null
+    },
+    {
+      "source_text_id": "pride_prejudice",
+      "target_language": "es",
+      "model": "google/gemini-2.0-flash-001",
+      "translated_text": "Es una verdad universalmente reconocida que un hombre soltero, poseedor de una gran fortuna, necesita una esposa. Por poco que se conozcan los sentimientos u opiniones de un hombre así al entrar por primera vez en una vecindad, esta verdad está tan bien arraigada en la mente de las familias circundantes, que se le considera la legítima propiedad de alguna u otra de sus hijas.",
+      "scores": {
+        "accuracy": 9.0,
+        "fluency": 8.0,
+        "style": 8.0,
+        "overall": 8.0,
+        "feedback": "The translation preserves the meaning and ironic tone effectively, with accurate rendering of Austen's social commentary. Minor fluency issues include 'necesita una esposa' (needs a wife) being slightly less elegant than the original's 'must be in want of,' and 'vecindad' feeling less precise than 'neighbourhood' in this context, though these are minor deviations from an otherwise strong translation."
+      },
+      "translation_time_ms": 1493,
+      "evaluation_time_ms": 2527,
+      "timestamp": "2026-01-16T22:48:36.162358",
+      "error": null
+    },
+    {
+      "source_text_id": "dorian_gray",
+      "target_language": "es",
+      "model": "google/gemini-2.0-flash-001",
+      "translated_text": "El estudio estaba lleno del intenso aroma de las rosas, y cuando la ligera brisa estival se agitaba entre los árboles del jardín, a través de la puerta abierta llegaba el perfume denso de las lilas, o la fragancia más delicada del espino de flores rosadas. Desde la esquina del diván de alforjas persas sobre el que yacía, fumando, como era su costumbre, innumerables cigarrillos, Lord Henry Wotton alcanzaba a ver el brillo de las flores color miel y dulces como la miel de un laburno.",
+      "scores": {
+        "accuracy": 8.0,
+        "fluency": 8.0,
+        "style": 7.0,
+        "overall": 8.0,
+        "feedback": "The translation accurately preserves most meanings and sensory details, with natural Spanish phrasing throughout. However, 'flores color miel y dulces como la miel' slightly awkwardly renders 'honey-sweet and honey-coloured,' and the poetic compression of Wilde's aesthetic language could be more refined to fully capture the original's languid elegance."
+      },
+      "translation_time_ms": 1530,
+      "evaluation_time_ms": 1949,
+      "timestamp": "2026-01-16T22:48:40.220824",
+      "error": null
+    },
+    {
+      "source_text_id": "study_scarlet",
+      "target_language": "es",
+      "model": "google/gemini-2.0-flash-001",
+      "translated_text": "—Veo que ha estado usted en Afganistán.\n—¿Cómo demonios lo ha sabido? —le pregunté asombrado.\n—No importa —dijo, riendo entre dientes—. La cuestión ahora es sobre la hemoglobina. ¿Sin duda ve la importancia de este descubrimiento mío?\n—Es interesante, químicamente, sin duda —respondí—, pero prácticamente…\n—¡Hombre, es el descubrimiento médico-legal más práctico en años! ¿No ve que nos da una prueba infalible para las manchas de sangre?",
+      "scores": {
+        "accuracy": 9.0,
+        "fluency": 8.0,
+        "style": 8.0,
+        "overall": 8.0,
+        "feedback": "The translation accurately preserves the meaning and dialogue flow of the original, with excellent handling of Holmes's deductive manner and Watson's astonishment. Minor fluency issues include slightly awkward phrasing in 'la importancia de este descubrimiento mío' (more naturally 'la importancia de mi descubrimiento') and the exclamation '¡Hombre!' which, while idiomatic, slightly shifts the original's tone compared to 'Why, man.'"
+      },
+      "translation_time_ms": 1049,
+      "evaluation_time_ms": 2149,
+      "timestamp": "2026-01-16T22:48:43.221258",
+      "error": null
+    },
+    {
+      "source_text_id": "walden",
+      "target_language": "es",
+      "model": "google/gemini-2.0-flash-001",
+      "translated_text": "Me fui al bosque porque deseaba vivir deliberadamente, para encarar solo los hechos esenciales de la vida y ver si no podía aprender lo que tenía que enseñar, y no, cuando llegara la hora de morir, descubrir que no había vivido. No quería vivir lo que no era vida, la vida es tan preciada; ni tampoco quería practicar la resignación, a menos que fuera absolutamente necesario. Quería vivir profundamente y extraer toda la médula de la vida.",
+      "scores": {
+        "accuracy": 9.0,
+        "fluency": 8.0,
+        "style": 8.0,
+        "overall": 8.0,
+        "feedback": "The translation preserves Thoreau's meaning with excellent fidelity, capturing his philosophical intent and the paradoxical structure of his arguments. Minor fluency issues arise from slightly awkward constructions like 'lo que tenía que enseñar' and 'la vida es tan preciada' which, while accurate, read less naturally than the original's flowing cadence."
+      },
+      "translation_time_ms": 1397,
+      "evaluation_time_ms": 1648,
+      "timestamp": "2026-01-16T22:48:46.768833",
+      "error": null
+    },
+    {
+      "source_text_id": "moby_dick",
+      "target_language": "es",
+      "model": "google/gemini-2.0-flash-001",
+      "translated_text": "Llamadme Ismael. Hace algunos años —no importa cuánto exactamente—, con poco o ningún dinero en el bolsillo y nada en particular que me interesara en tierra firme, pensé que me haría a la mar un poco y vería la parte acuática del mundo. Es una forma que tengo de alejar el spleen y regular la circulación. Cuando me noto con el gesto sombrío; cuando es un noviembre húmedo y lloviznoso en mi alma, considero que ya es hora de hacerme a la mar lo antes posible.",
+      "scores": {
+        "accuracy": 8.0,
+        "fluency": 8.0,
+        "style": 7.0,
+        "overall": 8.0,
+        "feedback": "The translation preserves meaning accurately with faithful rendering of key phrases and the philosophical tone. However, 'spleen' remains untranslated (should be 'melancolía' or 'bilis negra'), and some archaic formality is slightly diminished—'Llamadme' is correct but 'considero que ya es hora' feels slightly more modern than Melville's deliberate archaism."
+      },
+      "translation_time_ms": 1049,
+      "evaluation_time_ms": 1724,
+      "timestamp": "2026-01-16T22:48:49.467292",
+      "error": null
+    },
+    {
+      "source_text_id": "pride_prejudice",
+      "target_language": "it",
+      "model": "google/gemini-2.0-flash-001",
+      "translated_text": "È verità universalmente riconosciuta che un uomo solo, in possesso di un’ingente fortuna, debba essere in cerca di moglie. Per quanto poco si conoscano i sentimenti o le idee di un tale uomo al suo primo ingresso in un quartiere, questa verità è talmente radicata nella mente delle famiglie circostanti, che egli viene considerato come la legittima proprietà di una o dell’altra delle loro figlie.",
+      "scores": {
+        "accuracy": 9.0,
+        "fluency": 8.0,
+        "style": 9.0,
+        "overall": 9.0,
+        "feedback": "The translation faithfully preserves Austen's meaning and ironic tone, with excellent rendering of the famous opening line. Minor fluency issue: 'di un tale uomo' is slightly formal compared to the original's directness, but overall maintains the satirical voice and period-appropriate language effectively."
+      },
+      "translation_time_ms": 1560,
+      "evaluation_time_ms": 2547,
+      "timestamp": "2026-01-16T22:48:52.752688",
+      "error": null
+    },
+    {
+      "source_text_id": "dorian_gray",
+      "target_language": "it",
+      "model": "google/gemini-2.0-flash-001",
+      "translated_text": "Lo studio era pervaso dal ricco profumo delle rose e, quando la leggera brezza estiva si agitava tra gli alberi del giardino, dalla porta aperta giungeva l'intenso odore del lillà o il profumo più delicato del biancospino dai fiori rosa. Dall'angolo del divano di sacchi da sella persiani su cui era disteso, fumando, come era sua abitudine, innumerevoli sigarette, Lord Henry Wotton poteva scorgere appena il luccichio dei fiori color miele e dolci come il miele di un maggiociondolo.",
+      "scores": {
+        "accuracy": 8.0,
+        "fluency": 8.0,
+        "style": 8.0,
+        "overall": 8.0,
+        "feedback": "The translation faithfully preserves Wilde's sensory-rich aesthetic language with strong equivalents like 'ricco profumo' and 'luccichio,' maintaining the layered descriptions of scents and visual imagery. Minor fluency issues arise from the lengthy construction of 'sacchi da sella persiani' and the somewhat awkward 'dolci come il miele' repetition, which slightly disrupts the elegant flow of the original prose."
+      },
+      "translation_time_ms": 1344,
+      "evaluation_time_ms": 1639,
+      "timestamp": "2026-01-16T22:48:56.644566",
+      "error": null
+    },
+    {
+      "source_text_id": "study_scarlet",
+      "target_language": "it",
+      "model": "google/gemini-2.0-flash-001",
+      "translated_text": "«Lei è stato in Afghanistan, mi pare di capire». «Diavolo, come fa a saperlo?» domandai sbalordito. «Non importa» disse, ridacchiando tra sé. «La questione ora riguarda l'emoglobina. Senza dubbio ne comprende la portata di questa mia scoperta, vero?» «È interessante, dal punto di vista chimico, senza dubbio» risposi, «ma praticamente…» «Ma come, è la scoperta medico-legale più pratica da anni! Non capisce che ci fornisce un test infallibile per le macchie di sangue?»",
+      "scores": {
+        "accuracy": 8.0,
+        "fluency": 8.0,
+        "style": 7.0,
+        "overall": 8.0,
+        "feedback": "The translation accurately conveys the meaning and captures Holmes's deductive brilliance and Watson's astonishment. Minor stylistic choices like 'Diavolo' for 'How on earth' and slight variations in tone preservation prevent a perfect score, but the dialogue flows naturally in Italian with appropriate period language."
+      },
+      "translation_time_ms": 1846,
+      "evaluation_time_ms": 2223,
+      "timestamp": "2026-01-16T22:49:00.130813",
+      "error": null
+    },
+    {
+      "source_text_id": "walden",
+      "target_language": "it",
+      "model": "google/gemini-2.0-flash-001",
+      "translated_text": "Andai nei boschi perché desideravo vivere con consapevolezza, affrontare solo i fatti essenziali della vita e vedere se non potessi imparare ciò che aveva da insegnare, e non scoprire, in punto di morte, di non aver vissuto. Non volevo vivere ciò che non era vita, tanto è cara la vita; né volevo praticare la rassegnazione, a meno che non fosse strettamente necessario. Volevo vivere in profondità e succhiare tutto il midollo della vita.",
+      "scores": {
+        "accuracy": 9.0,
+        "fluency": 8.0,
+        "style": 8.0,
+        "overall": 8.0,
+        "feedback": "The translation faithfully preserves Thoreau's meaning and philosophical intent, with excellent rendering of key concepts like 'deliberately' (con consapevolezza) and the vivid metaphor 'suck out all the marrow' (succhiare tutto il midollo). Minor fluency issues include slightly awkward phrasing in 'affrontare solo i fatti essenziali' and the inversion 'tanto è cara la vita' which, while poetic, reads less naturally than the original's parallel structure."
+      },
+      "translation_time_ms": 1696,
+      "evaluation_time_ms": 2280,
+      "timestamp": "2026-01-16T22:49:04.052069",
+      "error": null
+    },
+    {
+      "source_text_id": "moby_dick",
+      "target_language": "it",
+      "model": "google/gemini-2.0-flash-001",
+      "translated_text": "Chiamatemi Ismaele. Alcuni anni fa – non importa quanti di preciso – avendo poche o nessuna risorsa nel mio borsellino, e niente di particolare che mi interessasse a terra, pensai che mi sarei imbarcato per un po’ per vedere la parte acquatica del mondo. È un modo che ho per scacciare la malinconia e regolarizzare la circolazione. Ogni volta che mi accorgo di assumere un’espressione severa; ogni volta che sento un novembre umido e piovigginoso nell’anima, ritengo che sia giunto il momento di andare per mare il prima possibile.",
+      "scores": {
+        "accuracy": 8.0,
+        "fluency": 7.0,
+        "style": 7.0,
+        "overall": 7.0,
+        "feedback": "The translation preserves meaning well with mostly accurate renderings, though 'borsellino' (small purse) is slightly diminutive compared to 'purse,' and 'piovigginoso' is somewhat awkward for 'drizzly.' The archaic literary tone is partially maintained but lacks the rhythmic elegance and introspective gravity of Melville's original prose."
+      },
+      "translation_time_ms": 2068,
+      "evaluation_time_ms": 1699,
+      "timestamp": "2026-01-16T22:49:08.402218",
+      "error": null
+    },
+    {
+      "source_text_id": "pride_prejudice",
+      "target_language": "pt",
+      "model": "google/gemini-2.0-flash-001",
+      "translated_text": "É uma verdade universalmente reconhecida que um homem solteiro, possuidor de uma boa fortuna, deve estar à procura de uma esposa. Por pouco que se conheçam os sentimentos ou as opiniões de tal homem ao entrar pela primeira vez numa vizinhança, essa verdade está tão bem fixada na mente das famílias das redondezas que ele é considerado como propriedade legítima de uma ou outra de suas filhas.",
+      "scores": {
+        "accuracy": 9.0,
+        "fluency": 8.0,
+        "style": 8.0,
+        "overall": 8.0,
+        "feedback": "The translation preserves the meaning and ironic tone of Austen's opening with excellent fidelity, though 'propriedade legítima' is slightly more literal than the original's subtle irony. The prose flows naturally in Portuguese with only minor stylistic adjustments needed for complete authenticity."
+      },
+      "translation_time_ms": 1367,
+      "evaluation_time_ms": 2122,
+      "timestamp": "2026-01-16T22:49:11.469754",
+      "error": null
+    },
+    {
+      "source_text_id": "dorian_gray",
+      "target_language": "pt",
+      "model": "google/gemini-2.0-flash-001",
+      "translated_text": "O estúdio estava impregnado com o odor intenso das rosas e, quando a leve brisa de verão agitava as árvores do jardim, entrava pela porta aberta o perfume denso do lilás, ou o aroma mais delicado do espinheiro-alvar de flores rosadas. Do canto do divã de sacos de sela persas, onde repousava, fumando, como era seu costume, inúmeros cigarros, Lord Henry Wotton conseguia divisar o brilho das flores doceis como mel e da cor do mel de um laburno.",
+      "scores": {
+        "accuracy": 8.0,
+        "fluency": 7.0,
+        "style": 7.0,
+        "overall": 7.0,
+        "feedback": "The translation captures the sensory richness and aesthetic focus of the original with good accuracy, though 'flores doceis como mel' (flowers gentle as honey) is an awkward rendering of 'honey-sweet and honey-coloured blossoms.' The prose reads competently but lacks the fluid elegance of Wilde's original English, with some phrasing feeling slightly stiff or over-literal."
+      },
+      "translation_time_ms": 1258,
+      "evaluation_time_ms": 1560,
+      "timestamp": "2026-01-16T22:49:14.851527",
+      "error": null
+    },
+    {
+      "source_text_id": "study_scarlet",
+      "target_language": "pt",
+      "model": "google/gemini-2.0-flash-001",
+      "translated_text": "\"Estiveste no Afeganistão, creio.\" \"Como é que adivinhaste?\", perguntei, estupefacto. \"Não importa,\" disse ele, rindo para consigo próprio. \"A questão agora é sobre a hemoglobina. Sem dúvida que vês a importância desta minha descoberta, não?\" \"É interessante, quimicamente, sem dúvida,\" respondi eu, \"mas praticamente...\" \"Ora, meu caro, é a descoberta médico-legal mais prática dos últimos anos. Não vês que nos dá um teste infalível para manchas de sangue?\"",
+      "scores": {
+        "accuracy": 8.0,
+        "fluency": 8.0,
+        "style": 7.0,
+        "overall": 8.0,
+        "feedback": "The translation accurately conveys the meaning and dialogue flow of the original text with only minor deviations. The Portuguese reads naturally and maintains the Victorian-era tone, though 'meu caro' is slightly less formal than the original 'man' and some of the crisp directness of Sherlock's character is marginally softened."
+      },
+      "translation_time_ms": 1728,
+      "evaluation_time_ms": 1666,
+      "timestamp": "2026-01-16T22:49:18.140673",
+      "error": null
+    },
+    {
+      "source_text_id": "walden",
+      "target_language": "pt",
+      "model": "google/gemini-2.0-flash-001",
+      "translated_text": "Fui para o bosque porque desejava viver deliberadamente, encarar apenas os fatos essenciais da vida e ver se não conseguia aprender o que ela tinha para ensinar, e não, quando chegasse a hora de morrer, descobrir que não tinha vivido. Não queria viver o que não era vida, viver é tão precioso; nem queria praticar a resignação, a menos que fosse absolutamente necessário. Eu queria viver profundamente e sugar todo o tutano da vida.",
+      "scores": {
+        "accuracy": 9.0,
+        "fluency": 8.0,
+        "style": 8.0,
+        "overall": 8.0,
+        "feedback": "The translation faithfully preserves Thoreau's meaning and philosophical intent with only minor deviations. While \"tutano\" (marrow) is accurate, the phrase flows slightly less naturally than the original's poetic rhythm, and \"bosque\" (small woods) is a reasonable but slightly less grand choice than \"woods\" in this context."
+      },
+      "translation_time_ms": 1711,
+      "evaluation_time_ms": 1774,
+      "timestamp": "2026-01-16T22:49:21.519040",
+      "error": null
+    },
+    {
+      "source_text_id": "moby_dick",
+      "target_language": "pt",
+      "model": "google/gemini-2.0-flash-001",
+      "translated_text": "Chamem-me Ismael. Há alguns anos — não importa precisar quantos — com pouco ou nenhum dinheiro na algibeira e nada em terra que me despertasse um interesse especial, pensei em fazer-me ao mar por um tempo e conhecer a parte aquática do mundo. É uma maneira que tenho de afastar o spleen e regular a circulação. Sempre que me vejo a ficar carrancudo; sempre que sinto um novembro húmido e chuvoso na alma, considero que é mais que altura de me fazer ao mar o mais depressa possível.",
+      "scores": {
+        "accuracy": 8.0,
+        "fluency": 8.0,
+        "style": 8.0,
+        "overall": 8.0,
+        "feedback": "The translation faithfully preserves the meaning and philosophical tone of Melville's opening, with excellent choices like 'algibeira' for purse and 'carrancudo' for grim. Minor stylistic considerations: 'spleen' remains untranslated (acceptable given its specific psychological meaning), and 'a ficar' and 'a fazer-me ao mar' maintain the archaic feel appropriately for Portuguese."
+      },
+      "translation_time_ms": 1703,
+      "evaluation_time_ms": 1792,
+      "timestamp": "2026-01-16T22:49:24.998059",
+      "error": null
+    },
+    {
+      "source_text_id": "pride_prejudice",
+      "target_language": "pl",
+      "model": "google/gemini-2.0-flash-001",
+      "translated_text": "Jest to prawda powszechnie znana, że samotny mężczyzna, posiadający znaczny majątek, musi potrzebować żony. Jakkolwiek mało znane by były uczucia lub poglądy takiego mężczyzny, gdy po raz pierwszy pojawia się w okolicy, prawda ta jest tak mocno zakorzeniona w umysłach okolicznych rodzin, że uważany jest za prawowitą własność jednej z ich córek.",
+      "scores": {
+        "accuracy": 8.0,
+        "fluency": 8.0,
+        "style": 7.0,
+        "overall": 8.0,
+        "feedback": "The translation accurately conveys the meaning and captures most of Austen's ironic tone, though 'musi potrzebować' is slightly less elegant than the original's implied social commentary. The prose flows naturally in Polish with good vocabulary choices, though the opening could feel marginally more authoritative to fully match the original's satirical voice."
+      },
+      "translation_time_ms": 1517,
+      "evaluation_time_ms": 1477,
+      "timestamp": "2026-01-16T22:49:28.308217",
+      "error": null
+    },
+    {
+      "source_text_id": "dorian_gray",
+      "target_language": "pl",
+      "model": "google/gemini-2.0-flash-001",
+      "translated_text": "W pracowni unosił się intensywny zapach róż, a kiedy letni wiatr poruszał gałęziami drzew w ogrodzie, przez otwarte drzwi wdzierała się ciężka woń bzu albo delikatniejszy aromat różowych głogów. Z kąta divanu wyłożonego perskimi jukami, na którym leżał, paląc, jak miał w zwyczaju, niezliczone papierosy, Lord Henry Wotton mógł dostrzec jedynie przebłysk słodkich jak miód, miodowożółtych kwiatów złotokapu.",
+      "scores": {
+        "accuracy": 8.0,
+        "fluency": 8.0,
+        "style": 8.0,
+        "overall": 8.0,
+        "feedback": "The translation preserves the sensory richness and aesthetic quality of Wilde's prose effectively, with accurate rendering of botanical details and atmospheric descriptions. Minor points: 'wdzierała się' (intruded) is slightly more forceful than the original's gentle 'came through,' and 'złotokapu' (laburnum) is less evocative than the original's honey-colored imagery, though these are minor deviations in an otherwise excellent translation."
+      },
+      "translation_time_ms": 1900,
+      "evaluation_time_ms": 2021,
+      "timestamp": "2026-01-16T22:49:31.685951",
+      "error": null
+    },
+    {
+      "source_text_id": "study_scarlet",
+      "target_language": "pl",
+      "model": "google/gemini-2.0-flash-001",
+      "translated_text": "„Rozumiem, że był pan w Afganistanie”. „Jakim cudem pan to wie?” – zapytałem ze zdumieniem. „Mniejsza o to” – odparł, chichocząc pod nosem. „Teraz kwestia hemoglobiny. Bez wątpienia dostrzega pan znaczenie mojego odkrycia?”. „Z chemicznego punktu widzenia z pewnością jest interesujące” – odparłem – „ale praktycznie…”. „Człowieku, to najbardziej praktyczne odkrycie medyczno-prawne od lat. Nie rozumiesz, że daje nam niezawodny test na plamy krwi?”.",
+      "scores": {
+        "accuracy": 8.0,
+        "fluency": 7.0,
+        "style": 7.0,
+        "overall": 7.0,
+        "feedback": "The translation preserves meaning accurately with minor issues: the shift from formal 'pan' to informal 'ty' in Holmes's final speech disrupts consistency, and 'chichocząc pod nosem' (chuckling under one's breath) slightly alters the tone of 'chuckling to himself.' Overall natural Polish with good dialogue flow, though the register inconsistency slightly weakens the character voice."
+      },
+      "translation_time_ms": 1823,
+      "evaluation_time_ms": 1977,
+      "timestamp": "2026-01-16T22:49:35.531672",
+      "error": null
+    },
+    {
+      "source_text_id": "walden",
+      "target_language": "pl",
+      "model": "google/gemini-2.0-flash-001",
+      "translated_text": "Poszedłem do lasu, ponieważ chciałem żyć rozważnie, stawiać czoło tylko tym zasadniczym faktom życia i zobaczyć, czy nie nauczę się tego, czego las ma mnie nauczyć, abym, kiedy przyjdzie mi umierać, nie odkrył, że nie żyłem. Nie chciałem żyć tym, co nie jest życiem, bo żyć to skarb; nie pragnąłem też ćwiczyć się w rezygnacji, chyba że byłoby to absolutnie konieczne. Chciałem żyć głęboko i wyssać cały szpik z życia.",
+      "scores": {
+        "accuracy": 8.0,
+        "fluency": 8.0,
+        "style": 8.0,
+        "overall": 8.0,
+        "feedback": "The translation faithfully preserves Thoreau's philosophical meaning and deliberate tone, with strong rendering of key concepts like 'żyć rozważnie' and 'wyssać cały szpik z życia.' Minor deviations include 'las ma mnie nauczyć' (adding 'las'/forest unnecessarily) and 'bo żyć to skarb' (slightly altering the original's emphasis on life being 'dear'), but these don't significantly diminish the work's impact or philosophical weight."
+      },
+      "translation_time_ms": 1875,
+      "evaluation_time_ms": 2695,
+      "timestamp": "2026-01-16T22:49:39.385086",
+      "error": null
+    },
+    {
+      "source_text_id": "moby_dick",
+      "target_language": "pl",
+      "model": "google/gemini-2.0-flash-001",
+      "translated_text": "Mówcie mi Izmael. Parę lat temu – mniejsza o to, jak dawno dokładnie – nie mając w sakiewce prawie żadnych pieniędzy i nic szczególnego, co by mnie zajmowało na lądzie, pomyślałem, że popływam trochę i zobaczę wodną część świata. Mam taki sposób na odpędzanie chandry i regulowanie krążenia. Ilekroć spostrzegam, że ponuro mi się robi w kącikach ust; ilekroć w mej duszy panuje wilgotny, mżysty listopad, uważam, że już najwyższy czas wypłynąć w morze, jak tylko mogę najprędzej.",
+      "scores": {
+        "accuracy": 8.0,
+        "fluency": 7.0,
+        "style": 8.0,
+        "overall": 8.0,
+        "feedback": "The translation faithfully preserves the meaning and captures the archaic, introspective tone of Melville's prose. Minor fluency issues appear in phrases like 'Mówcie mi' (imperative form) instead of the more natural 'Zowcie mnie' and some slightly awkward constructions, but the poetic metaphors and philosophical voice remain well-rendered."
+      },
+      "translation_time_ms": 2043,
+      "evaluation_time_ms": 1551,
+      "timestamp": "2026-01-16T22:49:44.123906",
+      "error": null
+    },
+    {
+      "source_text_id": "pride_prejudice",
+      "target_language": "zh-Hans",
+      "model": "google/gemini-2.0-flash-001",
+      "translated_text": "凡是有钱的单身汉，总想娶位太太，这是一条举世公认的真理。 这样一个人，才搬进某地， 他的心思和见解，人们也许不大了解， 但这条真理却在附近的几家太太小姐们的心目中根深蒂固， 因此， 大家都把他看作自己某一个女儿理所应得的一份财产。",
+      "scores": {
+        "accuracy": 7.0,
+        "fluency": 7.0,
+        "style": 6.0,
+        "overall": 7.0,
+        "feedback": "The translation captures the core meaning and ironic tone reasonably well, though it loses some of Austen's sophisticated wordplay and the precise philosophical weight of 'universally acknowledged.' The phrase 'rightful property' is rendered as '理所应得的一份财产' which slightly shifts the ironic critique, and the sentence structure, while comprehensible, is less elegant than the original's measured cadence."
+      },
+      "translation_time_ms": 1704,
+      "evaluation_time_ms": 1804,
+      "timestamp": "2026-01-16T22:49:47.380252",
+      "error": null
+    },
+    {
+      "source_text_id": "dorian_gray",
+      "target_language": "zh-Hans",
+      "model": "google/gemini-2.0-flash-001",
+      "translated_text": "画室里弥漫着浓郁的玫瑰花香，当夏日轻风拂动花园里的树木时，透过敞开的门，飘来紫丁香浓烈的香味，或是粉红色山楂花更清幽的气息。亨利·沃顿勋爵正躺在铺着波斯鞍袋的软榻一角，像往常一样抽着数不清的香烟，他恰好能瞥见金链花蜜甜、蜜色的花朵闪烁着光芒。",
+      "scores": {
+        "accuracy": 8.0,
+        "fluency": 7.0,
+        "style": 7.0,
+        "overall": 7.0,
+        "feedback": "The translation captures most of the sensory richness and aesthetic details of the original, with accurate rendering of the floral imagery and Wilde's luxurious atmosphere. However, some nuances are lost: 'honey-sweet and honey-coloured' becomes simplified to '蜜甜、蜜色', and the poetic flow is slightly disrupted by awkward phrasing like '金链花蜜甜、蜜色的花朵闪烁着光芒' which reads less naturally than the original."
+      },
+      "translation_time_ms": 1679,
+      "evaluation_time_ms": 2225,
+      "timestamp": "2026-01-16T22:49:50.863943",
+      "error": null
+    },
+    {
+      "source_text_id": "study_scarlet",
+      "target_language": "zh-Hans",
+      "model": "google/gemini-2.0-flash-001",
+      "translated_text": "“看得出来，你去过阿富汗。” “天啊，你怎么知道的？” 我惊讶地问道。“别管我怎么知道的，” 他笑着自言自语道，“现在的问题是关于血红蛋白。毫无疑问，你明白我这项发现的重大意义吧？” “从化学角度来说，这当然很有趣，” 我回答道，“但实际上——” “我说，老兄，这是近年来最具实际意义的医学法律发现。你难道看不出这为我们提供了一种万无一失的血迹测试方法吗？”",
+      "scores": {
+        "accuracy": 8.0,
+        "fluency": 8.0,
+        "style": 7.0,
+        "overall": 8.0,
+        "feedback": "The translation accurately captures the meaning and dialogue flow of the original text, with natural Chinese phrasing that reads smoothly. Minor style adjustments (such as \"自言自语\" being slightly redundant with the context, and slight formality shifts) prevent a perfect score, but the essence of Holmes's deductive brilliance and Watson's astonishment is well-preserved."
+      },
+      "translation_time_ms": 1801,
+      "evaluation_time_ms": 2886,
+      "timestamp": "2026-01-16T22:49:54.891381",
+      "error": null
+    },
+    {
+      "source_text_id": "walden",
+      "target_language": "zh-Hans",
+      "model": "google/gemini-2.0-flash-001",
+      "translated_text": "我前往林中，是因为我渴望审慎地生活，只面对生活中最本质的事实，看看我是否能学到它所能教给我的东西，而不是在临死时，才发现自己从未真正活过。我不愿苟延残喘，因为生命如此珍贵；我也不愿轻易地习于隐忍，除非确有必要。我渴望过得深刻，吮吸生命中的每一滴骨髓。",
+      "scores": {
+        "accuracy": 8.0,
+        "fluency": 8.0,
+        "style": 8.0,
+        "overall": 8.0,
+        "feedback": "The translation captures Thoreau's philosophical intent and most key meanings with strong fidelity, though 'suck out all the marrow' becomes 'suck every drop of marrow' which slightly shifts the original's visceral intensity. The prose flows naturally in Chinese with appropriate philosophical weight, and the contemplative tone is well-preserved throughout."
+      },
+      "translation_time_ms": 1693,
+      "evaluation_time_ms": 2058,
+      "timestamp": "2026-01-16T22:49:59.472356",
+      "error": null
+    },
+    {
+      "source_text_id": "moby_dick",
+      "target_language": "zh-Hans",
+      "model": "google/gemini-2.0-flash-001",
+      "translated_text": "我叫以实玛利。许多年前——不必确切说明是多少年以前——我发现自己囊空如洗，而且在陆地上又没有什么特别感兴趣的事情，于是我便想到海上去逛逛，见识见识一下这个世界上的水域。这是我排遣忧郁、调节情绪的一种方式。每当我发现自己嘴角紧绷，心情变得阴沉，像灵魂深处下着阴冷、潮湿的十一月雨的时候，我就认为该尽快出海了。",
+      "scores": {
+        "accuracy": 8.0,
+        "fluency": 8.0,
+        "style": 7.0,
+        "overall": 8.0,
+        "feedback": "The translation accurately captures the meaning and maintains good readability in Chinese, with strong preservation of Melville's introspective tone. Minor stylistic adjustments (such as \"嘴角紧绷\" for \"grim about the mouth\" and the expanded metaphor for \"spleen\") slightly soften the archaic formality of the original, but overall successfully conveys the melancholic, contemplative voice."
+      },
+      "translation_time_ms": 1874,
+      "evaluation_time_ms": 2243,
+      "timestamp": "2026-01-16T22:50:03.406978",
+      "error": null
+    },
+    {
+      "source_text_id": "pride_prejudice",
+      "target_language": "zh-Hant",
+      "model": "google/gemini-2.0-flash-001",
+      "translated_text": "凡是有錢的單身漢，總想娶位太太，這已經成了一條舉世公認的真理。這樣的一位男子，剛來到一個新的地方，大家對他的感情和見解瞭解得儘管很少，可是附近人家的心裡，一想到他，就覺得他是自己某一個女兒理所應得的財產，這種想法卻是根深蒂固。",
+      "scores": {
+        "accuracy": 7.0,
+        "fluency": 7.0,
+        "style": 6.0,
+        "overall": 7.0,
+        "feedback": "The translation captures the core meaning and ironic tone reasonably well, preserving the satirical observation about marriage and fortune. However, it slightly reorders elements and softens some of Austen's characteristic irony—the original's opening assertion is more boldly paradoxical, while the translation makes it more explanatory. The fluency is good but occasionally feels more explanatory than the elegant original."
+      },
+      "translation_time_ms": 1796,
+      "evaluation_time_ms": 1746,
+      "timestamp": "2026-01-16T22:50:07.448849",
+      "error": null
+    },
+    {
+      "source_text_id": "dorian_gray",
+      "target_language": "zh-Hant",
+      "model": "google/gemini-2.0-flash-001",
+      "translated_text": "畫室裡瀰漫著濃郁的玫瑰香氣，當夏日微風拂過花園裡的樹木時，敞開的門戶便送來了紫丁香的濃烈氣息，或是粉色山楂那更為精緻的芬芳。亨利‧沃頓勛爵正躺在波斯鞍袋製成的長沙發的角落裡，依照他的習慣，抽著無數的香菸，他恰好能瞥見金鏈花那蜜糖般甜美、蜜糖般色彩的花朵的光芒。",
+      "scores": {
+        "accuracy": 8.0,
+        "fluency": 7.0,
+        "style": 8.0,
+        "overall": 8.0,
+        "feedback": "The translation accurately captures Wilde's sensory-rich aestheticism and most nuances, though 'pink-flowering thorn' as '粉色山楂' (pink hawthorn) is a slight botanical liberty. The prose flows naturally in Chinese with preserved elegance, though the final clause becomes slightly dense and the rhythm differs marginally from the original's lyrical cadence."
+      },
+      "translation_time_ms": 1805,
+      "evaluation_time_ms": 2357,
+      "timestamp": "2026-01-16T22:50:11.001818",
+      "error": null
+    },
+    {
+      "source_text_id": "study_scarlet",
+      "target_language": "zh-Hant",
+      "model": "google/gemini-2.0-flash-001",
+      "translated_text": "「我看得出來，你待過阿富汗。」 「你究竟是怎麼知道的？」我驚訝地問道。「別管這個，」他自顧自地輕聲笑道。「現在的問題是關於血紅蛋白。毫無疑問，你明白我這項發現的重要性吧？」「從化學角度來說，這當然很有趣，」我回答，「但實際上——」「老兄，這可是近年來最具實用性的醫事法律發現。你難道沒看出來，這能為我們提供一種萬無一失的血跡檢測方法嗎？」",
+      "scores": {
+        "accuracy": 8.0,
+        "fluency": 8.0,
+        "style": 8.0,
+        "overall": 8.0,
+        "feedback": "The translation accurately preserves the meaning and dialogue flow of the original Sherlock Holmes passage, with appropriate use of Traditional Chinese punctuation and natural conversational tone. Minor deviations include \"輕聲笑\" (soft chuckling) being slightly more specific than the original \"chuckling,\" and \"老兄\" (old buddy) adding slight informality, but these enhance rather than detract from the character voice."
+      },
+      "translation_time_ms": 2061,
+      "evaluation_time_ms": 1706,
+      "timestamp": "2026-01-16T22:50:15.421639",
+      "error": null
+    },
+    {
+      "source_text_id": "walden",
+      "target_language": "zh-Hant",
+      "model": "google/gemini-2.0-flash-001",
+      "translated_text": "我前往林中，是因為我希望審慎地生活，只面對生命中不可或缺的事實，看看我是否能學到它所要教導的，而不是在臨終之時，才發現我未曾真正活過。我不願苟延殘喘，生命如此珍貴；我也不願輕易屈服，除非那是迫不得已。我渴望深入生活，汲取生命中所有的精髓。",
+      "scores": {
+        "accuracy": 8.0,
+        "fluency": 8.0,
+        "style": 8.0,
+        "overall": 8.0,
+        "feedback": "The translation captures Thoreau's philosophical intent and most nuances effectively, with strong rendering of key concepts like deliberate living and extracting life's essence. Minor deviations include '審慎地' (cautiously) being slightly narrower than 'deliberately,' and '苟延殘喘' (merely surviving) adding connotations not in the original, though these enhance rather than distort meaning."
+      },
+      "translation_time_ms": 1563,
+      "evaluation_time_ms": 1837,
+      "timestamp": "2026-01-16T22:50:18.692633",
+      "error": null
+    },
+    {
+      "source_text_id": "moby_dick",
+      "target_language": "zh-Hant",
+      "model": "google/gemini-2.0-flash-001",
+      "translated_text": "叫我以實瑪利。幾年前——不必細究究竟是多久以前——我囊中羞澀，而且在岸上也沒有什麼特別的事物能引起我的興趣，於是我便想稍微出海航行一下，看看這個世界水域的部分。這是我排遣憂鬱、調節身心的一種方式。每當我感到自己嘴角變得嚴峻；每當我的靈魂中籠罩著陰冷、細雨霏霏的十一月，我就認為是時候盡快出海了。",
+      "scores": {
+        "accuracy": 8.0,
+        "fluency": 7.0,
+        "style": 7.0,
+        "overall": 7.0,
+        "feedback": "The translation captures the essential meaning and philosophical tone of Melville's opening, with strong choices like '囊中羞澀' for financial straits and the metaphorical rendering of melancholy. However, some archaic English nuances are softened—'driving off the spleen' becomes more literal, and the rhythmic cadence of the original's introspective voice is slightly diminished in the Chinese version, though it remains competent and readable."
+      },
+      "translation_time_ms": 1805,
+      "evaluation_time_ms": 1870,
+      "timestamp": "2026-01-16T22:50:22.335931",
+      "error": null
+    },
+    {
+      "source_text_id": "pride_prejudice",
+      "target_language": "ja",
+      "model": "google/gemini-2.0-flash-001",
+      "translated_text": "良家の子息たる独身の男が財産を有していれば、妻を娶りたいと願っているに違いない、というのは、世間一般に認められた真理である。そのような男が初めて近隣に足を踏み入れたとき、彼がどのような感情や考えを抱いているかはほとんど知られていないとしても、この真理は周囲の家族の心に深く刻み込まれているため、彼は当然、彼らの娘たちの誰かの所有物と見なされるのである。",
+      "scores": {
+        "accuracy": 8.0,
+        "fluency": 7.0,
+        "style": 7.0,
+        "overall": 7.0,
+        "feedback": "The translation accurately conveys the core meaning and captures Austen's ironic observation about marriage expectations, though the rendering is somewhat more literal and formal than the original's elegant simplicity. The phrase '所有物と見なされる' (treated as property) effectively preserves the satirical bite, but the overall prose feels slightly more ponderous than Austen's witty original."
+      },
+      "translation_time_ms": 1763,
+      "evaluation_time_ms": 1565,
+      "timestamp": "2026-01-16T22:50:25.970640",
+      "error": null
+    },
+    {
+      "source_text_id": "dorian_gray",
+      "target_language": "ja",
+      "model": "google/gemini-2.0-flash-001",
+      "translated_text": "室内はバラの芳醇な香りで満たされ、庭の木々をそよぐ夏の軽い風が、開け放たれた戸口からライラックの重い香りや、ピンクの花を咲かせたサンザシの繊細な香りを運んでくる。ロード・ヘンリー・ウォットンは、いつものように無数の煙草をくゆらせながら、ペルシャの鞍袋で作られた長椅子の隅に身を横たえ、甘い蜜のような、蜂蜜色のキングサリの花のきらめきを捉えていた。",
+      "scores": {
+        "accuracy": 8.0,
+        "fluency": 7.0,
+        "style": 8.0,
+        "overall": 8.0,
+        "feedback": "The translation faithfully preserves Wilde's sensory-rich aestheticism and meaning, with accurate botanical and cultural references. Minor fluency issues arise from the complex sentence structure and slightly awkward phrasing in places (e.g., 'ペルシャの鞍袋で作られた' is somewhat clunky), but the poetic tone and luxurious atmosphere are well-maintained overall."
+      },
+      "translation_time_ms": 2013,
+      "evaluation_time_ms": 2813,
+      "timestamp": "2026-01-16T22:50:29.551775",
+      "error": null
+    },
+    {
+      "source_text_id": "study_scarlet",
+      "target_language": "ja",
+      "model": "google/gemini-2.0-flash-001",
+      "translated_text": "「アフガニスタンにいらっしゃったんですね」と彼は言った。「どうしてそれが分かったんです？」私は驚いて尋ねた。「それはどうでもいい」彼はそう言って、くすくす笑った。「問題はヘモグロビンの方だ。私が今回発見したことの重要性がお分かりになりますか」「化学的には興味深いでしょうね」と私は答えた。「でも、実用的には……」「何をおっしゃる、これはここ数年で最も実用的な法医学上の発見ですよ。血痕に対する絶対確実な検査法になることが分からないのですか？」",
+      "scores": {
+        "accuracy": 8.0,
+        "fluency": 7.0,
+        "style": 7.0,
+        "overall": 7.0,
+        "feedback": "The translation accurately conveys the meaning and captures Holmes's deductive brilliance and Watson's astonishment, though some phrasing feels slightly formal compared to the original's natural dialogue flow. Minor issues include slightly awkward constructions like 'いらっしゃったんですね' (which adds politeness not in the original) and some verbose phrasing that slightly alters the crisp, rapid-fire quality of the English exchange."
+      },
+      "translation_time_ms": 2116,
+      "evaluation_time_ms": 1990,
+      "timestamp": "2026-01-16T22:50:34.484155",
+      "error": null
+    },
+    {
+      "source_text_id": "walden",
+      "target_language": "ja",
+      "model": "google/gemini-2.0-flash-001",
+      "translated_text": "私が森へ行ったのは、熟慮して生きたいと願ったからだ。人生の本質的な事柄のみに正面から向き合い、森が教えてくれることを学び、死を迎える時に、生きていなかったと気づくことのないように。私は、生ではないものを生きたくはなかった。生きることはかけがえのないものだから。そして、どうしても必要な時以外は、諦めというものを実践したくはなかった。私は深く生き、人生の髄をすべて吸い尽くしたかったのだ。",
+      "scores": {
+        "accuracy": 8.0,
+        "fluency": 7.0,
+        "style": 8.0,
+        "overall": 8.0,
+        "feedback": "The translation captures the philosophical essence and meaning of Thoreau's passage with strong fidelity, preserving key concepts like deliberate living and extracting life's marrow. While the Japanese reads somewhat formally and occasionally feels slightly constructed rather than naturally flowing, it maintains the contemplative tone and rhetorical structure of the original, making it a solid philosophical translation with minor fluency adjustments needed."
+      },
+      "translation_time_ms": 2070,
+      "evaluation_time_ms": 1763,
+      "timestamp": "2026-01-16T22:50:38.546748",
+      "error": null
+    },
+    {
+      "source_text_id": "moby_dick",
+      "target_language": "ja",
+      "model": "google/gemini-2.0-flash-001",
+      "translated_text": "私をイシュメールと呼んでくれ。何年か前のことだ――正確にどれくらい前かはどうでもいい――私は財布にほとんど、あるいはまったく金を持っていなかったし、陸には私を引きつけるような特別なものもなかったので、少し船で海を渡り、水のある世界を見てみようと思った。これは私が憂鬱を追い払い、血行を整えるためにやっていることなのだ。口元が険しくなってきたと感じたとき、私の魂に湿った、霧雨の降る11月が訪れたとき、私はできるだけ早く海に出るべき時だと考える。",
+      "scores": {
+        "accuracy": 8.0,
+        "fluency": 7.0,
+        "style": 7.0,
+        "overall": 7.0,
+        "feedback": "The translation captures the essential meaning and philosophical tone of Melville's opening, with accurate rendering of key concepts like the spleen and the metaphorical November of the soul. However, some archaic formality is lost in the Japanese phrasing, and minor awkwardness appears in constructions like 'water のある world' and the slightly stiff handling of Ishmael's introspective voice."
+      },
+      "translation_time_ms": 2151,
+      "evaluation_time_ms": 2769,
+      "timestamp": "2026-01-16T22:50:42.461719",
+      "error": null
+    },
+    {
+      "source_text_id": "pride_prejudice",
+      "target_language": "ko",
+      "model": "google/gemini-2.0-flash-001",
+      "translated_text": "상당한 재산을 소유한 독신 남자는 누구나 아내를 필요로 한다는 것은 널리 인정된 진리이다. 그러한 남자가 처음 동네에 들어설 때 그의 심정이나 견해가 알려진 바가 거의 없을지라도, 이 진리는 주변 가족들의 마음속에 너무나 확고하게 자리 잡혀 있어서 그는 그들의 딸 중 한 명의 정당한 소유물로 여겨진다.",
+      "scores": {
+        "accuracy": 8.0,
+        "fluency": 8.0,
+        "style": 7.0,
+        "overall": 8.0,
+        "feedback": "The translation accurately conveys the meaning and ironic tone of Austen's opening, with natural Korean phrasing. However, the distinctive ironic voice and formal elegance of the original are slightly diminished—the Korean reads more straightforwardly literal rather than capturing Austen's subtle satirical wit."
+      },
+      "translation_time_ms": 1777,
+      "evaluation_time_ms": 1951,
+      "timestamp": "2026-01-16T22:50:47.010327",
+      "error": null
+    },
+    {
+      "source_text_id": "dorian_gray",
+      "target_language": "ko",
+      "model": "google/gemini-2.0-flash-001",
+      "translated_text": "장미의 짙은 향이 스튜디오 안을 가득 채웠고, 여름의 가벼운 바람이 정원의 나무들 사이로 불어올 때면 활짝 열린 문을 통해 라일락의 묵직한 향이나 분홍 꽃이 피는 산사나무의 섬세한 향기가 스며 들어왔다. 숱한 담배를 피워대며 늘상 하던 대로 페르시아산 안장 가죽으로 덮인 긴 의자 모퉁이에 기대 누워 있던 헨리 워튼 경은 금사슬나무의 달콤하고 꿀빛으로 빛나는 꽃송이들을 언뜻 볼 수 있었다.",
+      "scores": {
+        "accuracy": 8.0,
+        "fluency": 7.0,
+        "style": 8.0,
+        "overall": 8.0,
+        "feedback": "The translation faithfully preserves the sensory richness and aesthetic focus of Wilde's original, with accurate rendering of floral imagery and atmospheric details. Minor fluency issues arise from slightly awkward phrasing in the complex sentence structure, though the overall lyrical quality and sensory precision are well-maintained."
+      },
+      "translation_time_ms": 2251,
+      "evaluation_time_ms": 1967,
+      "timestamp": "2026-01-16T22:50:51.214897",
+      "error": null
+    },
+    {
+      "source_text_id": "study_scarlet",
+      "target_language": "ko",
+      "model": "google/gemini-2.0-flash-001",
+      "translated_text": "\"아프가니스탄에 다녀오셨군요.\" \"세상에, 그걸 어떻게 아셨어요?\" 나는 깜짝 놀라 물었다. \"신경 쓰지 마세요.\" 그가 혼잣말로 킬킬 웃으며 말했다. \"지금 문제는 헤모글로빈에 관한 것입니다. 제가 발견한 것의 중요성을 아시겠지요?\" \"화학적으로는 흥미롭군요.\" 나는 대답했다. \"하지만 실제로는—\" \"이 사람아, 이것은 수년간 가장 실용적인 법의학적 발견입니다. 혈흔을 감별하는 절대적인 증거가 된다는 것을 모르겠소?\"",
+      "scores": {
+        "accuracy": 8.0,
+        "fluency": 7.0,
+        "style": 7.0,
+        "overall": 7.0,
+        "feedback": "The translation accurately captures the meaning and dialogue flow, preserving Holmes's deductive nature and Watson's astonishment. However, some formality shifts occur (mixing formal and informal registers), and minor phrasing awkwardness slightly reduces the natural fluency compared to the original's conversational ease."
+      },
+      "translation_time_ms": 2001,
+      "evaluation_time_ms": 2449,
+      "timestamp": "2026-01-16T22:50:55.185610",
+      "error": null
+    },
+    {
+      "source_text_id": "walden",
+      "target_language": "ko",
+      "model": "google/gemini-2.0-flash-001",
+      "translated_text": "나는 신중하게 살고 싶어서 숲에 갔다. 삶의 본질적인 사실만을 직시하고, 숲이 가르쳐주는 것을 배울 수 있는지 알아보고 싶었다. 그리고 죽을 때가 되어서야 내가 제대로 살지 않았다는 것을 깨닫고 싶지 않았다. 나는 삶이 아닌 것을 살고 싶지 않았다. 삶은 그 무엇보다 소중하기 때문이다. 또한, 꼭 필요한 경우가 아니라면 체념하며 살고 싶지도 않았다. 나는 삶의 깊이를 느끼며, 삶의 정수를 모조리 빨아들이고 싶었다.",
+      "scores": {
+        "accuracy": 8.0,
+        "fluency": 7.0,
+        "style": 7.0,
+        "overall": 7.0,
+        "feedback": "The translation captures most of Thoreau's meaning accurately, including the philosophical intent and key concepts like living deliberately and extracting life's essence. However, some nuances are slightly softened (e.g., '신중하게' for 'deliberately' lacks the intentionality; '정수' for 'marrow' is more abstract), and the prose rhythm feels somewhat more fragmented than the flowing original, affecting the meditative philosophical tone."
+      },
+      "translation_time_ms": 1834,
+      "evaluation_time_ms": 2996,
+      "timestamp": "2026-01-16T22:50:59.470093",
+      "error": null
+    },
+    {
+      "source_text_id": "moby_dick",
+      "target_language": "ko",
+      "model": "google/gemini-2.0-flash-001",
+      "translated_text": "내 이름은 이슈마엘이다. 몇 년 전, 정확히 얼마나 오래전인지는 상관없지만, 지갑에는 돈이 거의 없었고 육지에는 특별히 흥미로운 것도 없었던 나는, 배를 타고 세상을 조금 돌아다니며 물이 있는 곳들을 구경해봐야겠다고 생각했다. 그것은 내가 울적한 기분을 떨쳐내고 혈액순환을 조절하는 방식이다. 입가가 굳어지는 것을 느낄 때마다, 내 영혼에 습하고 음산한 11월이 찾아올 때마다, 나는 가능한 한 빨리 바다로 나가야 할 때라고 여긴다.",
+      "scores": {
+        "accuracy": 7.0,
+        "fluency": 6.0,
+        "style": 5.0,
+        "overall": 6.0,
+        "feedback": "The translation captures the core meaning and narrative voice reasonably well, but loses some of Melville's archaic elegance and poetic compression. Phrases like '지갑에는 돈이 거의 없었고' feel more modern and explanatory than the original's concise 'having little or no money in my purse,' and the metaphorical density of 'damp, drizzly November in my soul' is somewhat flattened by the more literal rendering '습하고 음산한 11월이 찾아올 때마다.'"
+      },
+      "translation_time_ms": 2085,
+      "evaluation_time_ms": 2209,
+      "timestamp": "2026-01-16T22:51:04.554000",
+      "error": null
+    },
+    {
+      "source_text_id": "pride_prejudice",
+      "target_language": "vi",
+      "model": "google/gemini-2.0-flash-001",
+      "translated_text": "Người ta thường công nhận một sự thật hiển nhiên rằng một người đàn ông độc thân giàu có chắc chắn phải muốn có một người vợ. Dù những cảm xúc hoặc quan điểm của một người đàn ông như vậy có thể ít được biết đến đến đâu khi anh ta mới bước chân vào một khu phố, sự thật này đã ăn sâu vào tâm trí của các gia đình xung quanh đến nỗi anh ta được coi là tài sản hợp pháp của một trong số các cô con gái của họ.",
+      "scores": {
+        "accuracy": 8.0,
+        "fluency": 7.0,
+        "style": 7.0,
+        "overall": 7.0,
+        "feedback": "The translation captures the meaning accurately with good preservation of Austen's ironic tone, though the Vietnamese phrasing is somewhat awkward in places (\"ít được biết đến đến đâu\" has redundancy) and loses some of the elegant simplicity of the original's opening. The ironic voice is maintained but slightly diluted by the more complex sentence structure."
+      },
+      "translation_time_ms": 1764,
+      "evaluation_time_ms": 2262,
+      "timestamp": "2026-01-16T22:51:08.529051",
+      "error": null
+    },
+    {
+      "source_text_id": "dorian_gray",
+      "target_language": "vi",
+      "model": "google/gemini-2.0-flash-001",
+      "translated_text": "Phòng vẽ tràn ngập hương hoa hồng nồng nàn, và khi ngọn gió hè khẽ lay động những hàng cây trong vườn, qua cánh cửa rộng mở thoảng đưa hương thơm ngát của hoa tử đinh hương, hoặc hương thơm thanh tao hơn của hoa táo gai màu hồng. Từ góc chiếc диван bọc da yên ngựa Ba Tư nơi ngài đang nằm hút thuốc, như thói quen của mình, hết điếu thuốc này đến điếu thuốc khác, Huân tước Henry Wotton có thể thoáng thấy ánh lên màu mật ong ngọt ngào của những bông hoa muồng hoàng yến.",
+      "scores": {
+        "accuracy": 7.0,
+        "fluency": 6.0,
+        "style": 6.0,
+        "overall": 6.0,
+        "feedback": "The translation captures most of the meaning and sensory details, but contains a Cyrillic word error ('диван' instead of Vietnamese), awkward phrasing in places ('hết điếu thuốc này đến điếu thuốc khác'), and loses some of Wilde's aesthetic elegance through less refined word choices and rhythm disruptions."
+      },
+      "translation_time_ms": 2152,
+      "evaluation_time_ms": 2416,
+      "timestamp": "2026-01-16T22:51:12.945731",
+      "error": null
+    },
+    {
+      "source_text_id": "study_scarlet",
+      "target_language": "vi",
+      "model": "google/gemini-2.0-flash-001",
+      "translated_text": "\"Tôi đoán anh đã từng ở Afghanistan?\" \"Sao anh biết hay vậy?\" Tôi hỏi một cách kinh ngạc. \"Đừng bận tâm,\" anh ta vừa nói vừa cười khúc khích. \"Vấn đề bây giờ là về huyết sắc tố. Chắc chắn anh thấy được tầm quan trọng trong khám phá này của tôi chứ?\" \"Về mặt hóa học thì chắc chắn là thú vị,\" tôi đáp, \"nhưng về mặt thực tế thì—\" \"Ôi, anh bạn, đây là khám phá y học pháp lý thực tế nhất trong nhiều năm qua. Anh không thấy rằng nó cho chúng ta một xét nghiệm không thể sai lệch để tìm vết máu sao?\"",
+      "scores": {
+        "accuracy": 7.0,
+        "fluency": 6.0,
+        "style": 6.0,
+        "overall": 6.0,
+        "feedback": "The translation captures most of the meaning but has notable issues: the opening line incorrectly uses a question mark (should be a statement), 'haemoglobin' becomes 'huyết sắc tố' (blood pigment) which is acceptable but less precise, and some phrasing feels awkward ('anh bạn' as address is unusual). The dialogue structure and character dynamics are mostly preserved, but the natural flow of Victorian-era English is somewhat lost in the Vietnamese rendering."
+      },
+      "translation_time_ms": 1971,
+      "evaluation_time_ms": 2704,
+      "timestamp": "2026-01-16T22:51:17.335575",
+      "error": null
+    },
+    {
+      "source_text_id": "walden",
+      "target_language": "vi",
+      "model": "google/gemini-2.0-flash-001",
+      "translated_text": "Tôi vào rừng vì tôi muốn sống một cách chủ tâm, chỉ đối diện với những sự thật cốt yếu của cuộc đời, và xem tôi có thể học được những gì nó dạy hay không, và để khi lìa đời, không phải nhận ra rằng mình đã chưa từng sống. Tôi không muốn sống những gì không phải là sống, sống vốn dĩ đã là một điều quý giá; tôi cũng không muốn tập sự cam chịu, trừ khi nó thực sự cần thiết. Tôi muốn sống sâu sắc và hút hết tủy sống của cuộc đời.",
+      "scores": {
+        "accuracy": 8.0,
+        "fluency": 7.0,
+        "style": 7.0,
+        "overall": 7.0,
+        "feedback": "The translation captures the philosophical essence and meaning of Thoreau's passage well, with accurate rendering of key concepts like deliberate living and essential facts. However, some phrasings feel slightly awkward in Vietnamese (e.g., 'sống một cách chủ tâm' is somewhat formal, and 'hút hết tủy sống' is literal rather than idiomatic), and the rhythmic intensity of the original's parallel structures is somewhat diminished."
+      },
+      "translation_time_ms": 1931,
+      "evaluation_time_ms": 2110,
+      "timestamp": "2026-01-16T22:51:21.973969",
+      "error": null
+    },
+    {
+      "source_text_id": "moby_dick",
+      "target_language": "vi",
+      "model": "google/gemini-2.0-flash-001",
+      "translated_text": "Cứ gọi tôi là Ishmael. Cách đây vài năm—không cần biết chính xác là bao lâu—vì hầu bao chẳng rủng rỉnh gì, và cũng chẳng có điều gì đặc biệt thú vị trên bờ, tôi nghĩ mình nên dong buồm đi đây đó một chút và ngắm nhìn phần biển cả của thế giới. Đó là cách tôi xua tan nỗi u sầu và điều hòa khí huyết. Bất cứ khi nào tôi thấy mình cau có, miệng nhăn nhó; bất cứ khi nào tâm hồn tôi ẩm ướt, ảm đạm như một ngày tháng Mười Một mưa phùn, tôi đều cho rằng đã đến lúc phải ra khơi càng sớm càng tốt.",
+      "scores": {
+        "accuracy": 8.0,
+        "fluency": 7.0,
+        "style": 7.0,
+        "overall": 7.0,
+        "feedback": "The translation preserves most of the meaning and philosophical tone of the original, with good handling of metaphorical language like 'spleen' and 'damp, drizzly November.' However, some archaic formality is lost in the Vietnamese rendering, and phrases like 'dong buồm đi đây đó' feel slightly colloquial compared to the elevated prose style of Melville's original."
+      },
+      "translation_time_ms": 2165,
+      "evaluation_time_ms": 1963,
+      "timestamp": "2026-01-16T22:51:26.250049",
+      "error": null
+    },
+    {
+      "source_text_id": "pride_prejudice",
+      "target_language": "th",
+      "model": "google/gemini-2.0-flash-001",
+      "translated_text": "เป็นที่รู้กันโดยทั่วไปว่า ชายโสดผู้มั่งคั่งย่อมต้องการภรรยา ไม่ว่าความรู้สึกนึกคิดของเขาผู้นั้นจะเป็นเช่นไรเมื่อแรกย่างกรายเข้ามาในละแวกบ้าน แต่ความจริงข้อนี้ก็ฝังแน่นอยู่ในจิตใจของครอบครัวทั้งหลายในแถบนั้นเสียแล้ว ว่าเขาคือสมบัติอันชอบธรรมของลูกสาวคนใดคนหนึ่งของพวกตน",
+      "scores": {
+        "accuracy": 8.0,
+        "fluency": 7.0,
+        "style": 7.0,
+        "overall": 7.0,
+        "feedback": "The translation accurately captures the meaning and ironic tone of Austen's opening, with good preservation of the satirical commentary on marriage expectations. Minor fluency issues arise from the somewhat formal Thai construction that, while appropriate for the era, reads slightly more stilted than the original's elegant simplicity."
+      },
+      "translation_time_ms": 1709,
+      "evaluation_time_ms": 1414,
+      "timestamp": "2026-01-16T22:51:29.923179",
+      "error": null
+    },
+    {
+      "source_text_id": "dorian_gray",
+      "target_language": "th",
+      "model": "google/gemini-2.0-flash-001",
+      "translated_text": "ห้องสตูดิโออบอวลไปด้วยกลิ่นกุหลาบอันหอมกรุ่น และเมื่อสายลมฤดูร้อนพัดโชยมาต้องหมู่แมกไม้ในสวน ก็จะมีกลิ่นไลแลคอันแรงกล้า หรือกลิ่นหอมละมุนละไมของต้นทอร์นสีชมพู ลอยผ่านประตูที่เปิดอยู่ จากมุมโซฟาซึ่งปูด้วยกระสอบอานม้าเปอร์เซียที่เขานอนเอกเขนกสูบบุหรี่มวนเล็กเป็นนิจสิน ลอร์ดเฮนรี วอตตัน มองเห็นประกายสีเหลืองทองดั่งน้ำผึ้งของดอกราชพฤกษ์ที่บานสะพรั่ง",
+      "scores": {
+        "accuracy": 7.0,
+        "fluency": 6.0,
+        "style": 7.0,
+        "overall": 7.0,
+        "feedback": "The translation captures most of the sensory details and aesthetic richness of the original, with accurate renderings of the floral imagery and Lord Henry's leisurely pose. However, the Thai syntax becomes somewhat convoluted in places (particularly the middle section), and some delicate nuances like 'honey-sweet and honey-coloured' lose their poetic parallel structure, slightly diminishing the lyrical quality Wilde intended."
+      },
+      "translation_time_ms": 2315,
+      "evaluation_time_ms": 2445,
+      "timestamp": "2026-01-16T22:51:33.655408",
+      "error": null
+    },
+    {
+      "source_text_id": "study_scarlet",
+      "target_language": "th",
+      "model": "google/gemini-2.0-flash-001",
+      "translated_text": "\"คุณเคยอยู่ในอัฟกานิสถานมา ผมเข้าใจถูกใช่ไหม\" ผมถามด้วยความประหลาดใจ \"คุณรู้ได้อย่างไรกัน\" เขาตอบพลางหัวเราะเบาๆ \"ช่างมันเถอะ ประเด็นก็คือเรื่องฮีโมโกลบิน คุณคงเห็นความสำคัญของการค้นพบของผมแล้วใช่ไหม\" ผมตอบว่า \"มันน่าสนใจในแง่เคมี แต่ในทางปฏิบัติแล้วมัน—\" \"ทำไมน่ะเพื่อน นี่เป็นการค้นพบทางการแพทย์และกฎหมายที่เป็นประโยชน์มากที่สุดในรอบหลายปี คุณไม่เห็นหรือว่ามันทำให้เรามีการทดสอบคราบเลือดที่เชื่อถือได้อย่างแน่นอน\"",
+      "scores": {
+        "accuracy": 7.0,
+        "fluency": 6.0,
+        "style": 6.0,
+        "overall": 6.0,
+        "feedback": "The translation captures the core meaning and technical content accurately, but has structural issues: the dialogue attribution is confused in the opening (the speaker order is unclear), and the Thai phrasing feels somewhat stilted and unnatural for conversational dialogue. The style lacks the Victorian-era formality and sharp wit of the original."
+      },
+      "translation_time_ms": 2172,
+      "evaluation_time_ms": 1584,
+      "timestamp": "2026-01-16T22:51:38.273995",
+      "error": null
+    },
+    {
+      "source_text_id": "walden",
+      "target_language": "th",
+      "model": "google/gemini-2.0-flash-001",
+      "translated_text": "ข้าพเจ้าเข้าไปในป่าเพราะปรารถนาจะใช้ชีวิตอย่างมีสติ ตั้งใจเผชิญหน้ากับความจริงแท้ของชีวิตเท่านั้น และใคร่รู้ว่าข้าพเจ้าจะเรียนรู้สิ่งที่ป่าสอนได้หรือไม่ และเมื่อถึงคราวต้องตาย จะได้ไม่พบว่าข้าพเจ้าไม่ได้มีชีวิตอยู่อย่างแท้จริง ข้าพเจ้าไม่ปรารถนาจะใช้ชีวิตที่ไม่ใช่ชีวิต เพราะชีวิตนั้นมีค่าเหลือเกิน และข้าพเจ้าก็ไม่ปรารถนาที่จะฝึกฝนการยอมจำนน นอกจากว่ามันจำเป็นจริงๆ ข้าพเจ้าอยากใช้ชีวิตอย่างลึกซึ้ง และดูดดื่มแก่นแท้ทั้งหมดของชีวิต",
+      "scores": {
+        "accuracy": 8.0,
+        "fluency": 7.0,
+        "style": 7.0,
+        "overall": 7.0,
+        "feedback": "The translation accurately captures Thoreau's philosophical meaning and existential concerns with appropriate Thai vocabulary choices like 'มีสติ' (mindfully) and 'แก่นแท้' (essence). However, the Thai prose reads somewhat formal and occasionally awkward—particularly the double negative construction and the phrase 'ดูดดื่มแก่นแท้' (literally 'suck the essence')—which slightly diminishes the natural flow compared to the original's eloquent simplicity, though the contemplative tone is reasonably p"
+      },
+      "translation_time_ms": 1922,
+      "evaluation_time_ms": 2319,
+      "timestamp": "2026-01-16T22:51:41.783061",
+      "error": null
+    },
+    {
+      "source_text_id": "moby_dick",
+      "target_language": "th",
+      "model": "google/gemini-2.0-flash-001",
+      "translated_text": "เรียกผมว่าอิชมาเอล หลายปีก่อน—ไม่ต้องสนใจว่านานเท่าไหร่—เมื่อมีเงินในกระเป๋าอยู่น้อยนิดหรือไม่เลย และไม่มีอะไรที่น่าสนใจเป็นพิเศษบนฝั่ง ผมคิดว่าจะออกเรือไปสักหน่อยและดูส่วนที่เป็นน้ำของโลก มันเป็นวิธีที่ผมใช้ในการขับไล่ความหดหู่และความเศร้าหมอง และควบคุมการไหลเวียนโลหิต เมื่อใดก็ตามที่ผมพบว่าตัวเองกำลังทำหน้าตาบึ้งตึง เมื่อใดก็ตามที่จิตใจผมหม่นหมองเหมือนอยู่ในเดือนพฤศจิกายนที่ฝนตกพรำ ผมถือว่าเป็นเวลาอันสมควรที่จะออกทะเลให้เร็วที่สุดเท่าที่จะทำได้",
+      "scores": {
+        "accuracy": 8.0,
+        "fluency": 7.0,
+        "style": 6.0,
+        "overall": 7.0,
+        "feedback": "The translation captures the core meaning and narrative voice well, with accurate rendering of Ishmael's introspective tone and motivations. However, some archaic literary nuances are lost—phrases like 'driving off the spleen' become more literal and less evocative, and the poetic melancholy of the original is somewhat diminished by more straightforward Thai phrasing."
+      },
+      "translation_time_ms": 2035,
+      "evaluation_time_ms": 1669,
+      "timestamp": "2026-01-16T22:51:46.139608",
+      "error": null
+    },
+    {
+      "source_text_id": "pride_prejudice",
+      "target_language": "hi",
+      "model": "google/gemini-2.0-flash-001",
+      "translated_text": "यह एक सर्वमान्य सत्य है कि अच्छी संपत्ति का स्वामी एक अविवाहित पुरुष पत्नी की चाह रखता है। किसी पुरुष के विचार और भावनाएँ किसी नए क्षेत्र में आने पर कितनी भी अल्पज्ञात क्यों न हों, आस-पास के परिवारों के मन में यह सत्य इतना दृढ़ता से स्थापित हो जाता है कि उसे उनकी किसी न किसी बेटी की हकदार संपत्ति मान लिया जाता है।",
+      "scores": {
+        "accuracy": 8.0,
+        "fluency": 7.0,
+        "style": 7.0,
+        "overall": 7.0,
+        "feedback": "The translation accurately captures the core meaning and ironic premise of Austen's opening, though 'हकदार संपत्ति' (rightful property/entitled property) slightly softens the original's satirical bite about women as possessions. The Hindi reads somewhat formally constructed rather than naturally flowing, with minor awkwardness in phrasing that slightly diminishes the elegant irony of the source."
+      },
+      "translation_time_ms": 1597,
+      "evaluation_time_ms": 2472,
+      "timestamp": "2026-01-16T22:51:49.407925",
+      "error": null
+    },
+    {
+      "source_text_id": "dorian_gray",
+      "target_language": "hi",
+      "model": "google/gemini-2.0-flash-001",
+      "translated_text": "स्टूडियो गुलाबों की समृद्ध गंध से भरा हुआ था, और जब हल्की गर्मी की हवा बगीचे के पेड़ों के बीच चलती थी, तो खुले दरवाजे से बकाइन की भारी खुशबू आती थी, या गुलाबी फूलों वाले कांटों की अधिक नाजुक सुगंध आती थी। फ़ारसी सैडल-बैग के दीवान के कोने से, जिस पर वह लेटा हुआ था, अपनी आदत के अनुसार, अनगिनत सिगरेट पीते हुए, लॉर्ड हेनरी वॉटटन को बस लैबर्नम के शहद-मीठे और शहद के रंग के फूलों की झलक मिल रही थी।",
+      "scores": {
+        "accuracy": 8.0,
+        "fluency": 7.0,
+        "style": 7.0,
+        "overall": 7.0,
+        "feedback": "The translation accurately captures most of the sensory details and meaning, with faithful rendering of the floral imagery and aesthetic atmosphere. However, the sentence structure becomes somewhat convoluted in Hindi, and phrases like 'शहद-मीठे और शहद के रंग के' feel slightly repetitive compared to Wilde's elegant 'honey-sweet and honey-coloured,' slightly diminishing the lyrical flow characteristic of the original's aestheticism."
+      },
+      "translation_time_ms": 1710,
+      "evaluation_time_ms": 1491,
+      "timestamp": "2026-01-16T22:51:53.592323",
+      "error": null
+    },
+    {
+      "source_text_id": "study_scarlet",
+      "target_language": "hi",
+      "model": "google/gemini-2.0-flash-001",
+      "translated_text": "“मुझे लगता है, तुम अफ़ग़ानिस्तान में रहे हो।” “तुम्हें यह कैसे पता चला?” मैंने आश्चर्य से पूछा। “कोई बात नहीं,” उसने अपने आप में हँसते हुए कहा। “अब सवाल हीमोग्लोबिन के बारे में है। निस्संदेह तुम मेरी इस खोज का महत्व समझ रहे हो?” “यह दिलचस्प है, रासायनिक रूप से, निस्संदेह,” मैंने उत्तर दिया, “लेकिन व्यावहारिक रूप से—” “अरे यार, यह वर्षों से सबसे व्यावहारिक चिकित्सा-कानूनी खोज है। क्या तुम्हें नहीं दिखता कि यह हमें खून के धब्बों के लिए अचूक परीक्षण देता है?”",
+      "scores": {
+        "accuracy": 8.0,
+        "fluency": 7.0,
+        "style": 7.0,
+        "overall": 7.0,
+        "feedback": "The translation accurately captures the meaning and dialogue flow, preserving Holmes's deductive confidence and Watson's astonishment. Minor fluency issues include slightly formal phrasing ('तुम्हें नहीं दिखता' could be more natural) and the colloquial 'अरे यार' feels slightly informal for Holmes's character, though the overall tone and Victorian-era formality are reasonably maintained."
+      },
+      "translation_time_ms": 1843,
+      "evaluation_time_ms": 2218,
+      "timestamp": "2026-01-16T22:51:56.928411",
+      "error": null
+    },
+    {
+      "source_text_id": "walden",
+      "target_language": "hi",
+      "model": "google/gemini-2.0-flash-001",
+      "translated_text": "मैं जंगल इसलिए गया क्योंकि मैं जानबूझकर जीना चाहता था, केवल जीवन के आवश्यक तथ्यों का सामना करना चाहता था, और देखना चाहता था कि क्या मैं वह सीख सकता हूँ जो उसे सिखाना है, और मरने पर यह पता न चले कि मैं जिया ही नहीं। मैं वह नहीं जीना चाहता था जो जीवन नहीं था, जीना इतना प्यारा है; और मैं त्याग का अभ्यास भी नहीं करना चाहता था, जब तक कि यह बिल्कुल आवश्यक न हो। मैं गहराई से जीना चाहता था और जीवन के सारे मज्जा को चूस लेना चाहता था।",
+      "scores": {
+        "accuracy": 8.0,
+        "fluency": 7.0,
+        "style": 8.0,
+        "overall": 8.0,
+        "feedback": "The translation preserves Thoreau's philosophical meaning and existential concerns with strong fidelity, capturing key concepts like deliberate living and extracting life's essence. Minor fluency issues exist (\"उसे सिखाना है\" is slightly awkward; \"जीना इतना प्यारा है\" could be more idiomatic), but the philosophical tone and contemplative style are well-maintained throughout."
+      },
+      "translation_time_ms": 1777,
+      "evaluation_time_ms": 1664,
+      "timestamp": "2026-01-16T22:52:00.925391",
+      "error": null
+    },
+    {
+      "source_text_id": "moby_dick",
+      "target_language": "hi",
+      "model": "google/gemini-2.0-flash-001",
+      "translated_text": "आप मुझे इश्माएल कह सकते हैं। कुछ वर्ष पहले—ठीक-ठीक कितने वर्ष, इस बात पर ध्यान न दें—मेरे पास बटुए में बहुत कम या बिलकुल पैसे नहीं थे, और किनारे पर मेरी दिलचस्पी का कोई विशेष काम नहीं था, तो मैंने सोचा कि मैं थोड़ा नौकायन करूँगा और दुनिया का जलीय भाग देखूँगा। यह मेरा एक तरीका है कुंठा दूर करने और रक्त परिसंचरण को नियमित करने का। जब कभी मैं अपने मुँह के चारों ओर उदासी महसूस करता हूँ; जब कभी मेरी आत्मा में एक नम, बूंदाबांदी वाला नवंबर होता है, तो मैं इसे समुद्र की यात्रा पर निकलने का सही समय मानता हूँ, जितनी जल्दी हो सके।",
+      "scores": {
+        "accuracy": 7.0,
+        "fluency": 6.0,
+        "style": 5.0,
+        "overall": 6.0,
+        "feedback": "The translation captures most of the literal meaning accurately, though some metaphorical nuances are lost (e.g., 'growing grim about the mouth' becomes awkwardly literal). The archaic, contemplative tone of the original is significantly diminished in the Hindi version, which reads more modern and less poetic, with some phrasing feeling stilted rather than naturally flowing."
+      },
+      "translation_time_ms": 2114,
+      "evaluation_time_ms": 1500,
+      "timestamp": "2026-01-16T22:52:04.707040",
+      "error": null
+    },
+    {
+      "source_text_id": "pride_prejudice",
+      "target_language": "bn",
+      "model": "google/gemini-2.0-flash-001",
+      "translated_text": "এটা সর্বজনস্বীকৃত একটি সত্য যে, একজন বিত্তবান অবিবাহিত পুরুষ নিশ্চিতভাবেই একজন জীবনসঙ্গিনী খুঁজে থাকেন। কোনো ব্যক্তি যখন প্রথম কোনো এলাকায় আসেন, তখন তাঁর অনুভূতি বা উদ্দেশ্য সম্পর্কে খুব কম জানা গেলেও আশেপাশের পরিবারগুলোর মনে এই সত্যটি এমনভাবে গেঁথে থাকে যে, সেই ব্যক্তি তাদের কোনো না কোনো কন্যার ন্যায্য সম্পত্তি হিসেবে বিবেচিত হন।",
+      "scores": {
+        "accuracy": 8.0,
+        "fluency": 7.0,
+        "style": 7.0,
+        "overall": 7.0,
+        "feedback": "The translation accurately captures the meaning and ironic tone of Austen's opening, with proper rendering of the key concepts (fortune, wife-seeking, property). However, the Bengali phrasing is somewhat formal and occasionally awkward (e.g., 'জীবনসঙ্গিনী খুঁজে থাকেন' feels slightly stilted), and the flowing irony of the original is slightly diminished by the more literal structural approach."
+      },
+      "translation_time_ms": 1504,
+      "evaluation_time_ms": 1928,
+      "timestamp": "2026-01-16T22:52:07.712880",
+      "error": null
+    },
+    {
+      "source_text_id": "dorian_gray",
+      "target_language": "bn",
+      "model": "google/gemini-2.0-flash-001",
+      "translated_text": "স্টুডিওটি গোলাপের সুগন্ধে পরিপূর্ণ ছিল, এবং গ্রীষ্মের হালকা বাতাস যখন বাগানের গাছপালার মধ্যে দিয়ে বয়ে যেত, তখন খোলা দরজা দিয়ে ভেসে আসত লিলাকের ভারী সুবাস, অথবা গোলাপী থর্নের আরও সূক্ষ্ম সুগন্ধ। পারস্যের স্যাডল-ব্যাগের ডিভানের কোণে শুয়ে, নিজের অভ্যাস মতো অজস্র সিগারেট টানতে টানতে লর্ড হেনরি ওটন ল্যাবার্নামের মধু-মিষ্টি এবং মধু-বর্ণের পুষ্পগুলির ঝলক দেখতে পাচ্ছিলেন।",
+      "scores": {
+        "accuracy": 8.0,
+        "fluency": 7.0,
+        "style": 8.0,
+        "overall": 8.0,
+        "feedback": "The translation accurately preserves Wilde's sensory-rich language and aesthetic focus, with strong rendering of the floral imagery and luxurious atmosphere. Minor fluency issues arise from slightly awkward phrasing ('টানতে টানতে' feels somewhat repetitive) and the compound adjective 'মধু-মিষ্টি এবং মধু-বর্ণের' could flow more naturally, but the overall style and meaning are well-maintained."
+      },
+      "translation_time_ms": 1884,
+      "evaluation_time_ms": 2446,
+      "timestamp": "2026-01-16T22:52:11.526479",
+      "error": null
+    },
+    {
+      "source_text_id": "study_scarlet",
+      "target_language": "bn",
+      "model": "google/gemini-2.0-flash-001",
+      "translated_text": "\"আপনাকে দেখে মনে হচ্ছে আপনি আফগানিস্তান ছিলেন।\" \"আপনি এটা জানলেন কী করে?\" আমি অবাক হয়ে জিজ্ঞাসা করলাম। \"ওসব ছাড়ুন,\" সে আপন মনে হেসে বলল। \"এখন প্রশ্ন হলো হিমোগ্লোবিন নিয়ে। আমার এই আবিষ্কারের তাৎপর্য নিশ্চয়ই আপনি বুঝতে পারছেন?\" \"এটা રસાયણিকভাবে অবশ্যই আকর্ষণীয়,\" আমি উত্তর দিলাম, \"তবে কার্যত—\" \"আরে বাবা, এটা বহু বছরের মধ্যে সবচেয়ে বাস্তবসম্মত medico-legal আবিষ্কার। আপনি কি দেখছেন না যে এটা আমাদের রক্তের দাগের безо безо ত্রুটিপূর্ণ পরীক্ষা করার সুযোগ করে দিচ্ছে?\"",
+      "scores": {
+        "accuracy": 6.0,
+        "fluency": 5.0,
+        "style": 6.0,
+        "overall": 6.0,
+        "feedback": "The translation captures the core meaning and dialogue structure but contains significant issues: corrupted text ('безо безо'), incomplete translation of 'infallible test' (rendered awkwardly as 'ত্রুটিপূর্ণ পরীক্ষা'), and the English term 'medico-legal' left untranslated. While the conversational tone is mostly preserved, these errors and awkward phrasings ('আপন মনে') disrupt fluency and accuracy."
+      },
+      "translation_time_ms": 1897,
+      "evaluation_time_ms": 1770,
+      "timestamp": "2026-01-16T22:52:15.871385",
+      "error": null
+    },
+    {
+      "source_text_id": "walden",
+      "target_language": "bn",
+      "model": "google/gemini-2.0-flash-001",
+      "translated_text": "আমি অরণ্যে গিয়েছিলাম, কারণ আমি সচেতনভাবে বাঁচতে চেয়েছিলাম, শুধুমাত্র জীবনের অপরিহার্য বাস্তবতার মুখোমুখি হতে চেয়েছিলাম, এবং দেখতে চেয়েছিলাম জীবন আমাকে কী শিক্ষা দেয়, এবং যখন আমার মৃত্যু হয়, তখন যেন আবিষ্কার না করি যে আমি বাঁচিনি। আমি সেই জীবন বাঁচতে চাইনি যা জীবন নয়, কারণ জীবন খুবই মূল্যবান; আর আমি স্বেচ্ছায় সবকিছু ছেড়ে দিতেও চাইনি, যদি না তা একেবারে প্রয়োজনীয় হয়। আমি গভীরভাবে বাঁচতে চেয়েছিলাম এবং জীবনের সমস্ত নির্যাস শুষে নিতে চেয়েছিলাম।",
+      "scores": {
+        "accuracy": 8.0,
+        "fluency": 7.0,
+        "style": 7.0,
+        "overall": 7.0,
+        "feedback": "The translation captures Thoreau's philosophical meaning and key concepts accurately, preserving the essential ideas about deliberate living and extracting life's essence. However, some phrases feel slightly awkward in Bengali (e.g., 'স্বেচ্ছায় সবকিছু ছেড়ে দিতে' for 'practise resignation'), and the rhythmic, meditative quality of the original prose is somewhat diminished, though the contemplative tone remains largely intact."
+      },
+      "translation_time_ms": 1802,
+      "evaluation_time_ms": 1645,
+      "timestamp": "2026-01-16T22:52:19.444830",
+      "error": null
+    },
+    {
+      "source_text_id": "moby_dick",
+      "target_language": "bn",
+      "model": "google/gemini-2.0-flash-001",
+      "translated_text": "আমাকে ইসমাইল নামে ডাকতে পারেন। আজ থেকে কয়েক বছর আগে—ঠিক কত বছর আগে তা বলার দরকার নেই—আমার পকেটে যখন প্রায় কানাকড়িও ছিল না, আর ডাঙায় থাকতেও তেমন কোনো উৎসাহ পাচ্ছিলাম না, তখন ভাবলাম একটু ঘুরে আসি, দেখে আসি পৃথিবীর জলভাগটা কেমন। এটা আমার একটা পুরোনো অভ্যাস—মন খারাপ হলে বা তিক্ততা গ্রাস করলে রক্ত চলাচল স্বাভাবিক রাখতে এটা কাজে দেয়। যখনই দেখি আমার মুখটা কেমন যেন কুঁচকে যাচ্ছে, যখনই মনে হয় যেন আমার আত্মাটা নভেম্বর মাসের স্যাঁতসেঁতে বৃষ্টির মতো বিষণ্ণ হয়ে আছে, তখনই বুঝি যে আমার জলপথে যাত্রা করার সময় হয়ে গেছে।",
+      "scores": {
+        "accuracy": 7.0,
+        "fluency": 6.0,
+        "style": 6.0,
+        "overall": 6.0,
+        "feedback": "The translation captures the core meaning and narrative voice reasonably well, but loses some of Melville's philosophical subtlety and archaic elegance. Phrases like 'driving off the spleen' become more literal and less poetic, and the rhythmic flow of the original's meditative opening is diminished by more explanatory phrasing in Bengali."
+      },
+      "translation_time_ms": 1821,
+      "evaluation_time_ms": 2301,
+      "timestamp": "2026-01-16T22:52:22.911689",
+      "error": null
+    },
+    {
+      "source_text_id": "pride_prejudice",
+      "target_language": "ta",
+      "model": "google/gemini-2.0-flash-001",
+      "translated_text": "நல்ல அதிர்ஷ்டம் உடைய ஒரு திருமணமாகாத ஆண், மனைவி இல்லாமல் இருக்க முடியாது என்பது உலகறிந்த உண்மை. ஒருவன் ஒரு சுற்று வட்டாரத்திற்குள் முதன்முதலில் நுழையும்போது அவனைப் பற்றிய எண்ணங்கள் அல்லது கருத்துக்கள் எவ்வளவு குறைவாக அறியப்பட்டிருந்தாலும், இந்த உண்மை அந்த சுற்றியுள்ள குடும்பங்களின் மனதில் ஆழமாகப் பதிந்துள்ளது. அதனால் அவன் அவர்களுடைய மகள்களில் ஒருத்தியின் நியாயமான சொத்தாகக் கருதப்படுகிறான்.",
+      "scores": {
+        "accuracy": 7.0,
+        "fluency": 6.0,
+        "style": 5.0,
+        "overall": 6.0,
+        "feedback": "The translation captures the core meaning and ironic premise of Austen's opening, but loses some of the original's satirical bite and elegant economy of language. The phrasing is somewhat awkward in places (e.g., 'சுற்று வட்டாரத்திற்குள்' for 'neighbourhood'), and the subtle irony of treating women as property is less sharply conveyed than in the original's measured, deadpan tone."
+      },
+      "translation_time_ms": 1055,
+      "evaluation_time_ms": 1940,
+      "timestamp": "2026-01-16T22:52:26.268570",
+      "error": null
+    },
+    {
+      "source_text_id": "dorian_gray",
+      "target_language": "ta",
+      "model": "google/gemini-2.0-flash-001",
+      "translated_text": "அந்த அறை ரோஜாக்களின் நறுமணத்தால் நிறைந்திருந்தது. கோடைக்காலக் காற்று மெதுவாகத் தோட்டத்து மரங்களுக்கிடையே அசைந்தபோது, திறந்திருந்த கதவின் வழியே லிலாக் மலர்களின் அடர்த்தியான வாசனையும், இளஞ்சிவப்பு முள் மரத்தின் மெல்லிய நறுமணமும் கலந்து வீசின. பெர்சியன் சேணப் பைகள் விரிக்கப்பட்டிருந்த திவானின் மூலையில் சாய்ந்து புகைப்பிடித்துக் கொண்டிருந்த லார்ட் ஹென்றி வோட்டன், வழக்கம்போல் எண்ணற்ற சிகரெட்டுகளைப் புகைத்தவாறே தேன் நிற லாபர்னம் மலர்களின் பிரகாசத்தை மட்டும் காண முடிந்தது.",
+      "scores": {
+        "accuracy": 8.0,
+        "fluency": 7.0,
+        "style": 8.0,
+        "overall": 7.0,
+        "feedback": "The translation captures the sensory richness and aesthetic details of the original with strong accuracy, preserving the layered descriptions of scents and visual imagery. Minor fluency issues arise from the complex sentence structure and some awkward phrasing ('தேன் நிற' placement, the somewhat convoluted final clause), though the poetic sensibility and Wilde's refined tone are well maintained overall."
+      },
+      "translation_time_ms": 2374,
+      "evaluation_time_ms": 2511,
+      "timestamp": "2026-01-16T22:52:30.583921",
+      "error": null
+    },
+    {
+      "source_text_id": "study_scarlet",
+      "target_language": "ta",
+      "model": "google/gemini-2.0-flash-001",
+      "translated_text": "\"நீங்கள் ஆப்கானிஸ்தானில் இருந்திருக்கிறீர்கள் என்று நினைக்கிறேன்.\" \"அது எப்படி உங்களுக்குத் தெரிந்தது?\" என்று நான் ஆச்சரியத்துடன் கேட்டேன். \"அதெல்லாம் இருக்கட்டும்\" என்று கூறிய அவர் தனக்குள்ளேயே சிரித்துக் கொண்டார். \"இப்போது விஷயம் ஹீமோகுளோபின் பற்றியது. என்னுடைய இந்த கண்டுபிடிப்பின் முக்கியத்துவத்தை நீங்கள் பார்க்கிறீர்கள் இல்லையா?\" \"அது சுவாரஸ்யமாக இருக்கிறது, இரசாயன ரீதியாக சந்தேகமில்லை,\" என்று நான் பதிலளித்தேன், \"ஆனால் நடைமுறையில்—\" \"ஏன் மனிதரே, இது பல வருடங்களாக மருத்துவ சட்டத்துறையில் ஏற்பட்ட மிக முக்கியமான கண்டுபிடிப்பு. இது இரத்தக் கறைகளை கண்டறிய ஒரு தவறில்லாத சோதனையை நமக்குத் தருகிறது என்று உங்களுக்கு புரியவில்லையா?\"",
+      "scores": {
+        "accuracy": 7.0,
+        "fluency": 6.0,
+        "style": 6.0,
+        "overall": 6.0,
+        "feedback": "The translation captures most of the meaning accurately, including the key plot points about Afghanistan and haemoglobin discovery, though some nuances are lost (e.g., 'Never mind' becomes 'அதெல்லாம் இருக்கட்டும்' which is slightly different in tone). The Tamil reads somewhat formally and occasionally awkwardly, particularly in the longer sentences, lacking the natural conversational flow of the original Victorian dialogue."
+      },
+      "translation_time_ms": 2302,
+      "evaluation_time_ms": 2663,
+      "timestamp": "2026-01-16T22:52:35.398641",
+      "error": null
+    },
+    {
+      "source_text_id": "walden",
+      "target_language": "ta",
+      "model": "google/gemini-2.0-flash-001",
+      "translated_text": "நான் வேண்டுமென்றே முழு ஈடுபாட்டுடன் வாழவும், வாழ்வின் அத்தியாவசியமான உண்மைகளை மட்டுமே எதிர்கொள்ளவும், வாழ்க்கை எனக்கு என்ன கற்பிக்கிறதோ அதை கற்றுக் கொள்ளவும் காட்டிற்குச் சென்றேன். மேலும் நான் இறக்கும்போது, நான் வாழவே இல்லை என்று கண்டறிய விரும்பவில்லை. வாழ்க்கையல்லாத ஒன்றை நான் வாழ விரும்பவில்லை, ஏனெனில் வாழ்வது மிகவும் அருமையானது. அதேபோல், நான் விட்டுக்கொடுத்து வாழப் பழக விரும்பவில்லை, அது முற்றிலும் அவசியமானதாக இருந்தாலொழிய அவ்வாறு செய்ய எனக்கு விருப்பமில்லை. நான் ஆழமாக வாழ்ந்து வாழ்க்கையின் சாரத்தை முழுமையாக உறிஞ்ச விரும்பினேன்.",
+      "scores": {
+        "accuracy": 8.0,
+        "fluency": 7.0,
+        "style": 7.0,
+        "overall": 7.0,
+        "feedback": "The translation captures the philosophical meaning and core ideas of Thoreau's passage accurately, with good preservation of the deliberate living concept and the metaphor of 'sucking the marrow of life.' However, some sentences become slightly verbose or awkwardly structured in Tamil, and the lyrical, meditative tone of the original is somewhat diminished by the more explanatory phrasing."
+      },
+      "translation_time_ms": 2065,
+      "evaluation_time_ms": 2025,
+      "timestamp": "2026-01-16T22:52:40.128905",
+      "error": null
+    },
+    {
+      "source_text_id": "moby_dick",
+      "target_language": "ta",
+      "model": "google/gemini-2.0-flash-001",
+      "translated_text": "என் பெயர் இஷ்mael. சில வருடங்களுக்கு முன்பு – எவ்வளவு காலம் என்று சரியாகச் சொல்லத் தெரியவில்லை – என் பர்ஸில் கொஞ்சம் கூட பணம் இல்லாமல், கரையில் என்னை ஈர்க்கவோ அல்லது கவனம் செலுத்தவோ எதுவும் இல்லாமல் இருந்தபோது, நான் கொஞ்சம் தூரம் கடலில் பயணம் செய்து உலகத்தின் நீர்ப்பகுதியைப் பார்க்க வேண்டும் என்று நினைத்தேன். எனக்கு ஒரு பழக்கம் உண்டு, அதாவது மனச்சோர்வை விரட்டி, இரத்த ஓட்டத்தைச் சீராக்க இப்படிச் செய்வதுண்டு. எப்போதெல்லாம் என் முகத்தில் ஒருவித இறுக்கம் ஏற்படுகிறதோ, எப்போதெல்லாம் என் ஆன்மாவில் ஒரு ஈரமான, தூறல் போன்று நவம்பர் மாதம் கவிழ்கிறதோ, அப்போதெல்லாம் நான் விரைவில் கடலுக்குச் செல்ல வேண்டிய நேரம் வந்துவிட்டது என்று உணர்கிறேன்.",
+      "scores": {
+        "accuracy": 7.0,
+        "fluency": 6.0,
+        "style": 5.0,
+        "overall": 6.0,
+        "feedback": "The translation captures most of the meaning accurately but loses some of Melville's poetic compression and metaphorical elegance; the archaic, introspective tone is diluted by more literal phrasing, and the rhythm that characterizes the original's opening is not well-preserved in Tamil."
+      },
+      "translation_time_ms": 2280,
+      "evaluation_time_ms": 1859,
+      "timestamp": "2026-01-16T22:52:44.435781",
+      "error": null
+    },
+    {
+      "source_text_id": "pride_prejudice",
+      "target_language": "ru",
+      "model": "google/gemini-2.0-flash-001",
+      "translated_text": "Общеизвестно, что всякий холостяк, обладающий солидным состоянием, нуждается в жене. Как бы мало ни было известно об убеждениях и вкусах такого человека при его появлении в окрестностях, эта истина настолько прочно укоренилась в сознании местных семейств, что его тут же считают законной собственностью той или иной их дочери.",
+      "scores": {
+        "accuracy": 8.0,
+        "fluency": 8.0,
+        "style": 7.0,
+        "overall": 8.0,
+        "feedback": "The translation accurately captures the meaning and ironic tone of Austen's opening, with natural Russian phrasing. Minor stylistic adjustments (\"Общеизвестно\" vs. \"Это истина, всеми признаваемая\") and the slightly softened irony in \"законной собственностью\" prevent a perfect score, but overall it's a strong, idiomatic rendering."
+      },
+      "translation_time_ms": 1444,
+      "evaluation_time_ms": 1620,
+      "timestamp": "2026-01-16T22:52:47.740874",
+      "error": null
+    },
+    {
+      "source_text_id": "dorian_gray",
+      "target_language": "ru",
+      "model": "google/gemini-2.0-flash-001",
+      "translated_text": "Студия была наполнена насыщенным ароматом роз, а когда легкий летний ветер шевелил листву в саду, через открытую дверь проникал густой запах сирени или более нежный аромат розового боярышника. Лорд Генри Уоттон, полулежа на диване с персидскими седельными сумками и по обыкновению выкуривая бесчисленные сигареты, мог уловить отблеск медово-сладких и медово-желтых цветов ракитника.",
+      "scores": {
+        "accuracy": 8.0,
+        "fluency": 8.0,
+        "style": 7.0,
+        "overall": 8.0,
+        "feedback": "The translation accurately preserves the sensory richness and aesthetic focus of Wilde's prose, with strong rendering of the floral imagery and atmospheric details. Minor deviations include 'полулежа' (half-lying) which slightly shifts the original's recumbent posture, and the restructuring of the final clause that slightly diminishes the elegant suspended syntax of the original."
+      },
+      "translation_time_ms": 1696,
+      "evaluation_time_ms": 1635,
+      "timestamp": "2026-01-16T22:52:51.058698",
+      "error": null
+    },
+    {
+      "source_text_id": "study_scarlet",
+      "target_language": "ru",
+      "model": "google/gemini-2.0-flash-001",
+      "translated_text": "— Полагаю, вы бывали в Афганистане.\n— Каким образом вы узнали? — изумленно спросил я.\n— Неважно, — ответил он, посмеиваясь про себя. — Сейчас вопрос в гемоглобине. Не сомневаюсь, вы видите значение моего открытия?\n— Безусловно, это интересно с химической точки зрения, — ответил я, — но практически…\n— Да поймите же, это самое важное судебно-медицинское открытие за последние годы! Неужели вы не видите, что оно дает нам безошибочный тест на кровяные пятна?",
+      "scores": {
+        "accuracy": 9.0,
+        "fluency": 9.0,
+        "style": 8.0,
+        "overall": 9.0,
+        "feedback": "The translation faithfully preserves all meaning and nuances of the original dialogue, with excellent naturalistic Russian that reads authentically. Minor style consideration: the Victorian formality and Sherlock's characteristic imperious tone could be marginally more pronounced, though the translation captures the essence well."
+      },
+      "translation_time_ms": 1992,
+      "evaluation_time_ms": 2046,
+      "timestamp": "2026-01-16T22:52:54.687723",
+      "error": null
+    },
+    {
+      "source_text_id": "walden",
+      "target_language": "ru",
+      "model": "google/gemini-2.0-flash-001",
+      "translated_text": "Я ушёл в лес, потому что хотел жить осмысленно, видеть перед собой только существенные факты жизни и понять, чему она может научить, чтобы, когда придёт мой смертный час, не обнаружить, что я не жил вовсе. Я не хотел жить тем, что жизнью не является, ибо жизнь так дорога; и я не хотел упражняться в покорности судьбе, разве только в случае крайней необходимости. Я хотел жить глубоко и высосать весь мозг из жизни.",
+      "scores": {
+        "accuracy": 8.0,
+        "fluency": 8.0,
+        "style": 8.0,
+        "overall": 8.0,
+        "feedback": "The translation faithfully preserves Thoreau's philosophical meaning and deliberate repetition of 'life/жизнь,' with strong choices like 'осмысленно' for 'deliberately' and 'высосать весь мозг' capturing the visceral metaphor. Minor fluency concerns include 'упражняться в покорности судьбе' being slightly more elaborate than the original 'practise resignation,' and 'смертный час' adding poetic formality not present in the source."
+      },
+      "translation_time_ms": 1796,
+      "evaluation_time_ms": 2428,
+      "timestamp": "2026-01-16T22:52:58.531488",
+      "error": null
+    },
+    {
+      "source_text_id": "moby_dick",
+      "target_language": "ru",
+      "model": "google/gemini-2.0-flash-001",
+      "translated_text": "Зовите меня Измаил. Несколько лет тому назад – неважно, скольких именно, – когда у меня было мало или совсем не было денег в кошельке и ничто особенное не занимало меня на берегу, я подумал, что неплохо бы немного поплавать и посмотреть на водную часть мира. У меня есть такая привычка – прогонять хандру и налаживать кровообращение. Всякий раз, когда я замечаю, что рот мой кривится в мрачной усмешке, всякий раз, когда в моей душе воцаряется сырой, промозглый ноябрь, я считаю, что самое время как можно скорее отправиться в море.",
+      "scores": {
+        "accuracy": 8.0,
+        "fluency": 8.0,
+        "style": 8.0,
+        "overall": 8.0,
+        "feedback": "The translation preserves the meaning and philosophical tone of Melville's opening effectively, with excellent rendering of the metaphorical language (\"spleen,\" \"damp, drizzly November in my soul\"). Minor fluency variations exist in phrasing choices, but the archaic literary style is well-maintained throughout."
+      },
+      "translation_time_ms": 2029,
+      "evaluation_time_ms": 2267,
+      "timestamp": "2026-01-16T22:53:02.989782",
+      "error": null
+    },
+    {
+      "source_text_id": "pride_prejudice",
+      "target_language": "uk",
+      "model": "google/gemini-2.0-flash-001",
+      "translated_text": "Загальновідомо, що неодружений чоловік, який має чималий статок, конче потребує дружини. І хоч би як мало було відомо про почуття та погляди такого чоловіка, коли він уперше з’являється в околицях, ця істина настільки добре закарбована в умах тамтешніх родин, що його вже вважають законною власністю котроїсь із їхніх дочок.",
+      "scores": {
+        "accuracy": 8.0,
+        "fluency": 8.0,
+        "style": 7.0,
+        "overall": 8.0,
+        "feedback": "The translation accurately conveys the meaning and captures most of Austen's ironic tone, though 'конче потребує' (desperately needs) is slightly more emphatic than the original's understated irony. The prose flows naturally in Ukrainian with good vocabulary choices, though the opening could be more elegant to fully match Austen's distinctive narrative voice."
+      },
+      "translation_time_ms": 1702,
+      "evaluation_time_ms": 1583,
+      "timestamp": "2026-01-16T22:53:06.960439",
+      "error": null
+    },
+    {
+      "source_text_id": "dorian_gray",
+      "target_language": "uk",
+      "model": "google/gemini-2.0-flash-001",
+      "translated_text": "У студії стояв насичений аромат троянд, а коли легкий літній вітерець ворушив дерева в саду, крізь відчинені двері долинав важкий запах бузку або більш ніжний аромат глоду з рожевими квітами. З кутка дивана, оббитого перськими сідельними сумками, на якому він лежав і курив, як завжди, незліченну кількість цигарок, лорд Генрі Воттон міг ледь вловити сяйво медово-солодких і медово-жовтих квітів рокітника.",
+      "scores": {
+        "accuracy": 8.0,
+        "fluency": 7.0,
+        "style": 8.0,
+        "overall": 8.0,
+        "feedback": "The translation preserves the sensory richness and aesthetic focus of Wilde's prose with strong vocabulary choices (насичений аромат, ніжний аромат, медово-солодких). Minor fluency issues arise from the long, complex sentence structure that feels slightly strained in Ukrainian, though this partially reflects the original's ornate style."
+      },
+      "translation_time_ms": 1934,
+      "evaluation_time_ms": 1386,
+      "timestamp": "2026-01-16T22:53:10.478116",
+      "error": null
+    },
+    {
+      "source_text_id": "study_scarlet",
+      "target_language": "uk",
+      "model": "google/gemini-2.0-flash-001",
+      "translated_text": "— Я так розумію, ви були в Афганістані.\n— Звідки ви це взяли? — здивовано запитав я.\n— Неважливо, — відповів він, тихо посміюючись. — Зараз мова про гемоглобін. Без сумніву, ви бачите важливість мого відкриття?\n— Звісно, це цікаво з хімічної точки зору, але практично…\n— Та це ж, чоловіче, найпрактичніше судово-медичне відкриття за останні роки! Хіба ви не розумієте, що це дає нам безпомилковий тест на плями крові?",
+      "scores": {
+        "accuracy": 8.0,
+        "fluency": 8.0,
+        "style": 8.0,
+        "overall": 8.0,
+        "feedback": "The translation accurately preserves the meaning and dialogue flow of the original text, with natural Ukrainian phrasing that captures Holmes's characteristic enthusiasm and Watson's bewilderment. Minor deviations include 'тихо посміюючись' (quietly chuckling) versus the original's implied self-amusement, and slight variations in emphasis, but these do not significantly impact the overall quality."
+      },
+      "translation_time_ms": 2006,
+      "evaluation_time_ms": 2529,
+      "timestamp": "2026-01-16T22:53:13.872110",
+      "error": null
+    },
+    {
+      "source_text_id": "walden",
+      "target_language": "uk",
+      "model": "google/gemini-2.0-flash-001",
+      "translated_text": "Я пішов у ліс, бо хотів жити свідомо, зустрітися віч-на-віч лише з найважливішими фактами життя і подивитися, чи не зможу я навчитися того, чого воно може навчити, щоб, коли прийде час помирати, не виявити, що я не жив. Я не хотів жити тим, що не є життям, бо життя таке дороге; і не хотів вдаватися до покори, хіба що це було б абсолютно необхідно. Я хотів жити глибоко і висмоктати весь мозок із життя.",
+      "scores": {
+        "accuracy": 8.0,
+        "fluency": 7.0,
+        "style": 7.0,
+        "overall": 7.0,
+        "feedback": "The translation captures Thoreau's philosophical meaning and deliberate intensity well, with strong renderings of key concepts like 'свідомо' (deliberately) and 'жити глибоко' (live deep). However, 'висмоктати весь мозок із життя' (suck out all the brain from life) is slightly awkward—'мозок' is more literal than Thoreau's 'marrow,' which carries richer metaphorical weight about extracting life's essence. Minor fluency issues and slight stylistic shifts prevent a higher score."
+      },
+      "translation_time_ms": 2045,
+      "evaluation_time_ms": 3983,
+      "timestamp": "2026-01-16T22:53:18.448313",
+      "error": null
+    },
+    {
+      "source_text_id": "moby_dick",
+      "target_language": "uk",
+      "model": "google/gemini-2.0-flash-001",
+      "translated_text": "Кличте мене Ізмаїл. Кілька років тому – неважливо, як давно саме – маючи мало або зовсім не маючи грошей у гаманці та не знаходячи нічого особливо цікавого на березі, я подумав, що непогано було б трохи поплавати й подивитися на водну частину світу. У мене є такий спосіб проганяти нудьгу й налагоджувати кровообіг. Коли я відчуваю, що стаю похмурим, коли в моїй душі запановує вогкий, мрячний листопад, я вважаю, що настав час якомога швидше вийти в море.",
+      "scores": {
+        "accuracy": 8.0,
+        "fluency": 7.0,
+        "style": 7.0,
+        "overall": 7.0,
+        "feedback": "The translation preserves the meaning and philosophical tone well, with creative renderings like 'вогкий, мрячний листопад' (wet, gloomy November) capturing Melville's metaphorical language. However, some phrasing feels slightly stiff ('Кличте мене' is imperative rather than the more natural narrative 'Звіть мене'), and the archaic literary register could be enhanced to better match the original's distinctive voice."
+      },
+      "translation_time_ms": 1893,
+      "evaluation_time_ms": 2109,
+      "timestamp": "2026-01-16T22:53:24.327474",
+      "error": null
+    },
+    {
+      "source_text_id": "pride_prejudice",
+      "target_language": "ar",
+      "model": "google/gemini-2.0-flash-001",
+      "translated_text": "من الحقائق المسلم بها عالميًا، أن أعزبًا يملك ثروة طائلة، لا بد أن يكون بحاجة إلى زوجة. ومع ذلك، فبغض النظر عن مدى ضآلة معرفة مشاعر أو آراء هذا الرجل عند دخوله حيًا لأول مرة، فإن هذه الحقيقة راسخة في أذهان العائلات المحيطة، لدرجة أنه يعتبر ملكًا مشروعًا لإحدى بناتهم.",
+      "scores": {
+        "accuracy": 8.0,
+        "fluency": 8.0,
+        "style": 7.0,
+        "overall": 8.0,
+        "feedback": "The translation accurately conveys the meaning and captures the ironic tone of Austen's opening, with natural Arabic phrasing. However, some stylistic nuances—particularly the subtle irony and the rhythmic quality of the original—are slightly diminished in the target language."
+      },
+      "translation_time_ms": 1581,
+      "evaluation_time_ms": 1241,
+      "timestamp": "2026-01-16T22:53:28.019686",
+      "error": null
+    },
+    {
+      "source_text_id": "dorian_gray",
+      "target_language": "ar",
+      "model": "google/gemini-2.0-flash-001",
+      "translated_text": "كانت الأستوديو تفوح برائحة الورد العطرة، وعندما حركت ريح الصيف الخفيفة أغصان أشجار الحديقة، عبر الباب المفتوح عبير الليلك الثقيل، أو عطر الزعرور الوردي الأكثر رقة. من زاوية الأريكة المصنوعة من أكياس سروج فارسية التي كان اللورد هنري ووتون مستلقيًا عليها، يدخن، كعادته، عددًا لا يحصى من السجائر، كان بالكاد يستطيع أن يلمح بريق أزهار اللابيرنوم العسلية الحلوة والذهبية اللون.",
+      "scores": {
+        "accuracy": 7.0,
+        "fluency": 6.0,
+        "style": 6.0,
+        "overall": 6.0,
+        "feedback": "The translation captures most of the meaning and sensory details accurately, but the sentence structure becomes awkward and convoluted in Arabic, particularly in the second half, disrupting the elegant flow of Wilde's prose. Some aesthetic nuances of the original's rhythmic sensuality are lost due to the restructuring needed for Arabic syntax."
+      },
+      "translation_time_ms": 2014,
+      "evaluation_time_ms": 2413,
+      "timestamp": "2026-01-16T22:53:31.276288",
+      "error": null
+    },
+    {
+      "source_text_id": "study_scarlet",
+      "target_language": "ar",
+      "model": "google/gemini-2.0-flash-001",
+      "translated_text": "\"لقد كنت في أفغانستان، أدرك ذلك.\" فسألته في دهشة: \"كيف عرفت ذلك بحق الأرض؟\" فأجاب وهو يقهقه في نفسه: \"لا عليك. السؤال الآن يتعلق بالهيموغلوبين. لا شك أنك ترى أهمية هذا الاكتشاف الذي توصلت إليه؟\" فأجبته: \"إنه مثير للاهتمام كيميائيًا، لا شك في ذلك، ولكن عمليًا—\" فرد قائلًا: \"يا رجل، إنه الاكتشاف الطبي القانوني الأكثر عملية منذ سنوات. ألا ترى أنه يمنحنا اختبارًا مضمونًا للكشف عن بقع الدم؟\"",
+      "scores": {
+        "accuracy": 8.0,
+        "fluency": 7.0,
+        "style": 7.0,
+        "overall": 7.0,
+        "feedback": "The translation accurately conveys the meaning and maintains the dialogue structure well, with proper characterization of Holmes's deductive manner and Watson's astonishment. Minor fluency issues include slightly awkward phrasing in places (e.g., 'أدرك ذلك' as a direct translation of 'I perceive' feels slightly formal), and the conversational flow could be more natural in colloquial Arabic, though the overall style and tone of the original are reasonably preserved."
+      },
+      "translation_time_ms": 1916,
+      "evaluation_time_ms": 1764,
+      "timestamp": "2026-01-16T22:53:35.606395",
+      "error": null
+    },
+    {
+      "source_text_id": "walden",
+      "target_language": "ar",
+      "model": "google/gemini-2.0-flash-001",
+      "translated_text": "ذهبتُ إلى الغابة لأنني أردتُ أن أعيش بتعمّق، وأن أواجه حقائق الحياة الجوهرية فقط، وأن أرى إن كنتُ أستطيع أن أتعلّم ما لديها لتعلمه لي، وألا أكتشف، عندما أحتضر، أنني لم أعِشْ. لم أكن أرغب في عيش ما ليس حياة، فالحياة عزيزة جدًا؛ ولا أردتُ أن أتمرّن على الاستسلام، إلا إذا كان ذلك ضروريًا للغاية. أردتُ أن أعيش بعُمق وأن أمتصّ كل نخاع الحياة.",
+      "scores": {
+        "accuracy": 8.0,
+        "fluency": 8.0,
+        "style": 8.0,
+        "overall": 8.0,
+        "feedback": "The translation faithfully preserves Thoreau's philosophical meaning and existential concerns, with strong rendering of key concepts like 'deliberately' (بتعمّق) and the vivid metaphor of 'sucking the marrow of life' (امتصاص نخاع الحياة). Minor fluency variations exist in phrasing structure, and some nuance in the original's rhythmic emphasis is slightly softened, but overall the translation maintains the contemplative tone and intellectual depth of the source material."
+      },
+      "translation_time_ms": 2104,
+      "evaluation_time_ms": 2181,
+      "timestamp": "2026-01-16T22:53:39.475982",
+      "error": null
+    },
+    {
+      "source_text_id": "moby_dick",
+      "target_language": "ar",
+      "model": "google/gemini-2.0-flash-001",
+      "translated_text": "نادِني إسماعيل. منذ بضع سنوات—لا يهم كم بالضبط—إذ لم يكن لدي الكثير أو أي مال في محفظتي، ولا شيء مميز يثير اهتمامي على الشاطئ، فكرت في أن أبحر قليلًا وأرى الجزء المائي من العالم. إنها طريقة لدي في التخلص من الكآبة وتنظيم الدورة الدموية. كلما وجدت نفسي عابسًا ومكفهرًا، وكلما حلّ في روحي تشرين الثاني الرطب والممطر، أعتبر أن الوقت قد حان للإبحار بأسرع ما يمكن.",
+      "scores": {
+        "accuracy": 8.0,
+        "fluency": 7.0,
+        "style": 7.0,
+        "overall": 7.0,
+        "feedback": "The translation captures the essential meaning and philosophical tone of Melville's opening, with accurate rendering of key metaphors like 'spleen' and 'damp, drizzly November in my soul.' However, some archaic English nuances are slightly softened, and the Arabic phrasing occasionally feels more modern than the deliberately antiquated English original, particularly in constructions like 'نادِني' which lacks the formal weight of 'Call me.'"
+      },
+      "translation_time_ms": 1866,
+      "evaluation_time_ms": 3569,
+      "timestamp": "2026-01-16T22:53:43.525160",
+      "error": null
+    },
+    {
+      "source_text_id": "pride_prejudice",
+      "target_language": "he",
+      "model": "google/gemini-2.0-flash-001",
+      "translated_text": "אמת היא, שגבר רווק המבורך בהון רב, בהכרח יחפוץ באישה. אמנם, תהאנה אשר תהאנה תחושותיו או השקפותיו של אדם זה בעת ביקורו הראשון בשכונה, אמת זו חרוטה היטב בתודעתן של המשפחות הסובבות אותו, עד כי הוא נחשב לקניין הלגיטימי של אחת מבנותיהן.",
+      "scores": {
+        "accuracy": 7.0,
+        "fluency": 6.0,
+        "style": 6.0,
+        "overall": 6.0,
+        "feedback": "The translation captures the core meaning and ironic premise but loses some of Austen's elegant simplicity and rhetorical force. The phrase 'אמנם, תהאנה אשר תהאנה' is awkward and doesn't smoothly convey the original's 'However little known'; the archaic Hebrew construction feels forced rather than naturally ironic, and 'קניין הלגיטימי' (legitimate property) is somewhat clunky compared to the original's satirical bite."
+      },
+      "translation_time_ms": 1707,
+      "evaluation_time_ms": 2995,
+      "timestamp": "2026-01-16T22:53:48.802789",
+      "error": null
+    },
+    {
+      "source_text_id": "dorian_gray",
+      "target_language": "he",
+      "model": "google/gemini-2.0-flash-001",
+      "translated_text": "הסטודיו היה אפוף בניחוח עשיר של ורדים, וכאשר רוח הקיץ הקלילה טלטלה בין עצי הגן, הגיע דרך הדלת הפתוחה הריח הכבד של הלילך, או הבושם העדין יותר של העוזרר פורח הוורוד. מפינת הספה העשויה תיקי אוכף פרסיים שעליה שכב, מעשן, כמנהגו, סיגריות רבות מספור, יכול היה הלורד הנרי ווטון להבחין בהבזק של פריחת הזהב צהבהבה מתוקת הדבש של השיטה הזהובה.",
+      "scores": {
+        "accuracy": 7.0,
+        "fluency": 6.0,
+        "style": 7.0,
+        "overall": 7.0,
+        "feedback": "The translation captures most of the sensory richness and aesthetic detail of Wilde's prose, with accurate rendering of the botanical imagery and atmospheric description. However, the Hebrew syntax becomes somewhat convoluted in the final clause, and the poetic flow is slightly compromised by awkward word order that, while grammatically correct, reads less naturally than the original's elegant cadence."
+      },
+      "translation_time_ms": 2354,
+      "evaluation_time_ms": 2190,
+      "timestamp": "2026-01-16T22:53:54.154828",
+      "error": null
+    },
+    {
+      "source_text_id": "study_scarlet",
+      "target_language": "he",
+      "model": "google/gemini-2.0-flash-001",
+      "translated_text": "\"היית באפגניסטן, כך אני מבין.\" \"איך לעזאזל ידעת את זה?\" שאלתי בתדהמה. \"לא משנה,\" אמר הוא, מצחקק לעצמו. \"השאלה כעת היא בנוגע להמוגלובין. אין ספק שאתה רואה את המשמעות של התגלית שלי?\" \"זה מעניין, מבחינה כימית, אין ספק,\" השבתי, \"אבל מבחינה מעשית—\" \"למה, בחור, זו התגלית הרפואית-משפטית הכי מעשית מזה שנים. אתה לא מבין שזה נותן לנו בדיקה חסינת טעויות לכתמי דם?\"",
+      "scores": {
+        "accuracy": 8.0,
+        "fluency": 7.0,
+        "style": 7.0,
+        "overall": 7.0,
+        "feedback": "The translation accurately preserves the meaning and dialogue flow of the original text, with proper rendering of Holmes's deductive manner and Watson's astonishment. Minor fluency issues include slightly awkward phrasing in \"מבחינה מעשית\" and \"בחור\" (boy/man) which feels slightly informal for the Victorian context, though the overall tone and character voices remain recognizable."
+      },
+      "translation_time_ms": 2186,
+      "evaluation_time_ms": 2473,
+      "timestamp": "2026-01-16T22:53:58.532525",
+      "error": null
+    },
+    {
+      "source_text_id": "walden",
+      "target_language": "he",
+      "model": "google/gemini-2.0-flash-001",
+      "translated_text": "יצאתי אל היער כי רציתי לחיות מתוך כוונה, להתמודד רק עם העובדות החיוניות של החיים, ולראות אם אוכל ללמוד את מה שיש להם ללמד, ולא, כאשר אגיע למות, לגלות שלא חייתי. לא רציתי לחיות את מה שאינו חיים, החיים כל כך יקרים; וגם לא רציתי לתרגל כניעה, אלא אם כן זה היה ממש הכרחי. רציתי לחיות לעומק ולמצוץ את כל לשד החיים.",
+      "scores": {
+        "accuracy": 8.0,
+        "fluency": 7.0,
+        "style": 7.0,
+        "overall": 7.0,
+        "feedback": "The translation preserves Thoreau's meaning and philosophical intent well, with accurate rendering of key concepts like deliberate living and essential facts. However, some phrasing feels slightly awkward in Hebrew (e.g., 'להתמודד' is more confrontational than 'to front'), and the poetic intensity of 'suck out all the marrow' becomes somewhat diminished with 'למצוץ את כל לשד,' losing some of the visceral power of the original."
+      },
+      "translation_time_ms": 1800,
+      "evaluation_time_ms": 1628,
+      "timestamp": "2026-01-16T22:54:02.806518",
+      "error": null
+    },
+    {
+      "source_text_id": "moby_dick",
+      "target_language": "he",
+      "model": "google/gemini-2.0-flash-001",
+      "translated_text": "קִראוּ לי ישמעאל. לפני כמה שנים – לא חשוב בדיוק כמה זמן – כיוון שלא היה לי כסף רב בכיסי, ושום דבר מיוחד שיעניין אותי ביבשה, חשבתי לשוט קצת ולראות את החלק המימי של העולם. יש לי דרך כזאת להבריח את הטחול ולווסת את מחזור הדם. בכל פעם שאני מוצא את עצמי נעשה קודר סביב הפה; בכל פעם שנובמבר לח וגשום יורד על נשמתי, אני מחשיב את זה כזמן טוב לצאת לים בהקדם האפשרי.",
+      "scores": {
+        "accuracy": 8.0,
+        "fluency": 7.0,
+        "style": 7.0,
+        "overall": 7.0,
+        "feedback": "The translation captures the meaning accurately with only minor deviations (e.g., 'קִראוּ לי' uses plural imperative rather than singular, and some metaphorical nuances are slightly softened). The Hebrew reads naturally but occasionally feels more modern than the archaic English original, particularly in phrasing like 'חשבתי לשוט' which lacks the contemplative weight of 'I thought I would sail.'"
+      },
+      "translation_time_ms": 2234,
+      "evaluation_time_ms": 1923,
+      "timestamp": "2026-01-16T22:54:06.670435",
+      "error": null
+    }
+  ],
+  "status": "completed",
+  "error": null
+}
