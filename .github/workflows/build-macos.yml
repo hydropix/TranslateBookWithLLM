@@ -15,7 +15,7 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - os: macos-13
+          - os: macos-15-large
             arch: x86_64
             artifact_suffix: Intel
           - os: macos-14
