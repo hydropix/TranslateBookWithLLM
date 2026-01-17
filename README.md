@@ -16,7 +16,7 @@ Providers: **Ollama** (local), **OpenRouter**, **OpenAI** (compatible like LM St
 
 ---
 
-## 🚀 Quick Start
+## Quick Start
 
 ### Download Executable (No Python Required!)
 
