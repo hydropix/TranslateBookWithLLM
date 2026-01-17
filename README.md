@@ -1,6 +1,6 @@
 # <img src="https://github.com/hydropix/TranslateBookWithLLM/blob/main/src/web/static/TBL-Logo-alpha.png?raw=true" alt="Logo" height="40"> Translate Books with LLMs
 
-Translate books, subtitles, and documents using AI - locally or in the cloud.
+Translate **books**, **subtitles**, and **documents** using AI - locally or in the cloud.
 
 **No size limit.** Process documents of any length - from a single page to thousand-page novels. The intelligent chunking system handles unlimited content while preserving context between segments.
 
