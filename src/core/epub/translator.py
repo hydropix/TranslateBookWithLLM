@@ -656,6 +656,15 @@ async def _process_all_content_files(
         if idx < len(chunks_per_file):
             completed_chunks_global += chunks_per_file[idx]
 
+    # Send initial stats if resuming (to update UI immediately)
+    if stats_callback and resume_from_index > 0:
+        stats_callback({
+            'total_chunks': total_chunks,
+            'completed_chunks': completed_chunks_global,
+            'failed_chunks': 0,
+            'total_tokens': 0
+        })
+
     for file_idx, content_href in enumerate(content_files):
         # Check for interruption
         if check_interruption_callback and check_interruption_callback():
@@ -707,7 +716,7 @@ async def _process_all_content_files(
                 # Report combined stats (accumulated + current file)
                 stats_callback({
                     'total_chunks': total_chunks,
-                    'completed_chunks': chunks_before + file_stats_dict.get('total_chunks', 0),
+                    'completed_chunks': chunks_before + file_stats_dict.get('completed_chunks', 0),
                     'failed_chunks': accumulated_stats.failed_chunks + file_stats_dict.get('failed_chunks', 0),
                     'total_tokens': accumulated_stats.total_tokens_processed + accumulated_stats.total_tokens_generated + file_stats_dict.get('total_tokens_processed', 0) + file_stats_dict.get('total_tokens_generated', 0)
                 })
@@ -767,7 +776,10 @@ async def _process_all_content_files(
         if checkpoint_manager and translation_id and success and doc_root is not None:
             await _save_checkpoint(
                 checkpoint_manager, translation_id, file_idx, content_href,
-                doc_root, file_path, temp_dir, log_callback
+                doc_root, file_path, temp_dir, log_callback,
+                total_chunks=total_chunks,
+                completed_chunks=completed_chunks_global,
+                failed_chunks=accumulated_stats.failed_chunks
             )
 
     # Final progress
@@ -793,7 +805,10 @@ async def _save_checkpoint(
     doc_root: etree._Element,
     file_path: str,
     temp_dir: str,
-    log_callback: Optional[Callable] = None
+    log_callback: Optional[Callable] = None,
+    total_chunks: int = 0,
+    completed_chunks: int = 0,
+    failed_chunks: int = 0
 ) -> None:
     """Save checkpoint for a translated file."""
     try:
@@ -823,7 +838,10 @@ async def _save_checkpoint(
                 chunk_index=file_idx + 1,
                 original_text=content_href,
                 translated_text=content_href,
-                chunk_data={'last_file': content_href, 'file_type': 'epub_xhtml'}
+                chunk_data={'last_file': content_href, 'file_type': 'epub_xhtml'},
+                total_chunks=total_chunks,
+                completed_chunks=completed_chunks,
+                failed_chunks=failed_chunks
             )
 
             if log_callback:

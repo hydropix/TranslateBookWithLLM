@@ -44,12 +44,12 @@ function formatJobCard(job, hasActiveTranslation, activeNames) {
 
     return `
         <div class="resumable-job-card" style="border: 1px solid #e5e7eb; padding: 20px; margin-bottom: 15px; border-radius: 8px; background: #f9fafb;">
-            <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 15px;">
-                <div style="flex: 1;">
-                    <div style="font-size: 18px; font-weight: 600; color: #1f2937; margin-bottom: 8px;">
+            <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 15px; gap: 15px;">
+                <div style="flex: 1; min-width: 0;">
+                    <div style="font-size: 18px; font-weight: 600; color: #1f2937; margin-bottom: 8px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${DomHelpers.escapeHtml(displayNameFormatted)}">
                         ${DomHelpers.escapeHtml(displayNameFormatted)}
                     </div>
-                    <div style="font-size: 14px; color: #6b7280; margin-bottom: 5px;">
+                    <div style="font-size: 14px; color: #6b7280; margin-bottom: 5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="→ ${DomHelpers.escapeHtml(outputFilename)}">
                         → ${DomHelpers.escapeHtml(outputFilename)}
                     </div>
                     <div style="font-size: 12px; color: #9ca3af; margin-top: 8px;">
@@ -57,7 +57,7 @@ function formatJobCard(job, hasActiveTranslation, activeNames) {
                     </div>
                 </div>
 
-                <div style="display: flex; gap: 10px;">
+                <div style="display: flex; gap: 10px; flex-shrink: 0;">
                     <button class="btn btn-primary" onclick="resumeJob('${job.translation_id}')"
                             title="${hasActiveTranslation ? '⚠️ Cannot resume: a translation is already in progress' : 'Resume this translation'}"
                             ${hasActiveTranslation ? 'disabled style="opacity: 0.5; cursor: not-allowed;"' : ''}>
