@@ -171,3 +171,87 @@ class EpubTranslationAdapter(TranslationAdapter[etree._Element, bool]):
             if log_callback:
                 log_callback("replace_body_error", str(e))
             return False
+
+    async def translate_content(
+        self,
+        raw_content: Any,
+        structure_map: Dict[str, Any],
+        context: Dict[str, Any],
+        source_language: str,
+        target_language: str,
+        model_name: str,
+        llm_client: Any,
+        max_tokens_per_chunk: int,
+        log_callback: Optional[Callable] = None,
+        context_manager: Optional[Any] = None,
+        max_retries: int = 1,
+        prompt_options: Optional[Dict] = None,
+        stats_callback: Optional[Callable] = None,
+        checkpoint_manager: Optional[Any] = None,
+        translation_id: Optional[str] = None,
+        file_href: Optional[str] = None,
+        check_interruption_callback: Optional[Callable] = None,
+        resume_state: Optional[Any] = None,
+        **kwargs
+    ) -> Tuple[bool, Any]:
+        """
+        Translate EPUB XHTML content with checkpoint support.
+
+        This method bypasses the generic orchestrator and calls translate_xhtml_simplified
+        directly to leverage chunk-level checkpoint support.
+
+        Args:
+            raw_content: etree._Element (doc_root)
+            structure_map: Not used (kept for interface compatibility)
+            context: Context dict with preservation info
+            source_language: Source language
+            target_language: Target language
+            model_name: Model name
+            llm_client: LLM client
+            max_tokens_per_chunk: Max tokens per chunk
+            log_callback: Logging callback
+            context_manager: Context manager
+            max_retries: Max retries
+            prompt_options: Prompt options
+            stats_callback: Stats callback
+            checkpoint_manager: Checkpoint manager for partial state
+            translation_id: Translation ID for checkpointing
+            file_href: File href for checkpointing
+            check_interruption_callback: Interruption check callback
+            resume_state: Resume state for partial translation
+            **kwargs: Additional arguments
+
+        Returns:
+            (success, stats)
+        """
+        from .xhtml_translator import translate_xhtml_simplified
+
+        doc_root = raw_content
+
+        # Extract global_stats from kwargs if provided
+        global_total_chunks = kwargs.get('global_total_chunks')
+        global_completed_chunks = kwargs.get('global_completed_chunks')
+
+        success, stats = await translate_xhtml_simplified(
+            doc_root=doc_root,
+            source_language=source_language,
+            target_language=target_language,
+            model_name=model_name,
+            llm_client=llm_client,
+            max_tokens_per_chunk=max_tokens_per_chunk,
+            log_callback=log_callback,
+            context_manager=context_manager,
+            max_retries=max_retries,
+            container=self.container,
+            prompt_options=prompt_options,
+            checkpoint_manager=checkpoint_manager,
+            translation_id=translation_id,
+            file_href=file_href,
+            check_interruption_callback=check_interruption_callback,
+            resume_state=resume_state,
+            stats_callback=stats_callback,
+            global_total_chunks=global_total_chunks,
+            global_completed_chunks=global_completed_chunks,
+        )
+
+        return success, stats

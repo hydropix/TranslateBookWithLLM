@@ -165,10 +165,16 @@ class GenericTranslationOrchestrator(Generic[SourceT, ResultT]):
         context_manager: Optional[Any] = None,
         max_retries: int = 1,
         prompt_options: Optional[Dict] = None,
-        stats_callback: Optional[Callable] = None
+        stats_callback: Optional[Callable] = None,
+        checkpoint_manager: Optional[Any] = None,
+        translation_id: Optional[str] = None,
+        file_href: Optional[str] = None,
+        check_interruption_callback: Optional[Callable] = None,
+        resume_state: Optional[Any] = None,
+        **kwargs
     ) -> Tuple[ResultT, Any]:
         """
-        Pipeline de traduction générique.
+        Pipeline de traduction générique avec support de checkpoint optionnel.
 
         Args:
             source: Source spécifique au format (etree._Element, Document, etc.)
@@ -177,18 +183,75 @@ class GenericTranslationOrchestrator(Generic[SourceT, ResultT]):
             model_name: Modèle LLM
             llm_client: Client LLM
             max_tokens_per_chunk: Tokens max par chunk
-            log_callback: Callback de logging            context_manager: Gestionnaire de contexte adaptatif
+            log_callback: Callback de logging
+            context_manager: Gestionnaire de contexte adaptatif
             max_retries: Tentatives max de traduction
             prompt_options: Options de prompt (refinement, etc.)
             stats_callback: Callback pour mises à jour des statistiques en temps réel
+            checkpoint_manager: Gestionnaire de checkpoint (optionnel, EPUB uniquement)
+            translation_id: ID de traduction (optionnel, EPUB uniquement)
+            file_href: Chemin relatif du fichier (optionnel, EPUB uniquement)
+            check_interruption_callback: Callback de vérification d'interruption (optionnel)
+            resume_state: État partiel pour reprise (optionnel, EPUB uniquement)
+            **kwargs: Paramètres additionnels passés à l'adaptateur (e.g., global_total_chunks, global_completed_chunks)
 
         Returns:
             (result, stats)
             - result: Résultat final (format dépend de l'adaptateur)
             - stats: Métriques de traduction
+
+        Note:
+            Les nouveaux paramètres sont optionnels et utilisés uniquement par l'adaptateur EPUB.
+            Les autres adaptateurs (TXT, SRT, DOCX) les ignorent.
         """
         from ..epub.translation_metrics import TranslationMetrics
 
+        # Check if adapter has translate_content method (for EPUB with checkpoint support)
+        if hasattr(self.adapter, 'translate_content'):
+            # Use adapter's custom translation method (EPUB with checkpoint support)
+            raw_content, preservation_context = self.adapter.extract_content(
+                source, log_callback
+            )
+
+            if not raw_content or not raw_content.strip():
+                if log_callback:
+                    log_callback("no_content", "No content to translate")
+                empty_result = self.adapter.finalize_output("", source, preservation_context, log_callback)
+                return empty_result, TranslationMetrics()
+
+            # Preserve structure to get structure_map (needed for translate_content signature)
+            text_with_placeholders, structure_map, placeholder_format = \
+                self.adapter.preserve_structure(
+                    raw_content, preservation_context, log_callback
+                )
+
+            # Call adapter's translate_content with checkpoint parameters
+            # Pass through any additional kwargs (e.g., global_total_chunks, global_completed_chunks)
+            success, stats = await self.adapter.translate_content(
+                raw_content=source,
+                structure_map=structure_map,
+                context=preservation_context,
+                source_language=source_language,
+                target_language=target_language,
+                model_name=model_name,
+                llm_client=llm_client,
+                max_tokens_per_chunk=max_tokens_per_chunk,
+                log_callback=log_callback,
+                context_manager=context_manager,
+                max_retries=max_retries,
+                prompt_options=prompt_options,
+                stats_callback=stats_callback,
+                checkpoint_manager=checkpoint_manager,
+                translation_id=translation_id,
+                file_href=file_href,
+                check_interruption_callback=check_interruption_callback,
+                resume_state=resume_state,
+                **kwargs
+            )
+
+            return success, stats
+
+        # Standard pipeline (for formats without checkpoint support)
         # 1. Extract content
         if log_callback:
             log_callback("extract_start", "Extracting content")

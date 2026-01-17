@@ -147,10 +147,19 @@ class TranslationMetrics:
             "successful_after_retry": self.successful_after_retry,
             "fallback_used": self.fallback_used,
             "failed_chunks": self.failed_chunks,
+            "retry_attempts": self.retry_attempts,
+            "placeholder_errors": self.placeholder_errors,
+            "token_alignment_used": self.token_alignment_used,
+            "token_alignment_success": self.token_alignment_success,
+            "correction_attempts": self.correction_attempts,
+            "correction_success": self.correction_success,
             "total_time_seconds": self.total_time_seconds,
+            "start_time": self.start_time,
+            "end_time": self.end_time,
             "avg_time_per_chunk": self.avg_time_per_chunk,
             "total_tokens_processed": self.total_tokens_processed,
             "total_tokens_generated": self.total_tokens_generated,
+            "total_chunk_size": self.total_chunk_size,
             "avg_chunk_size": self.avg_chunk_size,
             "min_chunk_size": self.min_chunk_size if self.min_chunk_size != float('inf') else 0,
             "max_chunk_size": self.max_chunk_size,
@@ -158,6 +167,60 @@ class TranslationMetrics:
             "first_try_rate": self.first_try_rate,
             "retry_distribution": self.retry_distribution
         }
+
+    @classmethod
+    def from_dict(cls, data: Dict) -> 'TranslationMetrics':
+        """Create TranslationMetrics instance from dictionary.
+
+        Args:
+            data: Dictionary containing metrics data
+
+        Returns:
+            TranslationMetrics instance
+        """
+        metrics = cls()
+
+        # Basic counts
+        metrics.total_chunks = data.get("total_chunks", 0)
+        metrics.successful_first_try = data.get("successful_first_try", 0)
+        metrics.successful_after_retry = data.get("successful_after_retry", 0)
+        metrics.fallback_used = data.get("fallback_used", 0)
+        metrics.failed_chunks = data.get("failed_chunks", 0)
+
+        # Retry & error tracking
+        metrics.retry_attempts = data.get("retry_attempts", 0)
+        metrics.placeholder_errors = data.get("placeholder_errors", 0)
+
+        # Phase 2: Token alignment
+        metrics.token_alignment_used = data.get("token_alignment_used", 0)
+        metrics.token_alignment_success = data.get("token_alignment_success", 0)
+
+        # LLM correction
+        metrics.correction_attempts = data.get("correction_attempts", 0)
+        metrics.correction_success = data.get("correction_success", 0)
+
+        # Timing
+        metrics.total_time_seconds = data.get("total_time_seconds", 0.0)
+        metrics.start_time = data.get("start_time", time.time())
+        metrics.end_time = data.get("end_time", 0.0)
+
+        # Token usage
+        metrics.total_tokens_processed = data.get("total_tokens_processed", 0)
+        metrics.total_tokens_generated = data.get("total_tokens_generated", 0)
+
+        # Chunk size stats
+        min_size = data.get("min_chunk_size", 0)
+        metrics.min_chunk_size = min_size if min_size > 0 else float('inf')
+        metrics.max_chunk_size = data.get("max_chunk_size", 0)
+        metrics.total_chunk_size = data.get("total_chunk_size", 0)
+
+        # Retry distribution
+        retry_dist = data.get("retry_distribution", {})
+        if isinstance(retry_dist, dict):
+            # Convert string keys back to int if needed
+            metrics.retry_distribution = {int(k): v for k, v in retry_dist.items()}
+
+        return metrics
 
     def _pct(self, value: int) -> float:
         """Calculate percentage of total chunks."""

@@ -449,10 +449,16 @@ async def _translate_single_xhtml_file(
     context_manager: Optional[AdaptiveContextManager],
     log_callback: Optional[Callable],
     prompt_options: Optional[Dict],
-    stats_callback: Optional[Callable] = None
+    stats_callback: Optional[Callable] = None,
+    checkpoint_manager: Optional[Any] = None,
+    translation_id: Optional[str] = None,
+    check_interruption_callback: Optional[Callable] = None,
+    global_total_chunks: Optional[int] = None,
+    global_completed_chunks: Optional[int] = None,
 ) -> Tuple[Optional[etree._Element], bool, Any]:
     """
     Translate a single XHTML file using GenericTranslationOrchestrator.
+    Now supports resume from partial state.
 
     Args:
         file_path: Path to XHTML file
@@ -464,7 +470,12 @@ async def _translate_single_xhtml_file(
         max_tokens_per_chunk: Max tokens per chunk
         max_attempts: Max translation attempts
         context_manager: Optional context manager
-        log_callback: Logging callback        prompt_options: Prompt options
+        log_callback: Logging callback
+        prompt_options: Prompt options
+        stats_callback: Optional stats callback
+        checkpoint_manager: Optional checkpoint manager for partial state
+        translation_id: Optional translation ID for checkpointing
+        check_interruption_callback: Optional interruption check callback
 
     Returns:
         (doc_root, success, stats)
@@ -473,6 +484,18 @@ async def _translate_single_xhtml_file(
         if log_callback:
             log_callback("epub_file_not_found", f"WARNING: File '{content_href}' not found, skipped.")
         return None, False, None
+
+    # === VÉRIFIER SI REPRISE DEPUIS ÉTAT PARTIEL ===
+    resume_state = None
+    if checkpoint_manager and translation_id:
+        resume_state = checkpoint_manager.load_xhtml_partial_state(
+            translation_id, content_href
+        )
+
+        if resume_state:
+            if log_callback:
+                log_callback("xhtml_resume_detected",
+                    f"📂 Resuming '{content_href}' from chunk {resume_state.current_chunk_index}/{len(resume_state.chunks)}")
 
     try:
         # Parse XHTML file
@@ -486,7 +509,7 @@ async def _translate_single_xhtml_file(
         adapter = EpubTranslationAdapter()
         orchestrator = GenericTranslationOrchestrator(adapter)
 
-        # Translate using generic pipeline
+        # Translate using generic pipeline WITH resume support
         success, stats = await orchestrator.translate(
             source=doc_root,
             source_language=source_language,
@@ -498,7 +521,15 @@ async def _translate_single_xhtml_file(
             context_manager=context_manager,
             max_retries=max_attempts,
             prompt_options=prompt_options,
-            stats_callback=stats_callback
+            stats_callback=stats_callback,
+            # NOUVEAUX PARAMÈTRES
+            checkpoint_manager=checkpoint_manager,
+            translation_id=translation_id,
+            file_href=content_href,
+            check_interruption_callback=check_interruption_callback,
+            resume_state=resume_state,
+            global_total_chunks=global_total_chunks,
+            global_completed_chunks=global_completed_chunks,
         )
 
         return doc_root, success, stats
@@ -674,25 +705,27 @@ async def _process_all_content_files(
                          f"Translating file {file_idx + 1}/{total_files}: {content_href} ({chunks_in_this_file} chunks)")
 
         # Create stats wrapper that reports global statistics
-        def create_stats_wrapper(chunks_before):
-            def wrapper(file_stats_dict: Dict):
-                """Convert file-level stats to global stats by merging with accumulated stats"""
-                if not stats_callback:
-                    return
+        # NOTE: completed_chunks_global represents chunks from ALL previous files (not including current)
+        def file_stats_wrapper(file_stats_dict: Dict):
+            """Convert file-level stats to global stats by merging with accumulated stats"""
+            if not stats_callback:
+                return
 
-                # Report combined stats (accumulated + current file)
-                stats_callback({
-                    'total_chunks': total_chunks,
-                    'completed_chunks': chunks_before + file_stats_dict.get('completed_chunks', 0),
-                    'failed_chunks': accumulated_stats.failed_chunks + file_stats_dict.get('failed_chunks', 0),
-                    'total_tokens': accumulated_stats.total_tokens_processed + accumulated_stats.total_tokens_generated + file_stats_dict.get('total_tokens_processed', 0) + file_stats_dict.get('total_tokens_generated', 0)
-                })
+            # Calculate global completed chunks:
+            # completed_chunks_global = chunks from previous files (already updated)
+            # current_file_completed = chunks completed in current file (reported by xhtml_translator)
+            current_file_completed = file_stats_dict.get('completed_chunks', 0)
+            global_completed = completed_chunks_global + current_file_completed
 
-            return wrapper
+            # Report combined stats (accumulated + current file)
+            stats_callback({
+                'total_chunks': total_chunks,
+                'completed_chunks': global_completed,
+                'failed_chunks': accumulated_stats.failed_chunks + file_stats_dict.get('failed_chunks', 0),
+                'total_tokens': accumulated_stats.total_tokens_processed + accumulated_stats.total_tokens_generated + file_stats_dict.get('total_tokens_processed', 0) + file_stats_dict.get('total_tokens_generated', 0)
+            })
 
-        file_stats_wrapper = create_stats_wrapper(completed_chunks_global)
-
-        # Translate using orchestrator
+        # Translate using orchestrator WITH checkpoint support
         doc_root, success, file_stats = await _translate_single_xhtml_file(
             file_path=file_path,
             content_href=content_href,
@@ -705,7 +738,12 @@ async def _process_all_content_files(
             context_manager=context_manager,
             log_callback=log_callback,
             prompt_options=prompt_options,
-            stats_callback=file_stats_wrapper
+            stats_callback=file_stats_wrapper,
+            checkpoint_manager=checkpoint_manager,
+            translation_id=translation_id,
+            check_interruption_callback=check_interruption_callback,
+            global_total_chunks=total_chunks,
+            global_completed_chunks=completed_chunks_global,
         )
 
         # Update global chunk counter
@@ -795,6 +833,12 @@ async def _save_checkpoint(
         )
 
         if save_result:
+            # Delete partial state AFTER successful file save (atomicity guarantee)
+            checkpoint_manager.delete_xhtml_partial_state(translation_id, file_rel_path)
+            if log_callback:
+                log_callback("xhtml_partial_state_deleted_after_save",
+                    f"🗑️ Partial state deleted for {file_rel_path} (file saved successfully)")
+
             # Update checkpoint progress with chunk statistics
             checkpoint_manager.save_checkpoint(
                 translation_id=translation_id,

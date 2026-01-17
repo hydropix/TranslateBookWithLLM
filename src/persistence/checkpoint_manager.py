@@ -773,6 +773,156 @@ class CheckpointManager:
             print(f"Error restoring EPUB files: {e}")
             return False
 
+    def save_xhtml_partial_state(
+        self,
+        translation_id: str,
+        file_href: str,
+        state: 'XHTMLTranslationState'
+    ) -> bool:
+        """
+        Save partial translation state for an XHTML file (chunk-level checkpoint).
+
+        This enables interruption and resume at the chunk level within a single
+        XHTML file, rather than only at the file level.
+
+        Args:
+            translation_id: Job identifier
+            file_href: Relative path in EPUB (e.g., "OEBPS/chapter1.xhtml")
+            state: XHTMLTranslationState instance to save
+
+        Returns:
+            True if saved successfully
+        """
+        from datetime import datetime
+        import json
+
+        # Create states directory
+        states_dir = self.uploads_dir / translation_id / "xhtml_states"
+        states_dir.mkdir(parents=True, exist_ok=True)
+
+        # Generate safe filename (replace / and \ with _)
+        safe_filename = file_href.replace('/', '_').replace('\\', '_')
+        state_file = states_dir / f"{safe_filename}.json"
+
+        # Update timestamp
+        from datetime import timezone
+        state.updated_at = datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z')
+
+        try:
+            # Serialize and save
+            with open(state_file, 'w', encoding='utf-8') as f:
+                json.dump(state.to_dict(), f, ensure_ascii=False, indent=2)
+
+            print(f"Partial state saved: {state_file} (chunk {state.current_chunk_index}/{len(state.chunks)})")
+
+            # Update main checkpoint progress with global_stats if available
+            # This ensures the UI shows correct progress across all XHTML files
+            if state.global_stats:
+                self.db.update_job_progress(
+                    translation_id=translation_id,
+                    current_chunk_index=None,  # Don't update chunk index
+                    total_chunks=state.global_stats.get('total_chunks'),
+                    completed_chunks=state.global_stats.get('completed_chunks'),
+                    failed_chunks=state.global_stats.get('failed_chunks')
+                )
+                print(f"Updated main checkpoint with global stats: {state.global_stats.get('completed_chunks')}/{state.global_stats.get('total_chunks')} chunks")
+
+            return True
+        except Exception as e:
+            print(f"Error saving partial state: {e}")
+            return False
+
+    def load_xhtml_partial_state(
+        self,
+        translation_id: str,
+        file_href: str
+    ) -> Optional['XHTMLTranslationState']:
+        """
+        Load partial translation state for an XHTML file.
+
+        Args:
+            translation_id: Job identifier
+            file_href: Relative path in EPUB (e.g., "OEBPS/chapter1.xhtml")
+
+        Returns:
+            XHTMLTranslationState instance or None if not found
+        """
+        import json
+        from src.core.epub.xhtml_translation_state import XHTMLTranslationState
+
+        states_dir = self.uploads_dir / translation_id / "xhtml_states"
+        safe_filename = file_href.replace('/', '_').replace('\\', '_')
+        state_file = states_dir / f"{safe_filename}.json"
+
+        if not state_file.exists():
+            return None
+
+        try:
+            with open(state_file, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+
+            state = XHTMLTranslationState.from_dict(data)
+
+            # Validate the loaded state
+            if not state.validate():
+                print(f"Warning: Loaded state is invalid, ignoring: {state_file}")
+                return None
+
+            print(f"Partial state loaded: {state_file} (resuming from chunk {state.current_chunk_index}/{len(state.chunks)})")
+            return state
+        except Exception as e:
+            print(f"Error loading partial state: {e}")
+            return None
+
+    def delete_xhtml_partial_state(
+        self,
+        translation_id: str,
+        file_href: str
+    ) -> bool:
+        """
+        Delete partial state after successful completion of XHTML file translation.
+
+        Args:
+            translation_id: Job identifier
+            file_href: Relative path in EPUB
+
+        Returns:
+            True if deleted successfully or file didn't exist
+        """
+        states_dir = self.uploads_dir / translation_id / "xhtml_states"
+        safe_filename = file_href.replace('/', '_').replace('\\', '_')
+        state_file = states_dir / f"{safe_filename}.json"
+
+        if state_file.exists():
+            try:
+                state_file.unlink()
+                return True
+            except Exception as e:
+                print(f"Warning: Could not delete partial state: {e}")
+                return False
+        return True
+
+    def list_xhtml_partial_states(self, translation_id: str) -> List[str]:
+        """
+        List all partial states for a translation job.
+
+        Args:
+            translation_id: Job identifier
+
+        Returns:
+            List of file_href strings that have partial states
+        """
+        states_dir = self.uploads_dir / translation_id / "xhtml_states"
+        if not states_dir.exists():
+            return []
+
+        states = []
+        for state_file in states_dir.glob("*.json"):
+            # Reconstruct original file_href (reverse the safe filename transformation)
+            file_href = state_file.stem.replace('_', '/')
+            states.append(file_href)
+        return states
+
     def close(self):
         """Close database connection."""
         self.db.close()
