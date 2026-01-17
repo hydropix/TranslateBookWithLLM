@@ -12,7 +12,7 @@ Formats: **EPUB**, **SRT**, **TXT**
 
 Providers: **Ollama** (local), **OpenRouter**, **OpenAI** (compatible like LM Studio), **Gemini**
 
-> 📊 **[Translation Quality Benchmarks](https://github.com/hydropix/TranslateBookWithLLM/wiki)** — Find the best model for your target language.
+> **[Translation Quality Benchmarks](https://github.com/hydropix/TranslateBookWithLLM/wiki)** — Find the best model for your target language.
 
 ---
 
