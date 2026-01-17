@@ -888,7 +888,8 @@ async def _translate_all_chunks(
     context_manager: Optional[AdaptiveContextManager],
     placeholder_format: Tuple[str, str],
     log_callback: Optional[Callable] = None,
-    stats_callback: Optional[Callable] = None
+    stats_callback: Optional[Callable] = None,
+    check_interruption_callback: Optional[Callable] = None
 ) -> Tuple[List[str], TranslationMetrics]:
     """Translate all chunks with fallback.
 
@@ -901,7 +902,9 @@ async def _translate_all_chunks(
         max_retries: Maximum retry attempts per chunk
         context_manager: Optional context window manager
         placeholder_format: Tuple of (prefix, suffix) for placeholders
-        log_callback: Optional callback for progress        stats_callback: Optional callback for stats updates
+        log_callback: Optional callback for progress
+        stats_callback: Optional callback for stats updates
+        check_interruption_callback: Optional callback to check for interruption
 
     Returns:
         Tuple of (translated_chunks, statistics)
@@ -918,6 +921,14 @@ async def _translate_all_chunks(
         stats_callback(stats.to_dict())
 
     for i, chunk in enumerate(chunks):
+        # Check for interruption before processing chunk
+        if check_interruption_callback:
+            should_stop = check_interruption_callback()
+            if should_stop:
+                if log_callback:
+                    log_callback("translation_interrupted", f"Translation interrupted at chunk {i}/{len(chunks)}")
+                break
+
         translated = await translate_chunk_with_fallback(
             chunk_text=chunk['text'],
             local_tag_map=chunk['local_tag_map'],

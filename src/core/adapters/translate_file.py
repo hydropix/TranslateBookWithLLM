@@ -163,9 +163,12 @@ async def translate_file(
             stats_callback=stats_callback,
             prompt_options=prompt_options,
             max_retries=1,
-            context_manager=None
+            context_manager=None,
+            check_interruption_callback=check_interruption_callback,
+            checkpoint_manager=checkpoint_manager,
+            translation_id=translation_id
         )
-        return result['success']
+        return result.get('success', False)
 
     # Map file extensions to adapters
     adapter_map = {

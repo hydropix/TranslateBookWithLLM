@@ -299,7 +299,8 @@ class GenericTranslationOrchestrator(Generic[SourceT, ResultT]):
             context_manager=context_manager,
             placeholder_format=placeholder_format,
             log_callback=log_callback,
-            stats_callback=stats_callback
+            stats_callback=stats_callback,
+            check_interruption_callback=check_interruption_callback
         )
 
         # 5. Refinement (optional)
