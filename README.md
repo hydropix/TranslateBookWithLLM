@@ -2,7 +2,9 @@
 
 Translate books, subtitles, and documents using AI - locally or in the cloud.
 
-**Formats:** EPUB, SRT, TXT | **Providers:** Ollama (local), OpenRouter, OpenAI, Gemini
+Formats: **EPUB**, **SRT**, **TXT** 
+
+Providers: **Ollama** (local), **OpenRouter**, **OpenAI** (compatible like LM Studio), **Gemini**
 
 > 📊 **[Translation Quality Benchmarks](https://github.com/hydropix/TranslateBookWithLLM/wiki)** — Find the best model for your target language.
 
