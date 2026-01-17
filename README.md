@@ -14,18 +14,18 @@ Translate books, subtitles, and documents using AI - locally or in the cloud.
 
 ## 🚀 Quick Start
 
-### Windows Users - Download Executable
+### Download Executable (No Python Required!)
 
-**No Python installation required!**
+[![Download Windows](https://img.shields.io/badge/Download-Windows-blue?style=for-the-badge&logo=windows)](https://github.com/hydropix/TranslateBookWithLLM/releases/latest/download/TranslateBook-Windows.zip) [![Download macOS Intel](https://img.shields.io/badge/Download-macOS%20Intel-black?style=for-the-badge&logo=apple)](https://github.com/hydropix/TranslateBookWithLLM/releases/latest/download/TranslateBook-macOS-Intel.zip) [![Download macOS Apple Silicon](https://img.shields.io/badge/Download-macOS%20M1%2FM2%2FM3%2FM4-black?style=for-the-badge&logo=apple)](https://github.com/hydropix/TranslateBookWithLLM/releases/latest/download/TranslateBook-macOS-AppleSilicon.zip)
 
-[![Download Windows Executable](https://img.shields.io/badge/Download-Windows%20Executable-blue?style=for-the-badge&logo=windows)](https://github.com/hydropix/TranslateBookWithLLM/releases/latest/download/TranslateBook-Windows.zip)
-
-1. Download and extract `TranslateBook-Windows.zip`
+1. Download and extract the archive for your platform
 2. Install [Ollama](https://ollama.com/) (for local AI models)
-3. Run `TranslateBook.exe`
+3. Run `TranslateBook.exe` (Windows) or `./TranslateBook` (macOS)
 4. Open http://localhost:5000 in your browser
 
 > **Note:** First run creates a `TranslateBook_Data` folder with configuration files.
+>
+> **macOS:** On first launch, go to System Settings > Privacy & Security and click "Open Anyway".
 
 ---
 
