@@ -12,6 +12,7 @@ permissions:
 jobs:
   build-macos:
     strategy:
+      fail-fast: false
       matrix:
         include:
           - os: macos-13
