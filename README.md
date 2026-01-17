@@ -29,6 +29,12 @@ Translate books, subtitles, and documents using AI - locally or in the cloud.
 
 ---
 
+## Choosing a Model
+
+**[Full benchmarks](https://github.com/hydropix/TranslateBookWithLLM/wiki)** — 23 models × 19 languages with accuracy, fluency & style scores.
+
+---
+
 ### For the Bearded Ones - Install from Source
 
 **Prerequisites:** [Python 3.8+](https://www.python.org/downloads/), [Ollama](https://ollama.com/), [Git](https://git-scm.com/)
@@ -46,12 +52,6 @@ chmod +x start.sh && ./start.sh
 ```
 
 The web interface opens at **http://localhost:5000**
-
----
-
-## Choosing a Model
-
-**[Full benchmarks](https://github.com/hydropix/TranslateBookWithLLM/wiki)** — 23 models × 19 languages with accuracy, fluency & style scores.
 
 ---
 
