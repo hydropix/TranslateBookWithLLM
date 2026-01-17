@@ -1,4 +1,4 @@
-# <img src="https://github.com/hydropix/TranslateBookWithLLM/blob/main/static/TBL-Logo-alpha.png?raw=true" alt="Logo" height="40"> TranslateBook with LLM
+# <img src="https://github.com/hydropix/TranslateBookWithLLM/blob/main/src/web/static/TBL-Logo-alpha.png?raw=true" alt="Logo" height="40"> TranslateBook with LLM
 
 Translate books, subtitles, and documents using AI - locally or in the cloud.
 
