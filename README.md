@@ -104,8 +104,11 @@ python translate.py -i book.txt --provider openai \
 | `-tl, --target_lang` | Target language | Chinese |
 | `-m, --model` | Model name | mistral-small:24b |
 | `--provider` | ollama/openrouter/openai/gemini | ollama |
+| `--text-cleanup` | OCR/typographic cleanup | disabled |
+| `--refine` | Second pass for literary polish | disabled |
+| `--tts` | Generate audio (Edge-TTS) | disabled |
 
-See [docs/CLI.md](docs/CLI.md) for all options and examples.
+See [docs/CLI.md](docs/CLI.md) for all options (TTS voices, rates, formats, etc.).
 
 ---
 
