@@ -27,12 +27,6 @@ Providers: **Ollama** (local), **OpenRouter**, **OpenAI** (compatible like LM St
 
 ---
 
-## Choosing a Model
-
-**[Full benchmarks](https://github.com/hydropix/TranslateBookWithLLM/wiki)** — 23 models × 19 languages with accuracy, fluency & style scores.
-
----
-
 ### For the Bearded Ones - Install from Source
 
 **Prerequisites:** [Python 3.8+](https://www.python.org/downloads/), [Ollama](https://ollama.com/), [Git](https://git-scm.com/)
