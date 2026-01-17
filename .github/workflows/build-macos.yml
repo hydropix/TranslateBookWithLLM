@@ -1,0 +1,215 @@
+name: Build macOS Executable
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-macos:
+    strategy:
+      matrix:
+        include:
+          - os: macos-13
+            arch: x86_64
+            artifact_suffix: Intel
+          - os: macos-14
+            arch: arm64
+            artifact_suffix: AppleSilicon
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python 3.11
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+        cache: 'pip'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install pyinstaller
+
+    - name: Build executable
+      run: |
+        pyinstaller --clean TranslateBook-macOS.spec
+
+    - name: Get executable info
+      id: exe_info
+      run: |
+        SIZE_BYTES=$(stat -f%z dist/TranslateBook)
+        SIZE_MB=$(echo "scale=2; $SIZE_BYTES / 1048576" | bc)
+        echo "size_bytes=$SIZE_BYTES" >> $GITHUB_OUTPUT
+        echo "size_mb=$SIZE_MB" >> $GITHUB_OUTPUT
+        ARCH=$(file dist/TranslateBook | grep -o 'arm64\|x86_64')
+        echo "arch=$ARCH" >> $GITHUB_OUTPUT
+
+    - name: Create release archive
+      run: |
+        # Create a release folder with the executable and readme
+        mkdir -p release
+
+        # Copy executable
+        cp dist/TranslateBook release/
+
+        # Make sure it's executable
+        chmod +x release/TranslateBook
+
+        # Create a README for the release
+        cat > release/README.txt << 'EOF'
+        # TranslateBook macOS Executable
+
+        ## Quick Start
+
+        1. Extract TranslateBook to a folder of your choice
+        2. Install Ollama from https://ollama.ai (required for local LLM)
+        3. Download a translation model: ollama pull qwen3:14b
+        4. Open Terminal and run: ./TranslateBook
+        5. Open your browser to http://localhost:5000
+
+        ## First Launch - Security Authorization
+
+        macOS will block the app on first launch. To authorize it:
+
+        1. Double-click TranslateBook - macOS will show a warning
+        2. Open System Settings > Privacy & Security
+        3. Scroll down and click "Open Anyway" next to the TranslateBook message
+        4. Click "Open" in the confirmation dialog
+
+        This only needs to be done once.
+
+        ## Choosing the Best Model for Your Language
+
+        Different models perform better for different target languages!
+
+        See our comprehensive benchmarks to find the best model for your target language:
+        https://github.com/hydropix/TranslateBookWithLLM/wiki
+
+        Benchmarks include 11 models tested across 19 languages with accuracy, fluency, and style scores.
+
+        ## First Run
+
+        On first run, the application will:
+        - Create a TranslateBook_Data folder next to the executable
+        - Generate a default .env configuration file
+        - Create necessary subdirectories (translated_files, checkpoints)
+
+        ## Configuration
+
+        Edit TranslateBook_Data/.env to customize:
+        - LLM provider (Ollama, OpenAI, Gemini, OpenRouter)
+        - Model selection
+        - API keys for cloud providers
+        - Server port and host
+
+        ## Usage
+
+        - Web UI: http://localhost:5000
+        - Supported formats: .txt, .epub, .srt
+        - Output files: TranslateBook_Data/translated_files/
+
+        ## Links
+
+        - Full Documentation: https://github.com/hydropix/TranslateBookWithLLM
+        - Model Benchmarks: https://github.com/hydropix/TranslateBookWithLLM/wiki
+        - Report Issues: https://github.com/hydropix/TranslateBookWithLLM/issues
+        - OpenRouter Models: https://openrouter.ai/models (200+ cloud models)
+        EOF
+
+        # Create zip archive
+        cd release
+        zip -r ../TranslateBook-macOS-${{ matrix.artifact_suffix }}.zip .
+        cd ..
+
+    - name: Upload artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: TranslateBook-macOS-${{ matrix.artifact_suffix }}
+        path: TranslateBook-macOS-${{ matrix.artifact_suffix }}.zip
+        retention-days: 90
+
+    - name: Upload executable only
+      uses: actions/upload-artifact@v4
+      with:
+        name: TranslateBook-${{ matrix.artifact_suffix }}
+        path: dist/TranslateBook
+        retention-days: 90
+
+    - name: Build summary
+      run: |
+        echo "### Build Complete! :rocket:" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "**Platform:** macOS ${{ matrix.artifact_suffix }} (${{ matrix.arch }})" >> $GITHUB_STEP_SUMMARY
+        echo "**Executable Size:** ${{ steps.exe_info.outputs.size_mb }} MB" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "**Artifacts:**" >> $GITHUB_STEP_SUMMARY
+        echo "- TranslateBook-macOS-${{ matrix.artifact_suffix }}.zip (executable + README)" >> $GITHUB_STEP_SUMMARY
+        echo "- TranslateBook (standalone)" >> $GITHUB_STEP_SUMMARY
+
+  create-release:
+    needs: build-macos
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+
+    steps:
+    - name: Download all artifacts
+      uses: actions/download-artifact@v4
+      with:
+        pattern: TranslateBook-macOS-*
+        merge-multiple: false
+
+    - name: List downloaded files
+      run: |
+        ls -la
+        find . -name "*.zip" -type f
+
+    - name: Create Release
+      uses: softprops/action-gh-release@v1
+      with:
+        files: |
+          TranslateBook-macOS-Intel/TranslateBook-macOS-Intel.zip
+          TranslateBook-macOS-AppleSilicon/TranslateBook-macOS-AppleSilicon.zip
+        body: |
+          ## macOS Executable Release
+
+          ### Downloads
+          - **TranslateBook-macOS-AppleSilicon.zip** - For Apple Silicon Macs (M1/M2/M3/M4)
+          - **TranslateBook-macOS-Intel.zip** - For Intel-based Macs
+
+          ### Installation
+          1. Download the appropriate version for your Mac
+          2. Extract the zip file
+          3. Install [Ollama](https://ollama.ai) (required for local LLM)
+          4. Open Terminal and run `./TranslateBook`
+          5. Open http://localhost:5000 in your browser
+
+          ### First Launch - Security Authorization
+          macOS will block the app on first launch:
+          1. Double-click TranslateBook - macOS shows a warning
+          2. Open **System Settings > Privacy & Security**
+          3. Click **"Open Anyway"** next to the TranslateBook message
+
+          This only needs to be done once.
+
+          ### What's Included
+          - Single-file macOS executable (no Python installation required)
+          - Auto-generated configuration on first run
+          - Support for .txt, .epub, .srt translation
+
+          ### System Requirements
+          - macOS 11+ (Big Sur or later)
+          - Ollama installed for local LLM support
+          - Or API keys for cloud providers (OpenAI, Gemini, OpenRouter)
+        draft: false
+        prerelease: false
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
