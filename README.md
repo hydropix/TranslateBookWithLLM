@@ -16,7 +16,7 @@ Providers: **Ollama** (local), **OpenRouter**, **OpenAI** (compatible like LM St
 
 ---
 
-## <img src="https://github.com/hydropix/TranslateBookWithLLM/blob/main/src/web/static/Start.png?raw=true" alt="Start" height="24"> Quick Start
+## <img src="https://github.com/hydropix/TranslateBookWithLLM/blob/main/src/web/static/Start.png?raw=true" alt="Start" height="64"> Quick Start
 
 ### Download Executable (No Python Required!)
 
