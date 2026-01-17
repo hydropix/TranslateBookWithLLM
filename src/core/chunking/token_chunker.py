@@ -109,6 +109,10 @@ class TokenChunker:
         Returns:
             List of chunk strings
         """
+        # Minimum chunk size threshold - chunks smaller than this will be merged
+        # with adjacent content rather than saved separately
+        min_chunk_tokens = int(self.max_tokens * 0.25)  # 25% of max_tokens
+
         chunks = []
         current_units = []
         current_tokens = 0
@@ -118,8 +122,15 @@ class TokenChunker:
 
             # If single unit exceeds max, we need to handle it specially
             if unit_tokens > self.max_tokens:
-                # First, save current chunk if not empty
-                if current_units:
+                # If current chunk is too small, don't save it separately
+                # Instead, prepend it to the first sentence chunk
+                prefix_units = []
+                if current_units and current_tokens < min_chunk_tokens:
+                    prefix_units = current_units
+                    current_units = []
+                    current_tokens = 0
+                elif current_units:
+                    # Current chunk is big enough, save it
                     chunks.append(separator.join(current_units))
                     current_units = []
                     current_tokens = 0
@@ -129,10 +140,30 @@ class TokenChunker:
                 if len(sentences) > 1:
                     # Recursively chunk sentences
                     sentence_chunks = self._chunk_units(sentences, separator=" ")
+
+                    # Prepend small prefix to first sentence chunk if exists
+                    if prefix_units and sentence_chunks:
+                        prefix_text = separator.join(prefix_units)
+                        prefix_tokens = self.count_tokens(prefix_text)
+                        first_chunk_tokens = self.count_tokens(sentence_chunks[0])
+
+                        # Only merge if combined size is reasonable
+                        if prefix_tokens + first_chunk_tokens <= self.max_tokens:
+                            sentence_chunks[0] = prefix_text + separator + sentence_chunks[0]
+                        else:
+                            # Prefix too big, save it separately
+                            chunks.append(prefix_text)
+                    elif prefix_units:
+                        # No sentence chunks but have prefix
+                        chunks.append(separator.join(prefix_units))
+
                     chunks.extend(sentence_chunks)
                 else:
-                    # Can't split further, just add it as-is (will exceed limit)
-                    chunks.append(unit)
+                    # Can't split further, prepend prefix if any
+                    if prefix_units:
+                        chunks.append(separator.join(prefix_units) + separator + unit)
+                    else:
+                        chunks.append(unit)
                 continue
 
             # Check if adding this unit would exceed limits

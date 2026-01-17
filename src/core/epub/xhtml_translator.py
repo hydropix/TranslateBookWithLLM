@@ -42,7 +42,7 @@ from lxml import etree
 
 from .body_serializer import extract_body_html, replace_body_content
 from .html_chunker import HtmlChunker
-from .translation_metrics import TranslationStats
+from .translation_metrics import TranslationMetrics
 from .tag_preservation import TagPreserver
 from .exceptions import (
     PlaceholderValidationError,
@@ -389,7 +389,7 @@ async def translate_chunk_with_fallback(
     target_language: str,
     model_name: str,
     llm_client: Any,
-    stats: TranslationStats,
+    stats: TranslationMetrics,
     log_callback: Optional[Callable] = None,
     max_retries: int = 1,
     context_manager: Optional[AdaptiveContextManager] = None,
@@ -411,7 +411,7 @@ async def translate_chunk_with_fallback(
         target_language: Target language
         model_name: LLM model name
         llm_client: LLM client
-        stats: TranslationStats instance for tracking
+        stats: TranslationMetrics instance for tracking
         log_callback: Optional logging callback
         max_retries: Maximum translation retry attempts (default from config)
         context_manager: Optional AdaptiveContextManager for handling context overflow
@@ -673,7 +673,7 @@ async def _translate_all_chunks(
     placeholder_format: Tuple[str, str],
     log_callback: Optional[Callable] = None,
     progress_callback: Optional[Callable] = None
-) -> Tuple[List[str], TranslationStats]:
+) -> Tuple[List[str], TranslationMetrics]:
     """Translate all chunks with fallback.
 
     Args:
@@ -691,7 +691,7 @@ async def _translate_all_chunks(
     Returns:
         Tuple of (translated_chunks, statistics)
     """
-    stats = TranslationStats()
+    stats = TranslationMetrics()
     translated_chunks = []
 
     for i, chunk in enumerate(chunks):
@@ -837,14 +837,14 @@ def _replace_body(
 
 
 def _report_statistics(
-    stats: TranslationStats,
+    stats: TranslationMetrics,
     log_callback: Optional[Callable] = None,
     progress_callback: Optional[Callable] = None
 ) -> None:
     """Report translation statistics.
 
     Args:
-        stats: TranslationStats instance
+        stats: TranslationMetrics instance
         log_callback: Optional callback for logging
         progress_callback: Optional callback for progress percentage
     """
@@ -1023,7 +1023,7 @@ async def translate_xhtml_simplified(
     container: Optional[TranslationContainer] = None,
     prompt_options: Optional[Dict] = None,
     bilingual: bool = False
-) -> Tuple[bool, 'TranslationStats']:
+) -> Tuple[bool, 'TranslationMetrics']:
     """
     Translate an XHTML document using the simplified approach.
 
@@ -1053,7 +1053,7 @@ async def translate_xhtml_simplified(
         bilingual: If True, output will contain both original and translated text
 
     Returns:
-        Tuple of (success: bool, stats: TranslationStats)
+        Tuple of (success: bool, stats: TranslationMetrics)
     """
     # Use config value if not provided
     if max_tokens_per_chunk is None:
@@ -1070,8 +1070,7 @@ async def translate_xhtml_simplified(
     if not body_html or body_element is None:
         if log_callback:
             log_callback("no_body", "No <body> element found")
-        from .translation_metrics import TranslationStats
-        return False, TranslationStats()
+        return False, TranslationMetrics()
 
     # 2. Tag Preservation
     # Technical protection is now always enabled

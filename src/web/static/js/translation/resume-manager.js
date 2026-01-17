@@ -234,7 +234,7 @@ export const ResumeManager = {
 
             // Update title with actual filename
             const fileName = jobData.config?.output_filename || 'resumed translation';
-            DomHelpers.setText('currentFileProgressTitle', `📊 Resuming: ${fileName}`);
+            DomHelpers.setText('currentFileProgressTitle', `Resuming: ${fileName}`);
 
             // Show stats grid
             DomHelpers.show('statsGrid');

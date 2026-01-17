@@ -480,7 +480,7 @@ async def _translate_single_file(
     progress_callback: Optional[Callable] = None,
     prompt_options: Optional[Dict] = None,
     bilingual: bool = False
-) -> Tuple[Optional[etree._Element], str, bool, Optional['TranslationStats']]:
+) -> Tuple[Optional[etree._Element], str, bool, Optional['TranslationMetrics']]:
     """Translate a single XHTML file.
 
     Args:
@@ -554,15 +554,15 @@ async def _translate_single_file(
             from .xhtml_translator import _log_error
             _log_error(log_callback, "epub_xml_error",
                          f"XML error in '{content_href}': {e_xml}")
-        from .translation_metrics import TranslationStats
-        return None, file_path_abs, False, TranslationStats()
+        from .translation_metrics import TranslationMetrics
+        return None, file_path_abs, False, TranslationMetrics()
     except Exception as e_file:
         if log_callback:
             from .xhtml_translator import _log_error
             _log_error(log_callback, "epub_file_error",
                          f"Error processing '{content_href}': {e_file}")
-        from .translation_metrics import TranslationStats
-        return None, file_path_abs, False, TranslationStats()
+        from .translation_metrics import TranslationMetrics
+        return None, file_path_abs, False, TranslationMetrics()
 
 
 async def _count_all_chunks(
@@ -737,8 +737,8 @@ async def _process_all_content_files(
     global_chunk_index = 0  # Track global chunk index across all files
 
     # Accumulate translation statistics across all files
-    from .translation_metrics import TranslationStats
-    accumulated_stats = TranslationStats()
+    from .translation_metrics import TranslationMetrics
+    accumulated_stats = TranslationMetrics()
 
     iterator = tqdm(
         enumerate(content_files),
