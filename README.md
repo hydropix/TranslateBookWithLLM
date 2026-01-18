@@ -8,7 +8,7 @@ Translate **books**, **subtitles**, and **documents** using AI - locally or in t
 
 **Resume anytime.** Interrupted translation? Pick up exactly where you left off. The checkpoint system saves progress automatically.
 
-Formats: **EPUB**, **SRT**, **TXT**
+Formats: **EPUB**, **SRT**, **DOCX**, **TXT**
 
 Providers: **Ollama** (local), **OpenRouter**, **OpenAI** (compatible like LM Studio), **Gemini**
 
