@@ -93,7 +93,7 @@ jobs:
         Different models perform better for different target languages!
 
         See our comprehensive benchmarks to find the best model for your target language:
-        https://github.com/hydropix/TranslateBookWithLLM/wiki
+        https://github.com/hydropix/TranslateBooksWithLLMs/wiki
 
         Benchmarks include 11 models tested across 19 languages with accuracy, fluency, and style scores.
 
@@ -120,9 +120,9 @@ jobs:
 
         ## Links
 
-        - Full Documentation: https://github.com/hydropix/TranslateBookWithLLM
-        - Model Benchmarks: https://github.com/hydropix/TranslateBookWithLLM/wiki
-        - Report Issues: https://github.com/hydropix/TranslateBookWithLLM/issues
+        - Full Documentation: https://github.com/hydropix/TranslateBooksWithLLMs
+        - Model Benchmarks: https://github.com/hydropix/TranslateBooksWithLLMs/wiki
+        - Report Issues: https://github.com/hydropix/TranslateBooksWithLLMs/issues
         - OpenRouter Models: https://openrouter.ai/models (200+ cloud models)
         EOF
 
