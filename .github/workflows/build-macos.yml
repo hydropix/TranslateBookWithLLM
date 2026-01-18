@@ -42,7 +42,7 @@ jobs:
 
     - name: Build executable
       run: |
-        pyinstaller --clean TranslateBook-macOS.spec
+        pyinstaller --clean build/macos/TranslateBook-macOS.spec
 
     - name: Get executable info
       id: exe_info

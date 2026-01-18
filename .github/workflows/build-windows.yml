@@ -31,7 +31,7 @@ jobs:
 
     - name: Build executable
       run: |
-        pyinstaller --clean TranslateBook.spec
+        pyinstaller --clean build/windows/TranslateBook.spec
 
     - name: Get executable size
       id: exe_info

@@ -10,7 +10,7 @@ echo "============================================"
 echo ""
 
 # Check if virtual environment exists
-if [ ! -d "venv" ]; then
+if [ ! -d "../../venv" ]; then
     echo "[ERROR] Virtual environment not found"
     echo "Please create one first:"
     echo "  python3 -m venv venv"
@@ -21,7 +21,7 @@ fi
 
 # Activate virtual environment
 echo "[1/4] Activating virtual environment..."
-source venv/bin/activate
+source ../../venv/bin/activate
 
 # Install PyInstaller if not already installed
 echo "[2/4] Checking PyInstaller installation..."
@@ -33,7 +33,7 @@ echo "[OK] PyInstaller ready"
 
 # Clean previous builds
 echo "[3/4] Cleaning previous builds..."
-rm -rf dist build
+rm -rf ../../dist ../dist ../TranslateBookWithLLM
 echo "[OK] Cleaned"
 
 # Build executable
@@ -53,11 +53,11 @@ echo "============================================"
 echo "Build Complete!"
 echo "============================================"
 echo ""
-echo "Executable location: dist/TranslateBook"
+echo "Executable location: ../../dist/TranslateBook"
 
 # Get file size
-if [ -f "dist/TranslateBook" ]; then
-    SIZE=$(ls -lh dist/TranslateBook | awk '{print $5}')
+if [ -f "../../dist/TranslateBook" ]; then
+    SIZE=$(ls -lh ../../dist/TranslateBook | awk '{print $5}')
     echo "File size: $SIZE"
 fi
 

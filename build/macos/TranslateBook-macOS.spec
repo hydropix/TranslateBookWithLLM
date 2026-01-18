@@ -9,10 +9,10 @@ tiktoken_ext_dir = os.path.dirname(tiktoken_ext.openai_public.__file__)
 
 # Prepare datas list
 datas_list = [
-    ('src/web/static', 'src/web/static'),
-    ('src/web/templates', 'src/web/templates'),
-    ('src', 'src'),
-    ('.env.example', '.'),
+    ('../../src/web/static', 'src/web/static'),
+    ('../../src/web/templates', 'src/web/templates'),
+    ('../../src', 'src'),
+    ('../../.env.example', '.'),
 ]
 
 # Add tiktoken_ext if directory exists
@@ -20,7 +20,7 @@ if os.path.exists(tiktoken_ext_dir):
     datas_list.append((tiktoken_ext_dir, 'tiktoken_ext/openai_public'))
 
 a = Analysis(
-    ['launcher.py'],
+    ['../../launcher.py'],
     pathex=[],
     binaries=[],
     datas=datas_list,
@@ -54,8 +54,6 @@ a = Analysis(
     hooksconfig={},
     runtime_hooks=[],
     excludes=[],
-    win_no_prefer_redirects=False,
-    win_private_assemblies=False,
     cipher=block_cipher,
     noarchive=False,
 )
@@ -78,8 +76,8 @@ exe = EXE(
     runtime_tmpdir=None,
     console=True,
     disable_windowed_traceback=False,
-    argv_emulation=False,
-    target_arch=None,
+    argv_emulation=True,  # Enable for macOS compatibility
+    target_arch=None,  # Will build for current architecture (arm64 or x86_64)
     codesign_identity=None,
     entitlements_file=None,
     icon=None,

@@ -9,7 +9,8 @@ CLAUDE.md
 .env
 /venv
 build_installer.bat
-build/
+build/dist/
+build/TranslateBookWithLLM/
 /dist
 /wiki/
 .wiki_repo/

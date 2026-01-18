@@ -10,7 +10,7 @@ echo ============================================
 echo.
 
 REM Check if virtual environment exists
-if not exist "venv" (
+if not exist "..\..\venv" (
     echo [ERROR] Virtual environment not found
     echo Please run start.bat first to set up the environment
     pause
@@ -19,7 +19,7 @@ if not exist "venv" (
 
 REM Activate virtual environment
 echo [1/4] Activating virtual environment...
-call venv\Scripts\activate.bat
+call ..\..\venv\Scripts\activate.bat
 
 REM Install PyInstaller if not already installed
 echo [2/4] Checking PyInstaller installation...
@@ -32,8 +32,9 @@ echo [OK] PyInstaller ready
 
 REM Clean previous builds
 echo [3/4] Cleaning previous builds...
-if exist "dist" rmdir /s /q dist
-if exist "build" rmdir /s /q build
+if exist "..\..\dist" rmdir /s /q ..\..\dist
+if exist "..\dist" rmdir /s /q ..\dist
+if exist "..\TranslateBookWithLLM" rmdir /s /q ..\TranslateBookWithLLM
 echo [OK] Cleaned
 
 REM Build executable
@@ -54,9 +55,9 @@ echo ============================================
 echo Build Complete!
 echo ============================================
 echo.
-echo Executable location: dist\TranslateBook.exe
+echo Executable location: ..\..\dist\TranslateBook.exe
 echo File size:
-for %%A in (dist\TranslateBook.exe) do echo %%~zA bytes (approx. %%~zA / 1048576 MB)
+for %%A in (..\..\dist\TranslateBook.exe) do echo %%~zA bytes (approx. %%~zA / 1048576 MB)
 echo.
 echo You can now distribute this single .exe file
 echo Users need to have Ollama installed separately
