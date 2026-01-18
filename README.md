@@ -1,4 +1,4 @@
-# <img src="https://github.com/hydropix/TranslateBookWithLLM/blob/main/src/web/static/TBL-Logo-alpha.png?raw=true" alt="Logo" height="40"> Translate Books with LLMs
+# <img src="https://github.com/hydropix/TranslateBooksWithLLMs/blob/main/src/web/static/TBL-Logo-alpha.png?raw=true" alt="Logo" height="40"> Translate Books with LLMs
 
 Translate **books**, **subtitles**, and **documents** using AI - locally or in the cloud.
 
@@ -12,7 +12,7 @@ Formats: **EPUB**, **SRT**, **TXT**
 
 Providers: **Ollama** (local), **OpenRouter**, **OpenAI** (compatible like LM Studio), **Gemini**
 
-> **[Translation Quality Benchmarks](https://github.com/hydropix/TranslateBookWithLLM/wiki)** — Find the best model for your target language.
+> **[Translation Quality Benchmarks](https://github.com/hydropix/TranslateBooksWithLLMs/wiki)** — Find the best model for your target language.
 
 ---
 
@@ -20,7 +20,7 @@ Providers: **Ollama** (local), **OpenRouter**, **OpenAI** (compatible like LM St
 
 ### Download Executable (No Python Required!)
 
-[![Download Windows](https://img.shields.io/badge/Download-Windows-blue?style=for-the-badge&logo=windows)](https://github.com/hydropix/TranslateBookWithLLM/releases/latest/download/TranslateBook-Windows.zip) [![Download macOS Intel](https://img.shields.io/badge/Download-macOS%20Intel-black?style=for-the-badge&logo=apple)](https://github.com/hydropix/TranslateBookWithLLM/releases/latest/download/TranslateBook-macOS-Intel.zip) [![Download macOS Apple Silicon](https://img.shields.io/badge/Download-macOS%20M1%2FM2%2FM3%2FM4-black?style=for-the-badge&logo=apple)](https://github.com/hydropix/TranslateBookWithLLM/releases/latest/download/TranslateBook-macOS-AppleSilicon.zip)
+[![Download Windows](https://img.shields.io/badge/Download-Windows-blue?style=for-the-badge&logo=windows)](https://github.com/hydropix/TranslateBooksWithLLMs/releases/latest/download/TranslateBook-Windows.zip) [![Download macOS Intel](https://img.shields.io/badge/Download-macOS%20Intel-black?style=for-the-badge&logo=apple)](https://github.com/hydropix/TranslateBooksWithLLMs/releases/latest/download/TranslateBook-macOS-Intel.zip) [![Download macOS Apple Silicon](https://img.shields.io/badge/Download-macOS%20M1%2FM2%2FM3%2FM4-black?style=for-the-badge&logo=apple)](https://github.com/hydropix/TranslateBooksWithLLMs/releases/latest/download/TranslateBook-macOS-AppleSilicon.zip)
 
 1. Download and extract the archive for your platform
 2. Install [Ollama](https://ollama.com/) (for local AI models)
@@ -38,7 +38,7 @@ Providers: **Ollama** (local), **OpenRouter**, **OpenAI** (compatible like LM St
 **Prerequisites:** [Python 3.8+](https://www.python.org/downloads/), [Ollama](https://ollama.com/), [Git](https://git-scm.com/)
 
 ```bash
-git clone https://github.com/hydropix/TranslateBookWithLLM.git
+git clone https://github.com/hydropix/TranslateBooksWithLLMs.git
 cd TranslateBookWithLLM
 ollama pull qwen3:14b    # Download a model
 
@@ -169,7 +169,7 @@ See [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) for more solutions.
 
 ## Links
 
-- [Report Issues](https://github.com/hydropix/TranslateBookWithLLM/issues)
+- [Report Issues](https://github.com/hydropix/TranslateBooksWithLLMs/issues)
 - [OpenRouter Models](https://openrouter.ai/models)
 
 ---
