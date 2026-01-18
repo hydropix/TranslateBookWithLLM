@@ -279,6 +279,7 @@ class DocxTranslationAdapter(TranslationAdapter[str, bytes]):
 
             # Restore statistics
             stats = TranslationMetrics.from_dict(resume_state.stats) if resume_state.stats else TranslationMetrics()
+            stats.total_chunks = len(chunks)  # Ensure total_chunks is set from restored chunks
 
             # Restore tag_preserver
             tag_preserver = self.tag_preserver
@@ -319,6 +320,10 @@ class DocxTranslationAdapter(TranslationAdapter[str, bytes]):
             metadata = context['metadata']
 
         # 4. Translation with checkpoint support
+        # For DOCX, we have a single file so global stats = local stats
+        total_chunks = len(chunks)
+        completed_chunks = len(translated_chunks) if translated_chunks else 0
+
         translated_chunks, stats, was_interrupted = await _translate_all_chunks_with_checkpoint(
             chunks=chunks,
             source_language=source_language,
@@ -340,6 +345,9 @@ class DocxTranslationAdapter(TranslationAdapter[str, bytes]):
             global_tag_map=global_tag_map,
             stats=stats,
             prompt_options=prompt_options,
+            # Pass global stats for DOCX (single file = global stats)
+            global_total_chunks=total_chunks,
+            global_completed_chunks=completed_chunks,
         )
 
         # If interrupted, save state and return partial result
